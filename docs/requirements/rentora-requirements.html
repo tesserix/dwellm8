@@ -87,7 +87,7 @@
   <div class="title">High-Level Product Requirements<br>&amp; User Story Catalogue</div>
   <div class="sub">A mobile-first, one-stop property operating system for India — covering residential rentals, hostels and PG accommodation, and commercial premises, with the property manager as the operating middle layer between owners, tenants and service providers. Free to use, monetised on transactions.</div>
   <div class="meta">
-    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.4)</div>
+    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.5)</div>
     <div><b>Product</b> &nbsp; Rentora · <code>tesserix/rentora</code></div>
     <div><b>Date</b> &nbsp; 29 July 2026</div>
     <div><b>Monetisation</b> &nbsp; No subscriptions — flat 3.9% platform fee on in-app payments; premium AI tier ₹499/org/month (future)</div>
@@ -104,10 +104,10 @@
     <li><b>Personas and roles</b> <span>— nine actors, what each is accountable for</span></li>
     <li><b>The three verticals</b> <span>— residential, hostel/PG/co-living, commercial</span></li>
     <li><b>The operating model</b> <span>— money flows, cost sharing, the manager's mandate</span></li>
-    <li><b>Module requirements and user stories</b> <span>— M1–M18, 241 stories</span></li>
+    <li><b>Module requirements and user stories</b> <span>— M1–M18, 246 stories</span></li>
     <li><b>Mobile-first experience requirements</b> <span>— five apps and the web surfaces; Admin is both</span></li>
     <li><b>Critical end-to-end workflows</b> <span>— the five journeys that cross every module</span></li>
-    <li><b>Integrations, data, stack and identity</b> <span>— adapters, schema rules, technology choices, and the authorisation model</span></li>
+    <li><b>Integrations, data, stack, identity and access</b> <span>— adapters, stack, the authorisation model, access tiers and demo data</span></li>
     <li><b>Non-functional requirements</b> <span>— reliability, security, performance, scale</span></li>
     <li><b>India regulatory summary</b> <span>— payments, documents, tax, privacy</span></li>
     <li><b>Phased delivery plan</b> <span>— what ships when, and why in that order</span></li>
@@ -736,6 +736,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>SAL-29</td><td>Hostel operator</td><td>a bed-level listing with sharing type, gender policy, mess inclusion and available-from date</td><td>a student can find and reserve a bed before arriving in the city</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>SAL-30</td><td>Commercial manager</td><td>a commercial listing with chargeable area, floor, fit-out status, CAM and parking</td><td>a business can evaluate the space on the terms it actually cares about</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>SAL-31</td><td>Prospect</td><td>a shareable listing link that previews correctly on WhatsApp</td><td>I can send it to my family and decide together</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-32</td><td>Anonymous visitor</td><td>to browse listings and understand what Rentora does without creating an account</td><td>I can judge whether it is worth signing up before I hand over my number</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>SAL-17</td><td>Platform Admin</td><td>listing moderation and compliance guardrails on claims</td><td>the platform is not liable for what an agent wrote at midnight</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>SAL-18</td><td>Seller</td><td>outstanding society dues and tenancy encumbrances flagged before listing</td><td>a sale does not collapse at the NOC stage</td><td><span class="pill p3">P3</span></td></tr>
 </table>
@@ -756,6 +757,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>ADM-08</td><td>Platform Admin</td><td>platform health — collections, dispatch, delivery, drift — in one dashboard</td><td>we know something is broken before a customer tells us</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>ADM-11</td><td>Platform Admin</td><td>push alerts for platform health, SLO breach and reconciliation spikes, with acknowledgement</td><td>on-call learns about an incident without watching a dashboard</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>ADM-12</td><td>Platform Admin</td><td>to clear approval queues and triage disputes from my phone with the same permissions and audit trail</td><td>a verification or a stuck payout does not wait until I reach a desk</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>ADM-13</td><td>Platform Admin</td><td>administrative surfaces reachable only by an authenticated identity with MFA, with no anonymous or demo path</td><td>the control plane cannot be reached by anyone who has not proven who they are</td><td><span class="pill p0">P0</span></td></tr>
   <tr><td>ADM-09</td><td>Platform Admin</td><td>content moderation and takedown for listings and uploaded media</td><td>the marketplace stays lawful and usable</td><td><span class="pill p2">P2</span></td></tr>
 </table>
 
@@ -768,6 +770,9 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>RPT-04</td><td>Manager</td><td>a maintenance spend analysis by category, vendor and property</td><td>I can renegotiate rates and spot a recurring failure</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>RPT-05</td><td>Operator</td><td>hostel occupancy and revenue per bed by room type and season</td><td>pricing and capacity decisions are evidence-based</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>RPT-06</td><td>Manager</td><td>scheduled reports delivered to owners automatically</td><td>reporting is not a monthly manual ritual</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>RPT-08</td><td>New owner or manager</td><td>a populated demonstration workspace on first sign-in, clearly marked as sample data</td><td>I can see exactly what the product does before entering anything of my own</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>RPT-09</td><td>New owner or manager</td><td>to explore the sample portfolio — open a tenancy, raise a ticket, walk an approval, view a statement</td><td>I learn the product by using it rather than by reading a tour</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>RPT-10</td><td>New owner or manager</td><td>the demonstration workspace removed entirely the moment I add my first real property</td><td>sample figures can never be confused with my money</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>RPT-07</td><td>Platform Admin</td><td>anonymised market benchmarks above a minimum aggregation threshold</td><td>customers get insight without any organisation being identifiable</td><td><span class="pill p3">P3</span></td></tr>
 </table>
 
@@ -998,6 +1003,41 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>Anonymous access is modelled too</td><td>A prospect browsing listings has no identity. Public read access is an explicit relation in the model, not an unauthenticated code path that skips the check.</td></tr>
 </table>
 
+<h3>9.5 Access tiers — from anonymous browsing to administrative login</h3>
+
+<p>Five tiers, each an explicit relation in the authorisation model. Nothing is reachable by "not being checked"; the anonymous tier is a modelled permission like any other.</p>
+
+<table>
+  <tr><th style="width:17%">Tier</th><th style="width:16%">Who</th><th style="width:34%">Can see and do</th><th>Cannot, under any circumstance</th></tr>
+  <tr><td><strong>Anonymous</strong></td><td>Prospective tenant, hostel seeker, commercial occupier, curious owner — no account</td><td>Browse and search published listings; open a listing with photos, amenities and the full cost breakdown; see approximate location; view the public product pages that explain how Rentora works; shortlist locally on the device; share a listing</td><td>See exact addresses, occupant details, owner or manager phone numbers, any unpublished unit, any financial record, or any authenticated screen</td></tr>
+  <tr><td><strong>Verified prospect</strong></td><td>Someone who has verified a phone number to act</td><td>Enquire, message the manager through masking, book an inspection, save a search, persist a shortlist, apply for a tenancy</td><td>See anything about a property beyond what its listing publishes, or contact anyone outside the enquiry they created</td></tr>
+  <tr><td><strong>Customer</strong></td><td>Tenant, resident, guardian, owner</td><td>Everything scoped to their own occupancy, property or portfolio</td><td>Reach another organisation's data by any route</td></tr>
+  <tr><td><strong>Operator</strong></td><td>Manager, field agent, warden, technician, agent</td><td>What their assignment or mandate grants, and only for its validity period</td><td>Act beyond the mandate's scope, spend authority or dates</td></tr>
+  <tr><td><strong>Administrator</strong></td><td>Rentora platform staff</td><td>Explicitly modelled administrative relations, on web and the Admin app</td><td><strong>Exist anonymously at all</strong> — see below</td></tr>
+</table>
+
+<div class="callout warn">
+  <span class="h">Administrative access — authenticated always, no exceptions</span>
+  <p>There is <strong>no anonymous or unauthenticated path into any administrative surface</strong>, on web or mobile. No public admin route, no demo admin, no shared credential, no read-only preview. Every administrative session is an authenticated GIP identity with mandatory multi-factor authentication, a shorter session lifetime, re-authentication before sensitive actions, and a full access audit that records what was viewed as well as what was changed. The Admin console is excluded from search indexing and should be reachable only from an approved network path. If an administrative screen can be rendered without a verified identity, that is a defect of the highest severity, not a convenience.</p>
+</div>
+
+<h3>9.6 Demonstration data — showing the product before there is anything in it</h3>
+
+<p>An owner who signs up has an empty dashboard, and an empty dashboard sells nothing. The first-run experience therefore presents a <strong>fully populated demonstration workspace</strong> — a sample portfolio with properties, tenancies, collections, arrears, tickets, vendor jobs and statements — so a prospective customer can see exactly what the product does with their own hands before entering a single real record. The same populated views drive the public product pages and sales demonstrations.</p>
+
+<p>This is a marketing surface pointed at a financial product, so the rules protecting it are strict.</p>
+
+<table>
+  <tr><th style="width:26%">Rule</th><th>Detail</th></tr>
+  <tr><td><strong>Unmistakably labelled</strong></td><td>Persistent, non-dismissable sample-data marking on every screen and every export while demonstration mode is active. A screenshot taken from it must be self-evidently a sample.</td></tr>
+  <tr><td><strong>Never mixed with real data</strong></td><td>Demonstration records live in an isolated demo organisation. They are never queryable, joinable or aggregable with real records, and they never appear in any real balance, statement, report or analytics extract.</td></tr>
+  <tr><td><strong>Inert by construction</strong></td><td>No ledger posting, no invoice number consumed, no payment, no payout, no platform fee, no WhatsApp or SMS message, no push notification, no webhook and no vendor dispatch can originate from demonstration data. The isolation is enforced in the services, not by hoping nobody presses the button.</td></tr>
+  <tr><td><strong>No real people</strong></td><td>Sample tenants, owners, vendors and technicians are clearly fictional, with reserved phone numbers and non-routable contact details. No real person's name, photo, phone number or property ever appears.</td></tr>
+  <tr><td><strong>Exits cleanly</strong></td><td>Adding the first real property, or one explicit action, removes the demonstration workspace entirely and irreversibly. It is never merged, never partially retained, and never leaves an orphaned record behind.</td></tr>
+  <tr><td><strong>Explorable, not just decorative</strong></td><td>The user can open a tenancy, raise a sample ticket, walk an approval and view a statement. A static screenshot is not the requirement; a working sandbox is.</td></tr>
+  <tr><td><strong>Never for administrators</strong></td><td>Demonstration mode exists for owners, managers and operators evaluating the product. Administrative surfaces have no demo mode and no sample tenant — they show real platform state to an authenticated administrator, or nothing.</td></tr>
+</table>
+
 <h2><span class="num">10.</span> Non-functional requirements</h2>
 
 <table>
@@ -1115,7 +1155,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <div class="callout warn" style="margin-top:22px">
   <span class="h">Document control</span>
-  <p>Version 1.4 settles identity and authorisation — Google Identity Platform for every user, OpenFGA plus RBAC for permissions. Version 1.3 added public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
+  <p>Version 1.5 defines the five access tiers, the no-anonymous rule for administrative surfaces, and the demonstration-data workspace. Version 1.4 settled identity and authorisation — Google Identity Platform for every user, OpenFGA plus RBAC for permissions. Version 1.3 added public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
 </div>
 
 </body>
