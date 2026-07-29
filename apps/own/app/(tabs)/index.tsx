@@ -26,7 +26,7 @@ import {
   shadow,
   space,
   ui,
-} from '@rentora/mobile-shared';
+} from '@dwellm8/mobile-shared';
 
 export default function Home() {
   const router = useRouter();

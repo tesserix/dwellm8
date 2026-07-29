@@ -1,4 +1,4 @@
-# Rentora Own
+# dwellm8 Own
 
 The property owner's app — the surface an owner opens to answer one question:
 *did I get paid, and what came out before I did?*

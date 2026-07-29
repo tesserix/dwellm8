@@ -13,7 +13,7 @@ import {
   color,
   font,
   space,
-} from '@rentora/mobile-shared';
+} from '@dwellm8/mobile-shared';
 
 export default function Profile() {
   const router = useRouter();

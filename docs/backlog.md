@@ -1,11 +1,11 @@
 # Backlog conventions
 
-The Rentora backlog follows the same model as the other tesserix planning repositories
+The dwellm8 backlog follows the same model as the other tesserix planning repositories
 (`tesserix/hms`, `tesserix/TripBaba`): every work item is a GitHub issue in this
 repository written to a single engineering-story template, classified by labels, and
 tracked on one org-level project board.
 
-**Board:** _Rentora — Property Management Platform_ (private, org-scoped, two views — a
+**Board:** _dwellm8 — Property Management Platform_ (private, org-scoped, two views — a
 backlog table and a status board). Link added once the board is created.
 
 Until the board exists, **MVP and Priority are carried as labels** (`mvp:MVP 1`,
@@ -123,7 +123,7 @@ UX & Design System · Admin & Internal Control Plane
 - Statutory rates, slabs and thresholds live in versioned, state-scoped rule tables with
   an owner and a review date — never as constants in a service.
 - Offline payments (cash, IMPS, NEFT) are first-class, with evidence and a real receipt.
-- All SQL schema lives in `tesserix-k8s/charts/apps/db-schema-bootstrap/schemas/rentora/` —
+- All SQL schema lives in `tesserix-k8s/charts/apps/db-schema-bootstrap/schemas/dwellm8/` —
   this repository holds ORM models only.
 - Helm values carry memory requests/limits only; no CPU requests or limits.
 - ArgoCD owns cluster state; images promote through Kargo. No manual `kubectl apply`.

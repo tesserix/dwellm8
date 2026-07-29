@@ -15,7 +15,7 @@ import {
   color,
   font,
   space,
-} from '@rentora/mobile-shared';
+} from '@dwellm8/mobile-shared';
 
 export default function JobSheet() {
   const router = useRouter();

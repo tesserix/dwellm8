@@ -7,7 +7,7 @@ import {
   color,
   font,
   shadow,
-} from '@rentora/mobile-shared';
+} from '@dwellm8/mobile-shared';
 
 const tab = (Icon: any) => ({ focused }: { focused: boolean }) => (
   <Icon size={26} c={focused ? color.accent : color.inkFaint} w={focused ? 2.1 : 1.8} />

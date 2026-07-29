@@ -1,6 +1,6 @@
-# Rentora — product & architecture brief
+# dwellm8 — product & architecture brief
 
-The reference document for what Rentora is, what it refuses to be, and the architectural
+The reference document for what dwellm8 is, what it refuses to be, and the architectural
 decisions that later issues must respect. Regulatory, payment and tax mechanics live in
 [`india-compliance.md`](india-compliance.md); backlog taxonomy lives in
 [`backlog.md`](backlog.md).
@@ -14,7 +14,7 @@ owner keeps a WhatsApp thread and a notebook. The management firm keeps twelve E
 files. The society keeps a register at the gate and a Tally file the treasurer's CA
 touches once a year. Everyone involved knows exactly what is owed and can prove none of it.
 
-Rentora's position is **the system of record for a rented property in India** — one
+dwellm8's position is **the system of record for a rented property in India** — one
 property, one lease, one ledger, one document set — with four front doors onto it. It is
 not a listings portal that added rent collection, and not a payments app that added a
 property list.
@@ -26,11 +26,11 @@ trustworthy. That gap is the wedge.
 
 ## Non-goals
 
-- Not a brokerage. Rentora may originate leases, but the platform does not take
+- Not a brokerage. dwellm8 may originate leases, but the platform does not take
   possession of the transaction as a broker with an inventory obligation.
 - Not a lender. Rent-now-pay-later and deposit financing are partner-provided, never
   balance-sheet products, and never in MVP 1–4.
-- Not an escrow. Money moves owner ↔ tenant through a regulated PA/PG; Rentora is not a
+- Not an escrow. Money moves owner ↔ tenant through a regulated PA/PG; dwellm8 is not a
   custodian of client funds and the architecture must never quietly become one.
 - Not a valuation or investment product.
 
@@ -202,7 +202,7 @@ Designed in from day one — retrofitting is brutal and this org has learned it 
 
 - `tenant_id` (organisation) on every table, RLS enforced in PostgreSQL, and a shared SDK
   that binds it from the request context so no handler can forget.
-- Whitelabel from MVP 5: a PM firm or a large society federation runs Rentora on its own
+- Whitelabel from MVP 5: a PM firm or a large society federation runs dwellm8 on its own
   subdomain with its own branding, notification templates and support routing.
 - Cross-organisation reads (a firm managing an owner's unit) always traverse a grant
   object; there is no "trusted internal query" that bypasses RLS.
@@ -220,7 +220,7 @@ who paid must never receive the next reminder in the ladder.
 ## Data platform
 
 - PostgreSQL (CNPG) as the transactional store; **all SQL schema lives in
-  `tesserix-k8s/charts/apps/db-schema-bootstrap/schemas/rentora/`** — this repository
+  `tesserix-k8s/charts/apps/db-schema-bootstrap/schemas/dwellm8/`** — this repository
   holds ORM models only.
 - Redis for cache, locks and rate limits. NATS JetStream for the domain event backbone,
   with an outbox on every write path so no event is lost on a pod roll.

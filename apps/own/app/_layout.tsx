@@ -4,7 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   Shell,
   color,
-} from '@rentora/mobile-shared';
+} from '@dwellm8/mobile-shared';
 
 export default function RootLayout() {
   return (

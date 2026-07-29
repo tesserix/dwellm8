@@ -2,7 +2,7 @@
 
 | Document | Source | Output |
 |---|---|---|
-| High-Level Product Requirements & User Story Catalogue (v2.0) | `rentora-requirements.html` | [`Rentora-Requirements-v2.0.pdf`](Rentora-Requirements-v2.0.pdf) · [`Rentora-Requirements-v2.0.docx`](Rentora-Requirements-v2.0.docx) |
+| High-Level Product Requirements & User Story Catalogue (v2.0) | `dwellm8-requirements.html` | [`dwellm8-Requirements-v2.0.pdf`](dwellm8-Requirements-v2.0.pdf) · [`dwellm8-Requirements-v2.0.docx`](dwellm8-Requirements-v2.0.docx) |
 
 The PDF is generated from the HTML source — edit the HTML, never the PDF:
 
@@ -10,19 +10,19 @@ The PDF is generated from the HTML source — edit the HTML, never the PDF:
 cd docs/requirements
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \\
   --headless=new --disable-gpu --no-pdf-header-footer \\
-  --print-to-pdf="Rentora-Requirements-v2.0.pdf" \\
-  "file://$PWD/rentora-requirements.html"
+  --print-to-pdf="dwellm8-Requirements-v2.0.pdf" \\
+  "file://$PWD/dwellm8-requirements.html"
 ```
 
 DOCX is produced from the same source:
 
 ```bash
-pandoc rentora-requirements.html -f html -t docx --toc --toc-depth=3 \
-  -o Rentora-Requirements-v2.0.docx
+pandoc dwellm8-requirements.html -f html -t docx --toc --toc-depth=3 \
+  -o dwellm8-Requirements-v2.0.docx
 ```
 
 A copy of both is delivered to `~/Desktop/samyak-work/projects/Property-Manager/` as
-`Rentora_High_Level_Product_Requirements.{pdf,docx}`.
+`dwellm8_High_Level_Product_Requirements.{pdf,docx}`.
 
 v2.0 sets the platform fee at **2.99%**, fixes the backend as **one modular monolith API**
 serving every client, and adds **25 capabilities** found by benchmarking against PropertyMe
@@ -38,7 +38,7 @@ rule-table values, and a per-payout cap ships from day one.
 v1.7 settled three things: the **property manager bears the 3.9% fee** (generalised as
 "the party earning the operating margin" — §5.5, the tenant is never surcharged); the
 **authorisation model shape** with its type inventory, DSL sketch and nine isolation
-invariants (§9.7); and **Rentora Ops as a full web console** that is a peer of the app,
+invariants (§9.7); and **dwellm8 Ops as a full web console** that is a peer of the app,
 not a back-office annexe.
 
 v1.6 added module **M19 Demo & Sandbox** — one fully isolated sandbox serving two jobs:

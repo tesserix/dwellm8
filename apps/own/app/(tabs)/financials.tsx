@@ -23,7 +23,7 @@ import {
   radius,
   space,
   ui,
-} from '@rentora/mobile-shared';
+} from '@dwellm8/mobile-shared';
 
 export default function Financials() {
   const router = useRouter();

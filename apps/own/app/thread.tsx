@@ -15,7 +15,7 @@ import {
   radius,
   shadow,
   space,
-} from '@rentora/mobile-shared';
+} from '@dwellm8/mobile-shared';
 
 export default function Thread() {
   const router = useRouter();

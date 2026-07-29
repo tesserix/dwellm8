@@ -24,7 +24,7 @@ import {
   font,
   radius,
   space,
-} from '@rentora/mobile-shared';
+} from '@dwellm8/mobile-shared';
 
 export default function PropertySheet() {
   const router = useRouter();

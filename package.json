@@ -1,5 +1,5 @@
 {
-  "name": "rentora",
+  "name": "dwellm8",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -9,7 +9,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
-    "@types/react": "~18.3.12",
-    "typescript": "^5.3.3"
+    "@types/react": "~19.2.0",
+    "typescript": "^5.9.2"
   }
 }
