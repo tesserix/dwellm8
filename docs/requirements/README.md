@@ -2,7 +2,7 @@
 
 | Document | Source | Output |
 |---|---|---|
-| High-Level Product Requirements & User Story Catalogue (v1.8) | `rentora-requirements.html` | [`Rentora-Requirements-v1.8.pdf`](Rentora-Requirements-v1.8.pdf) · [`Rentora-Requirements-v1.8.docx`](Rentora-Requirements-v1.8.docx) |
+| High-Level Product Requirements & User Story Catalogue (v1.9) | `rentora-requirements.html` | [`Rentora-Requirements-v1.9.pdf`](Rentora-Requirements-v1.9.pdf) · [`Rentora-Requirements-v1.9.docx`](Rentora-Requirements-v1.9.docx) |
 
 The PDF is generated from the HTML source — edit the HTML, never the PDF:
 
@@ -10,7 +10,7 @@ The PDF is generated from the HTML source — edit the HTML, never the PDF:
 cd docs/requirements
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \\
   --headless=new --disable-gpu --no-pdf-header-footer \\
-  --print-to-pdf="Rentora-Requirements-v1.8.pdf" \\
+  --print-to-pdf="Rentora-Requirements-v1.9.pdf" \\
   "file://$PWD/rentora-requirements.html"
 ```
 
@@ -18,15 +18,16 @@ DOCX is produced from the same source:
 
 ```bash
 pandoc rentora-requirements.html -f html -t docx --toc --toc-depth=3 \
-  -o Rentora-Requirements-v1.8.docx
+  -o Rentora-Requirements-v1.9.docx
 ```
 
 A copy of both is delivered to `~/Desktop/samyak-work/projects/Property-Manager/` as
 `Rentora_High_Level_Product_Requirements.{pdf,docx}`.
 
-v1.8 charges the 3.9% platform fee on **both legs** of the money flow — the tenant bears
-it paying rent in, the property manager bears it paying the owner out (~7.8% effective per
-managed rent cycle). Rate, base, cap and bearer are per-leg rule-table values.
+v1.9 charges the 3.9% platform fee **once, deducted by the property manager when they pay
+the owner** — the tenant is never surcharged for paying rent. Payment instrument costs
+(card, netbanking, NACH) are separate disclosed pass-throughs. Rate, base and cap are
+rule-table values, and a per-payout cap ships from day one.
 
 v1.7 settled three things: the **property manager bears the 3.9% fee** (generalised as
 "the party earning the operating margin" — §5.5, the tenant is never surcharged); the

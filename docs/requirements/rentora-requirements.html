@@ -87,10 +87,10 @@
   <div class="title">High-Level Product Requirements<br>&amp; User Story Catalogue</div>
   <div class="sub">A mobile-first, one-stop property operating system for India — covering residential rentals, hostels and PG accommodation, and commercial premises, with the property manager as the operating middle layer between owners, tenants and service providers. Free to use, monetised on transactions.</div>
   <div class="meta">
-    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.8)</div>
+    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.9)</div>
     <div><b>Product</b> &nbsp; Rentora · <code>tesserix/rentora</code></div>
     <div><b>Date</b> &nbsp; 29 July 2026</div>
-    <div><b>Monetisation</b> &nbsp; No subscriptions — 3.9% platform fee on both legs (tenant in, manager out); premium AI tier ₹499/org/month (future)</div>
+    <div><b>Monetisation</b> &nbsp; No subscriptions — 3.9% platform fee deducted by the manager at payout; instrument costs passed through; premium AI tier ₹499/org/month (future)</div>
     <div><b>Status</b> &nbsp; Draft for review — supersedes the vertical and pricing scope in <code>docs/product-brief.md</code></div>
     <div><b>Audience</b> &nbsp; Product, engineering, design, compliance and commercial stakeholders</div>
   </div>
@@ -264,8 +264,9 @@ FLOW B — PAYOUT            Collections ─► [ − manager fee − GST − TD
 FLOW C — SERVICE JOB       Liable party ──► Vendor  (direct)   or
                            Platform pays vendor ──► recovers from liable party in the next cycle
 
-FLOW D — PLATFORM REVENUE  3.9% on BOTH legs: tenant pays in (tenant bears)
-                                                  manager pays owner out (manager bears)
+FLOW D — PLATFORM REVENUE  3.9% deducted by the manager when paying the owner
+                           (outbound leg only; tenant never surcharged)
+                           + card/netbanking instrument cost passed through separately
                            + premium AI tier INR 499/org/month (future)
                            + sale brokerage share + partner referral fees</div>
 
@@ -333,7 +334,7 @@ FLOW D — PLATFORM REVENUE  3.9% on BOTH legs: tenant pays in (tenant bears)
 
 <div class="callout">
   <span class="h">The pricing rule</span>
-  <p><strong>A flat 3.9% platform fee on every payment transacted through the app — charged on both legs of the money flow.</strong> The tenant bears it when they pay rent in, and the property manager bears it when they pay the owner out. No subscription, no per-unit charge, no feature gating, no seat limits. Every capability in this document — collections, agreements, maintenance, marketplace, hostel, commercial, accounting, sales — is included from day one. The only future exception is the premium AI tier described in §5.6.</p>
+  <p><strong>A flat 3.9% platform fee, deducted by the property manager when they pay the owner.</strong> It is charged once per rent cycle, on the outbound leg only. The tenant pays exactly the rent — there is no surcharge on money coming in. No subscription, no per-unit charge, no feature gating, no seat limits. Every capability in this document — collections, agreements, maintenance, marketplace, hostel, commercial, accounting, sales — is included from day one. The only future exception is the premium AI tier described in §5.6.</p>
 </div>
 
 <h4>Why this works</h4>
@@ -347,42 +348,43 @@ FLOW D — PLATFORM REVENUE  3.9% on BOTH legs: tenant pays in (tenant bears)
 <h4>What the fee applies to</h4>
 <table>
   <tr><th style="width:34%">Transaction</th><th style="width:13%">Fee applies</th><th>Notes</th></tr>
-  <tr><td><strong>Inbound leg</strong> — rent, hostel fee, society dues, CAM, utilities paid in-app by the tenant</td><td><strong>Yes — 3.9%</strong><br><span class="nb">borne by the tenant</span></td><td>The primary and highest-volume stream</td></tr>
+  <tr><td><strong>Inbound leg</strong> — rent, hostel fee, dues, CAM, utilities paid in-app by the tenant</td><td>No</td><td>The tenant pays exactly what is due. A surcharge here is what drives money back to cash.</td></tr>
   <tr><td>Deposits and advances collected in-app</td><td><strong>Yes</strong></td><td>Fee is charged once at collection, never again at refund</td></tr>
   <tr><td>Service job payments through the marketplace</td><td><strong>Yes</strong></td><td>Replaces a separate vendor commission — one rate, everywhere</td></tr>
   <tr><td>Token advance and brokerage settled in-app</td><td><strong>Yes</strong></td><td>Sale consideration itself is out of scope — the platform never touches it</td></tr>
   <tr><td>Offline cash and direct bank transfers recorded but not transacted</td><td>No</td><td>Recording stays free on both legs; it is the honesty mechanism that keeps the ledger true</td></tr>
   <tr><td>Refunds, reversals and deposit returns</td><td>No</td><td>Never fee a customer for getting their own money back</td></tr>
-  <tr><td><strong>Outbound leg</strong> — the manager paying the owner</td><td><strong>Yes — 3.9%</strong><br><span class="nb">borne by the manager</span></td><td>The manager is the party Rentora does the operating work for, and the payout is the transaction that completes it</td></tr>
+  <tr><td><strong>Outbound leg</strong> — the manager paying the owner</td><td><strong>Yes — 3.9%</strong><br><span class="nb">deducted by the manager at payout</span></td><td>The single charge point. The manager is the party Rentora does the operating work for, and this is where the owner statement already itemises deductions.</td></tr>
 </table>
 
-<h4>Who bears the fee, leg by leg</h4>
-<p><strong>Decided: both legs are charged, and each is borne by the payer of that leg.</strong> The tenant bears it on the money coming in; the property manager bears it on the money going out to the owner.</p>
+<h4>Who bears it, and where it is charged</h4>
+<p><strong>Decided: the property manager bears the fee, and it is deducted at the point they pay the owner.</strong> One charge point per rent cycle, on money going out — not on money coming in. This mirrors how an owner already experiences property management: the statement shows the rent collected, then the deductions, then the net.</p>
 
 <table>
-  <tr><th style="width:30%">Leg</th><th style="width:20%">Bearer</th><th>Detail</th></tr>
-  <tr><td><strong>Tenant → manager or owner</strong><br><span class="nb">rent, dues, fees paid in-app</span></td><td><strong>Tenant</strong></td><td>Added to the payable and disclosed on the invoice as its own line before payment is made. Offline cash or bank transfer attracts nothing.</td></tr>
-  <tr><td><strong>Manager → owner</strong><br><span class="nb">the payout</span></td><td><strong>Property manager</strong></td><td>Deducted from the manager's position, never from the owner's entitlement — the owner receives exactly what their agreement says.</td></tr>
-  <tr><td>Owner self-managing, no manager</td><td>Tenant only</td><td>One leg exists, so one fee is charged</td></tr>
-  <tr><td>Hostel or co-living</td><td>Resident in, operator out</td><td>The operator is the manager in this vertical</td></tr>
-  <tr><td>Society or RWA dues</td><td>Member in, society out</td><td>The society is the collecting and operating entity</td></tr>
-  <tr><td>Marketplace service job</td><td>Vendor</td><td>Charged once, on the vendor settlement; this replaces a separate marketplace commission</td></tr>
-  <tr><td>Refunds, reversals, deposit returns</td><td>Nobody</td><td>Never fee a customer for getting their own money back, on either leg</td></tr>
-  <tr><td>Any of the above</td><td>Per-organisation override</td><td>The bearer of each leg is configuration, not code, and is always disclosed before payment</td></tr>
+  <tr><th style="width:30%">Arrangement</th><th style="width:22%">Charged</th><th>Detail</th></tr>
+  <tr><td>Property under management</td><td><strong>Manager, at payout</strong></td><td>Appears as its own line on the owner statement alongside the management fee, so the owner sees exactly what the platform cost</td></tr>
+  <tr><td>Owner self-managing, no manager</td><td>Owner, at collection</td><td>There is no payout leg and no manager, so the single charge falls to the owner and is disclosed on their statement</td></tr>
+  <tr><td>Hostel or co-living</td><td>Operator</td><td>The operator is the manager in this vertical</td></tr>
+  <tr><td>Society or RWA dues</td><td>Society</td><td>The society is the collecting and operating entity</td></tr>
+  <tr><td>Marketplace service job</td><td>Vendor, at settlement</td><td>Replaces a separate marketplace commission</td></tr>
+  <tr><td>Tenant, any payment</td><td><strong>Never</strong></td><td>The tenant is never surcharged for paying rent through the platform</td></tr>
+  <tr><td>Refunds, reversals, deposit returns</td><td>Never</td><td>Nobody is charged for getting their own money back</td></tr>
+  <tr><td>Offline cash and bank transfer</td><td>Never on the inbound leg</td><td>Recording stays free; if that money is later paid out through the platform, the payout is charged like any other</td></tr>
 </table>
 
+<h4>Payment instrument costs are separate and passed through</h4>
+<p>The 3.9% is a <strong>platform fee, not a payment-processing charge</strong>. Where a payment instrument carries a real cost — credit card, some netbanking, NACH — that cost is handled separately as a disclosed pass-through surcharge at the point of payment, exactly as Indian rent-payment services already do. UPI and offline transfers carry no instrument cost and therefore no surcharge, which keeps the default path free for the tenant and cheap for the platform.</p>
+
 <div class="callout warn">
-  <span class="h">The economics this creates, stated plainly</span>
-  <p><strong>The same rent is charged twice</strong> — once as it comes in, once as it goes out. On ₹27,500 of rent that is ₹1,072 from the tenant and ₹1,072 from the manager, <strong>₹2,144 of platform revenue per cycle, an effective 7.8% of rent</strong>. Two consequences follow, and both are real:</p>
-  <p><strong>1. The tenant now sees a surcharge on rent.</strong> A visible ₹1,072 on top of ₹27,500 is exactly the incentive that moves a tenant to pay by direct UPI or cash instead — and offline money is recorded but not billed. The mitigation is that the platform must be worth it to the tenant in its own right (receipts, agreement, maintenance, deposit evidence, rent-paid statements), and that the line is disclosed honestly rather than buried.</p>
-  <p><strong>2. The manager pays ~3.9% of gross rent against a fee of 8–10%</strong> — roughly 40–50% of their revenue — on top of the tenant-side charge. This is a high combined take by rent-collection norms, and it is the first calculation both parties will run.</p>
-  <p>The decision stands as specified. What makes it survivable is that <strong>rate, base, cap and bearer are per-leg rule-table values</strong> from the first release, so charging one leg only, capping either, or tiering by volume is a configuration change and never a rewrite.</p>
+  <span class="h">The economics to keep an eye on</span>
+  <p>A manager typically earns <strong>8–10% of collected rent</strong>, so 3.9% of gross rent is roughly <strong>40–50% of their revenue</strong> — ₹1,072 against a ₹2,200 fee on ₹27,500 of rent. That is the first calculation a manager will run, and it is a high share by international norms: Australian property-management platforms charge the agency a flat per-property subscription of roughly A$2.50–3.25 per property per month all-in, which on a typical rent is on the order of <em>0.1% of rent</em> rather than 3.9%.</p>
+  <p>India is not Australia — there is no statutory trust-account regime, managers are smaller, software willingness-to-pay is far lower, and Rentora bundles collections, maintenance, a vendor marketplace and compliance rather than selling a ledger. A transaction model may well be the right answer here where a subscription is not. But the gap is large enough that <strong>rate, base and cap must all be rule-table values from the first release</strong>: charging on the manager's fee instead of gross rent, capping the fee per payout, or tiering by monthly volume must each be a configuration change, never a rewrite. A per-payout cap is the cheapest insurance and should exist from day one even if it is set high.</p>
 </div>
 
 <h4>Residual streams</h4>
 <table>
   <tr><th style="width:26%">Stream</th><th style="width:26%">Basis</th><th>Notes</th></tr>
-  <tr><td><strong>Platform fee</strong></td><td>3.9% on each leg — inbound and outbound</td><td>The whole business at launch; ~7.8% effective on a managed rent cycle</td></tr>
+  <tr><td><strong>Platform fee</strong></td><td>3.9%, once per cycle, deducted at payout</td><td>The whole business at launch</td></tr>
   <tr><td>Premium AI tier</td><td>₹499 per organisation per month (future)</td><td>The only paid plan that will ever exist — see §5.6</td></tr>
   <tr><td>Sale brokerage</td><td>Share of a negotiated brokerage on a completed sale</td><td>Separately contracted; not a platform fee percentage</td></tr>
   <tr><td>Partner referrals</td><td>Insurance, deposit alternatives, home loans, movers, utilities</td><td>Referral fee only; Rentora carries no risk and discloses the relationship</td></tr>
@@ -1299,7 +1301,7 @@ type listing
 
 <div class="callout warn" style="margin-top:22px">
   <span class="h">Document control</span>
-  <p>Version 1.8 charges the platform fee on both legs — tenant inbound, manager outbound. Version 1.7 settled the fee bearer, specifies the authorisation model and makes Rentora Ops a full web console as well as an app. Version 1.6 added module M19 — a no-sign-up sandbox anyone can use before creating an account, and a training and release-preview sandbox for existing customers and their staff. Version 1.5 defined the five access tiers, the no-anonymous rule for administrative surfaces, and the demonstration-data workspace. Version 1.4 settled identity and authorisation — Google Identity Platform for every user, OpenFGA plus RBAC for permissions. Version 1.3 added public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
+  <p>Version 1.9 charges the platform fee once, deducted by the manager at payout, with instrument costs passed through separately. Version 1.7 settled the fee bearer, specifies the authorisation model and makes Rentora Ops a full web console as well as an app. Version 1.6 added module M19 — a no-sign-up sandbox anyone can use before creating an account, and a training and release-preview sandbox for existing customers and their staff. Version 1.5 defined the five access tiers, the no-anonymous rule for administrative surfaces, and the demonstration-data workspace. Version 1.4 settled identity and authorisation — Google Identity Platform for every user, OpenFGA plus RBAC for permissions. Version 1.3 added public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
 </div>
 
 </body>
