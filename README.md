@@ -87,6 +87,7 @@ repository and on the org project board; application code lands here as the MVP 
 | Product & architecture brief | [`docs/product-brief.md`](docs/product-brief.md) |
 | India regulatory, payments & tax model | [`docs/india-compliance.md`](docs/india-compliance.md) |
 | Backlog conventions & taxonomy | [`docs/backlog.md`](docs/backlog.md) |
+| Backlog | [Issues](../../issues) — 117 stories across 39 epics and MVP 0–6 |
 | Issue template | [`.github/ISSUE_TEMPLATE/engineering-story.md`](.github/ISSUE_TEMPLATE/engineering-story.md) |
 
 ## Intended stack

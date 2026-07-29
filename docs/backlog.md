@@ -8,6 +8,10 @@ tracked on one org-level project board.
 **Board:** _Rentora — Property Management Platform_ (private, org-scoped, two views — a
 backlog table and a status board). Link added once the board is created.
 
+Until the board exists, **MVP and Priority are carried as labels** (`mvp:MVP 1`,
+`priority:P0`) so nothing is lost. When the board is created these map directly onto the
+MVP and Priority fields.
+
 ## Issue template
 
 All issues use [`.github/ISSUE_TEMPLATE/engineering-story.md`](../.github/ISSUE_TEMPLATE/engineering-story.md):
@@ -33,8 +37,8 @@ Three rules make this backlog reviewable:
 | **Status** | Backlog · Ready · In Progress · In Review · Blocked · Test · Security Review · Done |
 | **Priority** | P0 Platform critical · P1 MVP core · P2 Expansion · P3 Ecosystem / Later |
 | **MVP** | MVP 0–6 |
-| **Epic** | one of the 36 epics below, mirrored as an `epic:` label |
-| **Product** | one of the 12 surfaces, mirrored as a `product:` label |
+| **Epic** | one of the 39 epics below, mirrored as an `epic:` label |
+| **Product** | one of the 12 product surfaces (or `Platform`), mirrored as a `product:` label |
 
 ### Priority
 
@@ -66,7 +70,7 @@ Priority and MVP must agree: a P0 sits in MVP 0–1, a P1 in MVP 1–2.
 | `type:` | `feature`, `planning` (RFC/ADR/standards, always MVP 0), `spike` (time-boxed research with a decision as output) |
 | `product:` | `Platform`, `Owner`, `Manage`, `Society`, `Tenant`, `Gate`, `Pay`, `Docs`, `Care`, `Books`, `Lease`, `Partners`, `Admin` |
 | `team:` | `platform`, `web`, `mobile`, `design`, `payments`, `compliance`, `identity-security`, `data`, `sre`, `growth`, `customer-success` |
-| `epic:` | the 36 epics, matching the Epic board field |
+| `epic:` | the 39 epics, matching the Epic board field |
 | `area:` | `backend`, `frontend`, `mobile`, `data`, `infra`, `devex` |
 
 Every issue carries exactly one `type:`, one `product:`, one `team:` and one `epic:`
