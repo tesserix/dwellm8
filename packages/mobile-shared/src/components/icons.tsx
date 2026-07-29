@@ -173,3 +173,134 @@ export const HouseArt = ({ size = 150 }: { size?: number }) => (
     <Path d="M24 120h152" stroke="#CBD9EC" strokeWidth="4" strokeLinecap="round" />
   </Svg>
 );
+
+/* ------------------------------------------------------------ field work */
+
+export const SearchIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Circle cx="11" cy="11" r="6.5" />
+    <Path d="M15.8 15.8 20 20" />
+  </Svg>
+);
+
+export const CameraIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Path d="M4 8h3l1.6-2.4h6.8L17 8h3v11H4z" />
+    <Circle cx="12" cy="13.2" r="3.6" />
+  </Svg>
+);
+
+export const CheckIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Path d="M5 12.5l4.6 4.5L19 7" />
+  </Svg>
+);
+
+export const CheckCircleIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Circle cx="12" cy="12" r="9" />
+    <Path d="M8 12.3l2.7 2.7L16 9.5" />
+  </Svg>
+);
+
+export const AlertIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Path d="M12 3.6 21.2 20H2.8z" />
+    <Path d="M12 9.5v4.6M12 17.2v.1" />
+  </Svg>
+);
+
+export const ClockIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Circle cx="12" cy="12" r="9" />
+    <Path d="M12 7v5.4l3.4 2" />
+  </Svg>
+);
+
+export const MapPinIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Path d="M12 21s6.5-6.1 6.5-10.5a6.5 6.5 0 0 0-13 0C5.5 14.9 12 21 12 21z" />
+    <Circle cx="12" cy="10.4" r="2.4" />
+  </Svg>
+);
+
+export const KeyIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Circle cx="8" cy="12" r="4" />
+    <Path d="M12 12h9M18 12v3M15.5 12v2.2" />
+  </Svg>
+);
+
+export const ShieldIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Path d="M12 3l7 2.6v6c0 4.4-3 7.7-7 9.4-4-1.7-7-5-7-9.4v-6z" />
+    <Path d="M9 12.2l2.2 2.2L15.4 10" />
+  </Svg>
+);
+
+export const FilterIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Path d="M4 6h16M7 12h10M10 18h4" />
+  </Svg>
+);
+
+export const BuildingIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Path d="M4 21V5.5A1.5 1.5 0 0 1 5.5 4h7A1.5 1.5 0 0 1 14 5.5V21" />
+    <Path d="M14 10h4.5A1.5 1.5 0 0 1 20 11.5V21M2.5 21h19" />
+    <Path d="M7 8h4M7 12h4M7 16h4M16.5 14h1.5M16.5 17.5h1.5" />
+  </Svg>
+);
+
+export const UsersIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Circle cx="9" cy="9" r="3.2" />
+    <Path d="M3.5 19a5.5 5.5 0 0 1 11 0" />
+    <Path d="M16 6.2a3.2 3.2 0 0 1 0 5.9M17.5 19a5.6 5.6 0 0 0-2-4.3" />
+  </Svg>
+);
+
+export const ChartIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Path d="M4 20V4M4 20h16" />
+    <Path d="M8 16.5v-5M12.5 16.5v-9M17 16.5v-3.5" />
+  </Svg>
+);
+
+export const BellIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Path d="M6.5 9.5a5.5 5.5 0 0 1 11 0c0 4 1.5 5.5 1.5 5.5H5s1.5-1.5 1.5-5.5z" />
+    <Path d="M10 18.5a2 2 0 0 0 4 0" />
+  </Svg>
+);
+
+export const RefreshIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Path d="M20 11a8 8 0 0 0-13.9-4.6L4 8.5" />
+    <Path d="M4 4.5v4h4" />
+    <Path d="M4 13a8 8 0 0 0 13.9 4.6L20 15.5" />
+    <Path d="M20 19.5v-4h-4" />
+  </Svg>
+);
+
+export const ArrowUpRight = (p: P) => (
+  <Svg {...base(p)}>
+    <Path d="M7 17 17 7M9 7h8v8" />
+  </Svg>
+);
+
+export const RouteIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Circle cx="6" cy="6" r="2.6" />
+    <Circle cx="18" cy="18" r="2.6" />
+    <Path d="M8.6 6H14a3.5 3.5 0 0 1 0 7h-4a3.5 3.5 0 0 0 0 7h5.4" />
+  </Svg>
+);
+
+export const ToolboxIcon = (p: P) => (
+  <Svg {...base(p)}>
+    <Rect x="3" y="8.5" width="18" height="11" rx="2.2" />
+    <Path d="M8.5 8.5V6.4A1.4 1.4 0 0 1 9.9 5h4.2a1.4 1.4 0 0 1 1.4 1.4v2.1" />
+    <Path d="M3 13h18M10.5 11.6h3v2.8h-3z" />
+  </Svg>
+);

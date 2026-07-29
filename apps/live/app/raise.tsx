@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, CloseIcon, PlusIcon, color, font, inr, radius, space } from '@rentora/mobile-shared';
+import { Card, CloseIcon, PlusIcon, color, font, inr, radius, space } from '@dwellm8/mobile-shared';
 import { categories } from '../src/data/mock';
 
 /**

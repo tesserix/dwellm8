@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, ChevronRight, CloseIcon, DocIcon, DottedRule, MoneyRow, color, font, inr, space } from '@rentora/mobile-shared';
+import { Card, ChevronRight, CloseIcon, DocIcon, DottedRule, MoneyRow, color, font, inr, space } from '@dwellm8/mobile-shared';
 import { documents, tenancy } from '../src/data/mock';
 
 export default function Documents() {

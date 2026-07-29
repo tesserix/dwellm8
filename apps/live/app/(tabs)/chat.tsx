@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AppHeader, AvatarButton, PlusIcon, SendIcon, color, font, radius, shadow, space } from '@rentora/mobile-shared';
+import { AppHeader, AvatarButton, PlusIcon, SendIcon, color, font, radius, shadow, space } from '@dwellm8/mobile-shared';
 import { messages, tenancy } from '../../src/data/mock';
 
 export default function Chat() {

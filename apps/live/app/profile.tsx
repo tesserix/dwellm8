@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { AppHeader, Card, ChevronLeft, ChevronRight, DocIcon, DottedRule, GlobeIcon, color, font, space } from '@rentora/mobile-shared';
+import { AppHeader, Card, ChevronLeft, ChevronRight, DocIcon, DottedRule, GlobeIcon, color, font, space } from '@dwellm8/mobile-shared';
 import { profile } from '../src/data/mock';
 
 export default function Profile() {

@@ -1,4 +1,4 @@
-# Rentora Live
+# dwellm8 Live
 
 The tenant, resident and guardian app — the highest-volume surface in the
 product. Everything here is built around three jobs: **pay in seconds**,
@@ -27,7 +27,7 @@ npm run typecheck
 
 ## Two product rules this app makes visible
 
-**The tenant is never surcharged by Rentora.** The 2.99% platform fee is borne
+**The tenant is never surcharged by dwellm8.** The 2.99% platform fee is borne
 by the property manager at payout (requirements §5.5). The only amount ever
 added to a tenant's payable is a genuine payment-instrument cost — card
 processing — and it is disclosed before payment with UPI offered as the free
@@ -43,4 +43,4 @@ and agree.
 
 `src/data/mock.ts` is demonstration data per requirements §9.6 — a fictional
 Bengaluru tenancy. Amounts are integer paise, rendered only through `inr` from
-`@rentora/mobile-shared`.
+`@dwellm8/mobile-shared`.

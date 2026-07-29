@@ -1,7 +1,7 @@
 /**
  * Money formatting for the Indian market.
  *
- * Amounts are integer paise everywhere in Rentora — a float never touches
+ * Amounts are integer paise everywhere in dwellm8 — a float never touches
  * money, in any layer. These helpers are the only sanctioned way to render an
  * amount, so grouping and rounding cannot drift between apps.
  */

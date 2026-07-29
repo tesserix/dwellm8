@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   AppHeader, AvatarButton, Card, ChipRow, DottedRule, EmptyState, HouseArt,
   Screen, WrenchIcon, color, font, inr, radius, space,
-} from '@rentora/mobile-shared';
+} from '@dwellm8/mobile-shared';
 import { tickets } from '../../src/data/mock';
 
 export default function Requests() {

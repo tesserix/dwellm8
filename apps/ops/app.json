@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "dwellm8 Ops",
+    "slug": "dwellm8-ops",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "dwellm8ops",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": { "backgroundColor": "#EAF2FA", "resizeMode": "contain" },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "app.dwellm8.ops" },
+    "android": { "package": "app.dwellm8.ops" },
+    "web": { "bundler": "metro", "output": "single" },
+    "plugins": ["expo-router"],
+    "experiments": { "typedRoutes": true }
+  }
+}

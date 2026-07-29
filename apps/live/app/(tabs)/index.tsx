@@ -4,8 +4,9 @@ import { useRouter } from 'expo-router';
 import {
   ActivityRow, AppHeader, AvatarButton, Card, CollapsibleHeader, DocIcon,
   DottedRule, HouseArt, Screen, SectionTitle, StatTile, WrenchIcon,
-  CalendarIcon, ChatIcon, ClipboardIcon, color, font, inr, radius, space,
-} from '@rentora/mobile-shared';
+  BedIcon, CalendarIcon, ChatIcon, ClipboardIcon, ShieldIcon,
+  color, font, inr, radius, space,
+} from '@dwellm8/mobile-shared';
 import { currentInvoice, notices, receipts, tenancy, tickets, totalDue } from '../../src/data/mock';
 
 export default function Home() {
@@ -44,6 +45,14 @@ export default function Home() {
             <View style={s.quickRow}>
               <Quick icon={<WrenchIcon size={20} />} label="Raise request" onPress={() => router.push('/raise')} />
               <Quick icon={<DocIcon size={20} />} label="Documents" onPress={() => router.push('/documents')} />
+            </View>
+            <View style={s.quickRow}>
+              <Quick icon={<ShieldIcon size={20} />} label="Visitors" onPress={() => router.push('/visitors')} />
+              <Quick icon={<ClipboardIcon size={20} />} label="Agreement" onPress={() => router.push('/tenancy')} />
+            </View>
+            <View style={s.quickRow}>
+              <Quick icon={<BedIcon size={20} />} label="Book a service" onPress={() => router.push('/services')} />
+              <Quick icon={<CalendarIcon size={20} />} label="Autopay" onPress={() => router.push('/autopay')} />
             </View>
           </View>
         </Card>

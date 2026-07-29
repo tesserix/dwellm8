@@ -1,5 +1,5 @@
 {
-  "name": "@rentora/mobile-shared",
+  "name": "@dwellm8/mobile-shared",
   "version": "0.1.0",
   "main": "src/index.ts",
   "types": "src/index.ts",

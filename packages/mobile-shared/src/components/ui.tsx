@@ -46,7 +46,7 @@ export function AppHeader({
 }
 
 export const AvatarButton = ({ onPress }: { onPress?: () => void }) => (
-  <Pressable onPress={onPress} hitSlop={10}>
+  <Pressable accessibilityRole="button" accessibilityLabel="Your profile" onPress={onPress} hitSlop={10}>
     <UserIcon size={30} w={1.7} />
   </Pressable>
 );
@@ -67,7 +67,7 @@ export function CollapsibleHeader({
   title, open = true, onToggle,
 }: { title: string; open?: boolean; onToggle?: () => void }) {
   return (
-    <Pressable style={s.collapseRow} onPress={onToggle}>
+    <Pressable accessibilityRole="button" accessibilityLabel={title} style={s.collapseRow} onPress={onToggle}>
       <Text style={s.collapseTitle}>{title}</Text>
       <View style={{ transform: [{ rotate: open ? '0deg' : '-90deg' }] }}>
         <ChevronDown size={22} w={2.4} />
@@ -89,6 +89,9 @@ export function Segmented({
           <React.Fragment key={it}>
             {i > 0 && !active && !(items[i - 1] === value) ? <View style={s.segDivider} /> : null}
             <Pressable
+              accessibilityRole="tab"
+              accessibilityLabel={it}
+              accessibilityState={{ selected: active }}
               style={[s.segItem, active && s.segItemActive]}
               onPress={() => onChange(it)}
             >
@@ -111,6 +114,9 @@ export function ChipRow({
         return (
           <Pressable
             key={it.label}
+            accessibilityRole="button"
+            accessibilityLabel={it.label}
+            accessibilityState={{ selected: active }}
             onPress={() => onChange(it.label)}
             style={[s.chip, active && s.chipActive]}
           >
@@ -171,7 +177,7 @@ export function ActivityRow({
   onPress?: () => void;
 }) {
   return (
-    <Pressable style={s.activity} onPress={onPress}>
+    <Pressable accessibilityRole="button" accessibilityLabel={title} style={s.activity} onPress={onPress}>
       <View style={s.activityIcon}>{icon}</View>
       <View style={s.activityBar} />
       <View style={{ flex: 1 }}>
@@ -189,7 +195,7 @@ export function LinkRow({
 }: { label: string; value?: string; icon?: React.ReactNode; onPress?: () => void; last?: boolean }) {
   return (
     <View>
-      <Pressable style={s.linkRow} onPress={onPress}>
+      <Pressable accessibilityRole="button" accessibilityLabel={label} style={s.linkRow} onPress={onPress}>
         <View style={{ flex: 1 }}>
           <Text style={s.linkLabel}>{label}</Text>
           {value ? <Text style={s.linkValue}>{value}</Text> : null}

@@ -1,0 +1,29 @@
+import { Tabs } from 'expo-router';
+import { Text } from 'react-native';
+import { ClipboardIcon, DocIcon, RupeeIcon, ToolboxIcon, color, font, shadow } from '@dwellm8/mobile-shared';
+
+const tab = (Icon: any) => ({ focused }: { focused: boolean }) => (
+  <Icon size={26} c={focused ? color.accent : color.inkFaint} w={focused ? 2.1 : 1.8} />
+);
+const label = (text: string) => ({ focused }: { focused: boolean }) => (
+  <Text style={{ ...font.small, color: focused ? color.accent : color.inkSoft, marginTop: 2 }}>{text}</Text>
+);
+
+export default function TabsLayout() {
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF', borderTopColor: color.line,
+          height: 84, paddingTop: 8, ...shadow.bar,
+        },
+      }}
+    >
+      <Tabs.Screen name="index" options={{ tabBarIcon: tab(ToolboxIcon), tabBarLabel: label('Today') }} />
+      <Tabs.Screen name="offers" options={{ tabBarIcon: tab(ClipboardIcon), tabBarLabel: label('Offers') }} />
+      <Tabs.Screen name="quotes" options={{ tabBarIcon: tab(DocIcon), tabBarLabel: label('Quotes') }} />
+      <Tabs.Screen name="earnings" options={{ tabBarIcon: tab(RupeeIcon), tabBarLabel: label('Earnings') }} />
+    </Tabs>
+  );
+}

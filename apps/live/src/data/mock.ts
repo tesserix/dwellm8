@@ -3,7 +3,7 @@
  *
  * DEMONSTRATION data per requirements §9.6 — a fictional Bengaluru tenant.
  * Amounts are integer paise; render them only through `inr` from
- * @rentora/mobile-shared.
+ * @dwellm8/mobile-shared.
  */
 
 export const tenancy = {
@@ -146,3 +146,70 @@ export const profile = {
   phone: '+91 98860 21745',
   version: '0.1.0 (1)',
 };
+
+/* ------------------------------------------------------------- agreement */
+
+export const agreement = {
+  kind: 'Leave and licence',
+  number: 'LLA/2026-27/0412',
+  from: '15 Apr 2026',
+  to: '15 Apr 2027',
+  months: 11,
+  escalationPct: 5,
+  noticeDays: 60,
+  registered: 'Registered 18 Apr 2026 · Karnataka',
+  stampDutyPaise: 23_100_00,
+  eSigned: 'Aadhaar eSign, 12 Apr 2026',
+  depositPaise: 12_60_00_00,
+  depositHeldBy: 'Owner, held against the tenancy',
+  lockInEnds: '15 Oct 2026',
+};
+
+/* --------------------------------------------------------------- autopay */
+
+export const mandate = {
+  active: false,
+  app: 'Any UPI app — GPay, PhonePe, Paytm',
+  amountCapPaise: 5_00_00_00,
+  debitDay: 3,
+  bank: 'HDFC ••4471',
+  note: 'A UPI Autopay mandate debits only up to the cap you approve, only on the day you approve, and you can pause it from here at any time.',
+};
+
+/* --------------------------------------------------------------- visitors */
+
+export type Visitor = {
+  id: string;
+  name: string;
+  kind: 'Guest' | 'Delivery' | 'Cab' | 'Help';
+  when: string;
+  code?: string;
+  state: 'Expected' | 'At the gate' | 'Inside' | 'Left' | 'Denied';
+};
+
+export const visitors: Visitor[] = [
+  { id: 'v1', name: 'Priya Menon', kind: 'Guest', when: 'Today, from 18:00', code: '4471', state: 'Expected' },
+  { id: 'v2', name: 'Blinkit', kind: 'Delivery', when: 'Now', state: 'At the gate' },
+  { id: 'v3', name: 'Ashok Verma — plumber', kind: 'Help', when: 'Today, 09:00 – 11:00', code: '8130', state: 'Inside' },
+  { id: 'v4', name: 'Lakshmi R', kind: 'Help', when: 'Daily, 07:00', state: 'Inside' },
+  { id: 'v5', name: 'Uber KA 05 MJ 8821', kind: 'Cab', when: 'Yesterday, 20:10', state: 'Left' },
+];
+
+/* --------------------------------------------------------------- services */
+
+export type Service = {
+  id: string;
+  name: string;
+  detail: string;
+  pricePaise: number;
+  slot: string;
+  vendor: string;
+};
+
+export const services: Service[] = [
+  { id: 's1', name: 'Deep cleaning', detail: '2 BHK, 4 hours, 2 cleaners', pricePaise: 24_00_00, slot: 'Tomorrow, 10:00', vendor: 'CleanEdge Services' },
+  { id: 's2', name: 'Pest control', detail: 'Cockroach and ant treatment, 60 day warranty', pricePaise: 12_00_00, slot: 'Sat, 11:00', vendor: 'CleanEdge Services' },
+  { id: 's3', name: 'AC service', detail: 'Per unit, gas top-up extra', pricePaise: 6_50_00, slot: 'Sat, 15:00', vendor: 'Kiran Electricals' },
+  { id: 's4', name: 'Chimney degrease', detail: 'Filters soaked and refitted', pricePaise: 9_00_00, slot: 'Sun, 12:00', vendor: 'CleanEdge Services' },
+  { id: 's5', name: 'Packers and movers', detail: 'Quote after a video survey', pricePaise: 0, slot: 'On request', vendor: 'ShiftRight Logistics' },
+];

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   ActivityRow, AppHeader, AvatarButton, Card, ClipboardIcon, DottedRule,
   MoneyRow, Screen, SectionTitle, Segmented, color, font, inr, radius, space,
-} from '@rentora/mobile-shared';
+} from '@dwellm8/mobile-shared';
 import { currentInvoice, methods, receipts, totalDue } from '../../src/data/mock';
 
 export default function Pay() {
@@ -79,13 +79,16 @@ function PayTab() {
         <MoneyRow label="You pay" value={inr(payable)} strong last />
       </Card>
 
-      <Pressable style={s.cta} onPress={() => router.push('/pay-confirm')}>
+      <Pressable
+        style={s.cta}
+        onPress={() => router.push(method === 'autopay' ? '/autopay' : '/pay-confirm')}
+      >
         <Text style={s.ctaText}>
           {method === 'offline' ? 'Record this payment' : method === 'autopay' ? 'Set up autopay' : `Pay ${inr(payable)}`}
         </Text>
       </Pressable>
       <Text style={s.ctaNote}>
-        Rentora never adds a fee to your rent. Your receipt arrives the moment payment confirms.
+        dwellm8 never adds a fee to your rent. Your receipt arrives the moment payment confirms.
       </Text>
     </>
   );

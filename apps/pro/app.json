@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "dwellm8 Pro",
+    "slug": "dwellm8-pro",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "dwellm8pro",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#EAF2FA",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.dwellm8.pro"
+    },
+    "android": {
+      "package": "app.dwellm8.pro"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

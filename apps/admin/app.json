@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "dwellm8 Admin",
+    "slug": "dwellm8-admin",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "dwellm8admin",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#EAF2FA",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.dwellm8.admin"
+    },
+    "android": {
+      "package": "app.dwellm8.admin"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

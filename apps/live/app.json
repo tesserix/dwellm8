@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "Rentora Live",
-    "slug": "rentora-live",
+    "name": "dwellm8 Live",
+    "slug": "dwellm8-live",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "rentora",
+    "scheme": "dwellm8",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": { "backgroundColor": "#EAF2FA", "resizeMode": "contain" },
-    "ios": { "supportsTablet": true, "bundleIdentifier": "app.rentora.live" },
-    "android": { "package": "app.rentora.live" },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "app.dwellm8.live" },
+    "android": { "package": "app.dwellm8.live" },
     "web": { "bundler": "metro", "output": "single" },
     "plugins": ["expo-router"],
     "experiments": { "typedRoutes": true }
