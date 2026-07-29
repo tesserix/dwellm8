@@ -2,13 +2,29 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, Segmented, LinkRow, MoneyRow, DottedRule } from '../src/components/ui';
-import {
-  BathIcon, BedIcon, CarIcon, ChatIcon, ChevronRight, CloseIcon, DocIcon,
-  GlobeIcon, MailIcon, PhoneIcon, PinIcon,
-} from '../src/components/icons';
-import { color, font, radius, space } from '../src/theme/tokens';
 import { documents, inr, properties } from '../src/data/mock';
+import {
+  BathIcon,
+  BedIcon,
+  CarIcon,
+  Card,
+  ChatIcon,
+  ChevronRight,
+  CloseIcon,
+  DocIcon,
+  DottedRule,
+  GlobeIcon,
+  LinkRow,
+  MailIcon,
+  MoneyRow,
+  PhoneIcon,
+  PinIcon,
+  Segmented,
+  color,
+  font,
+  radius,
+  space,
+} from '@rentora/mobile-shared';
 
 export default function PropertySheet() {
   const router = useRouter();

@@ -2,9 +2,16 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CloseIcon, HomeIcon } from '../src/components/icons';
-import { color, font, radius, shadow, space } from '../src/theme/tokens';
 import { properties } from '../src/data/mock';
+import {
+  CloseIcon,
+  HomeIcon,
+  color,
+  font,
+  radius,
+  shadow,
+  space,
+} from '@rentora/mobile-shared';
 
 export default function Switcher() {
   const router = useRouter();

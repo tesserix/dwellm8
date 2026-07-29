@@ -2,10 +2,20 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AppHeader } from '../src/components/ui';
-import { BellOffIcon, ChevronLeft, CloseIcon, PlusIcon, SendIcon } from '../src/components/icons';
-import { color, font, radius, shadow, space } from '../src/theme/tokens';
 import { messages } from '../src/data/mock';
+import {
+  AppHeader,
+  BellOffIcon,
+  ChevronLeft,
+  CloseIcon,
+  PlusIcon,
+  SendIcon,
+  color,
+  font,
+  radius,
+  shadow,
+  space,
+} from '@rentora/mobile-shared';
 
 export default function Thread() {
   const router = useRouter();

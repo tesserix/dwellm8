@@ -1,7 +1,13 @@
 import { Tabs } from 'expo-router';
 import { Text, View } from 'react-native';
-import { color, font, shadow } from '../../src/theme/tokens';
-import { ChatIcon, HomeIcon, RupeeIcon } from '../../src/components/icons';
+import {
+  ChatIcon,
+  HomeIcon,
+  RupeeIcon,
+  color,
+  font,
+  shadow,
+} from '@rentora/mobile-shared';
 
 const tab = (Icon: any) => ({ focused }: { focused: boolean }) => (
   <Icon size={26} c={focused ? color.accent : color.inkFaint} w={focused ? 2.1 : 1.8} />

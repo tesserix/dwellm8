@@ -1,8 +1,10 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { color } from '../src/theme/tokens';
-import { Shell } from '../src/components/Shell';
+import {
+  Shell,
+  color,
+} from '@rentora/mobile-shared';
 
 export default function RootLayout() {
   return (

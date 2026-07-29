@@ -1,15 +1,32 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import {
-  Screen, AppHeader, AvatarButton, Card, ChipRow, CollapsibleHeader,
-  StatTile, ActivityRow, EmptyState, Badge, ui,
-} from '../../src/components/ui';
-import {
-  CalendarIcon, ChatIcon, ClipboardIcon, DocIcon, HomeIcon, HouseArt, WrenchIcon,
-} from '../../src/components/icons';
-import { color, font, radius, shadow, space } from '../../src/theme/tokens';
 import { activities, inr, properties, statements, upNext } from '../../src/data/mock';
+import {
+  ActivityRow,
+  AppHeader,
+  AvatarButton,
+  Badge,
+  CalendarIcon,
+  Card,
+  ChatIcon,
+  ChipRow,
+  ClipboardIcon,
+  CollapsibleHeader,
+  DocIcon,
+  EmptyState,
+  HomeIcon,
+  HouseArt,
+  Screen,
+  StatTile,
+  WrenchIcon,
+  color,
+  font,
+  radius,
+  shadow,
+  space,
+  ui,
+} from '@rentora/mobile-shared';
 
 export default function Home() {
   const router = useRouter();

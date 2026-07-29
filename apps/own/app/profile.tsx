@@ -1,10 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { AppHeader, Card, DottedRule } from '../src/components/ui';
-import { ChevronLeft, ChevronRight, DocIcon, GlobeIcon } from '../src/components/icons';
-import { color, font, space } from '../src/theme/tokens';
 import { profile } from '../src/data/mock';
+import {
+  AppHeader,
+  Card,
+  ChevronLeft,
+  ChevronRight,
+  DocIcon,
+  DottedRule,
+  GlobeIcon,
+  color,
+  font,
+  space,
+} from '@rentora/mobile-shared';
 
 export default function Profile() {
   const router = useRouter();

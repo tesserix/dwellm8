@@ -2,14 +2,28 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  Screen, AppHeader, AvatarButton, Card, Segmented, SectionTitle,
-  MoneyRow, ProgressBar, BarChart, DottedRule, ActivityRow, ui,
-} from '../../src/components/ui';
-import { ChevronDown, DocIcon } from '../../src/components/icons';
-import { color, font, radius, space } from '../../src/theme/tokens';
-import {
   balance, chart, chartMax, expenseBreakdown, inr, properties, statements,
 } from '../../src/data/mock';
+import {
+  ActivityRow,
+  AppHeader,
+  AvatarButton,
+  BarChart,
+  Card,
+  ChevronDown,
+  DocIcon,
+  DottedRule,
+  MoneyRow,
+  ProgressBar,
+  Screen,
+  SectionTitle,
+  Segmented,
+  color,
+  font,
+  radius,
+  space,
+  ui,
+} from '@rentora/mobile-shared';
 
 export default function Financials() {
   const router = useRouter();

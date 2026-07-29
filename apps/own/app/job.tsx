@@ -2,10 +2,20 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, DottedRule, Badge } from '../src/components/ui';
-import { BathIcon, BedIcon, CarIcon, CloseIcon, DocIcon } from '../src/components/icons';
-import { color, font, space } from '../src/theme/tokens';
 import { inr, job, properties } from '../src/data/mock';
+import {
+  Badge,
+  BathIcon,
+  BedIcon,
+  CarIcon,
+  Card,
+  CloseIcon,
+  DocIcon,
+  DottedRule,
+  color,
+  font,
+  space,
+} from '@rentora/mobile-shared';
 
 export default function JobSheet() {
   const router = useRouter();

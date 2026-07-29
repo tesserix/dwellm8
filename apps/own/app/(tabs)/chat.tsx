@@ -1,10 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen, AppHeader, AvatarButton, Card, DottedRule } from '../../src/components/ui';
-import { ChevronRight } from '../../src/components/icons';
-import { color, font, radius, space } from '../../src/theme/tokens';
 import { threads } from '../../src/data/mock';
+import {
+  AppHeader,
+  AvatarButton,
+  Card,
+  ChevronRight,
+  DottedRule,
+  Screen,
+  color,
+  font,
+  radius,
+  space,
+} from '@rentora/mobile-shared';
 
 export default function Chat() {
   const router = useRouter();
