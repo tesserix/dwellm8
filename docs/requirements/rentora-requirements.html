@@ -87,7 +87,7 @@
   <div class="title">High-Level Product Requirements<br>&amp; User Story Catalogue</div>
   <div class="sub">A mobile-first, one-stop property operating system for India — covering residential rentals, hostels and PG accommodation, and commercial premises, with the property manager as the operating middle layer between owners, tenants and service providers. Free to use, monetised on transactions.</div>
   <div class="meta">
-    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.1)</div>
+    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.2)</div>
     <div><b>Product</b> &nbsp; Rentora · <code>tesserix/rentora</code></div>
     <div><b>Date</b> &nbsp; 29 July 2026</div>
     <div><b>Monetisation</b> &nbsp; No subscriptions — flat 3.9% platform fee on in-app payments; premium AI tier ₹499/org/month (future)</div>
@@ -104,8 +104,8 @@
     <li><b>Personas and roles</b> <span>— nine actors, what each is accountable for</span></li>
     <li><b>The three verticals</b> <span>— residential, hostel/PG/co-living, commercial</span></li>
     <li><b>The operating model</b> <span>— money flows, cost sharing, the manager's mandate</span></li>
-    <li><b>Module requirements and user stories</b> <span>— M1–M18, 226 stories</span></li>
-    <li><b>Mobile-first experience requirements</b> <span>— four apps, plus the web surfaces incl. Admin</span></li>
+    <li><b>Module requirements and user stories</b> <span>— M1–M18, 228 stories</span></li>
+    <li><b>Mobile-first experience requirements</b> <span>— five apps and the web surfaces; Admin is both</span></li>
     <li><b>Critical end-to-end workflows</b> <span>— the five journeys that cross every module</span></li>
     <li><b>Integrations and data principles</b> <span>— adapters, and the rules the schema obeys</span></li>
     <li><b>Non-functional requirements</b> <span>— reliability, security, performance, scale</span></li>
@@ -203,7 +203,7 @@
   <tr><td><strong>Warden / Hostel operator</strong></td><td>Runs the hostel property day to day — beds, mess, attendance, discipline</td><td>Occupancy, resident welfare and safety, mess operations, in–out register</td><td>Warden console + gate app</td></tr>
   <tr><td><strong>Service provider</strong></td><td>Vendor firm and its individual technicians — plumber, electrician, carpenter, painter, pest control, AC, cleaning</td><td>Accepting jobs, quoting honestly, completing to SLA with evidence, honouring warranty</td><td>Vendor app (technician) + vendor web (firm)</td></tr>
   <tr><td><strong>Agent / Broker</strong></td><td>Rentora-side or partner agent handling lease origination and property sales</td><td>Listing quality, lead conversion, site visits, negotiation, closing and handover</td><td>Agent app + CRM in the manager console</td></tr>
-  <tr><td><strong>Platform Admin</strong></td><td>Rentora's own operations, support, finance and compliance staff</td><td>Onboarding approval, statutory rule tables, dispute desk, reconciliation, platform health</td><td>Admin console (web only)</td></tr>
+  <tr><td><strong>Platform Admin</strong></td><td>Rentora's own operations, support, finance and compliance staff</td><td>Onboarding approval, statutory rule tables, dispute desk, reconciliation, platform health</td><td>Admin console (web) + Admin app (mobile)</td></tr>
 </table>
 
 <div class="callout">
@@ -739,6 +739,8 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>ADM-06</td><td>Platform Admin</td><td>in-flight workflow inspection and safe operator actions on stuck operations</td><td>a stuck payout is resolved without a database edit</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>ADM-07</td><td>Platform Admin</td><td>redaction rules so support never sees KYC identifiers or bank details</td><td>supporting a customer does not mean seeing everything about them</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>ADM-08</td><td>Platform Admin</td><td>platform health — collections, dispatch, delivery, drift — in one dashboard</td><td>we know something is broken before a customer tells us</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>ADM-11</td><td>Platform Admin</td><td>push alerts for platform health, SLO breach and reconciliation spikes, with acknowledgement</td><td>on-call learns about an incident without watching a dashboard</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>ADM-12</td><td>Platform Admin</td><td>to clear approval queues and triage disputes from my phone with the same permissions and audit trail</td><td>a verification or a stuck payout does not wait until I reach a desk</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>ADM-09</td><td>Platform Admin</td><td>content moderation and takedown for listings and uploaded media</td><td>the marketplace stays lawful and usable</td><td><span class="pill p2">P2</span></td></tr>
 </table>
 
@@ -782,13 +784,14 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <p class="lede">Rentora is used standing in a corridor, at a gate, on a scooter and on a ₹9,000 Android phone with two bars of signal. Mobile is not a companion to the web product; for tenants, residents, guardians, technicians and field agents it is the <em>only</em> product.</p>
 
-<h3>7.1 Four apps, one system</h3>
+<h3>7.1 Five apps, one system</h3>
 <table>
   <tr><th style="width:18%">App</th><th style="width:24%">Primary users</th><th>Core jobs</th></tr>
   <tr><td><strong>Rentora Live</strong></td><td>Tenant, resident, guardian</td><td>Pay, receipts, raise and track a repair, agreement, deposit, notices, book a service</td></tr>
   <tr><td><strong>Rentora Own</strong></td><td>Owner</td><td>Portfolio and collections at a glance, approve spend, payouts and statements, documents, vacancy</td></tr>
   <tr><td><strong>Rentora Ops</strong></td><td>Manager, field agent, warden</td><td>Collection worklist, ticket queue, inspections, bed allocation, gate, offline capture</td></tr>
   <tr><td><strong>Rentora Pro</strong></td><td>Technician, service provider</td><td>Job list, navigation, OTP start and finish, photo evidence, quotes, earnings</td></tr>
+  <tr><td><strong>Rentora Admin</strong></td><td>Platform Admin, support, on-call</td><td>Alerts and platform health, approval queues, dispute and reconciliation triage, customer lookup, on-call intervention — the mobile half of the Admin surface (§7.4)</td></tr>
 </table>
 <p class="nb">The apps are for what happens away from a desk. Everything that needs a keyboard, a wide table or a configuration screen lives on the web — see §7.4.</p>
 
@@ -813,12 +816,24 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <li><strong>Complete a job</strong> — technician arrives → OTP start → work → photos → OTP finish → invoice raised automatically.</li>
   <li><strong>Settle a deposit</strong> — inspection photos → itemised deductions → tenant reviews and accepts → refund initiated same day.</li>
 </ol>
-<h3>7.4 Web surfaces — and why Admin is web-only</h3>
-<p>Mobile-first is a rule about the field, not a ban on the desktop. Four kinds of work are genuinely bad on a phone and must be delivered as responsive web: <strong>configuration</strong>, <strong>wide tabular review</strong>, <strong>bulk operations</strong> and <strong>investigation across many records</strong>. Every one of those is what an administrator does all day.</p>
+<h3>7.4 Web surfaces — and the Admin surface across both</h3>
+<p>Mobile-first is a rule about the field, not a ban on the desktop. Four kinds of work are genuinely bad on a phone and must be delivered as responsive web: <strong>configuration</strong>, <strong>wide tabular review</strong>, <strong>bulk operations</strong> and <strong>investigation across many records</strong>. Much of an administrator's day is exactly that work — so Admin is <strong>web and mobile together</strong>, split by the nature of the task rather than by user.</p>
+
+<table>
+  <tr><th style="width:26%">Admin task</th><th style="width:16%">Surface</th><th>Why</th></tr>
+  <tr><td>Alerts, incidents, platform health</td><td><strong>App first</strong></td><td>An on-call administrator must learn about a collection outage or a reconciliation spike wherever they are, and acknowledge it immediately</td></tr>
+  <tr><td>Approval queues — managers, vendors, agents, KYC exceptions</td><td><strong>App and web</strong></td><td>A queue item is a single decision with evidence attached; it should not wait for someone to reach a desk</td></tr>
+  <tr><td>Customer lookup and support context</td><td><strong>App and web</strong></td><td>Support answers questions on the move; the same redaction and access-audit rules apply on both</td></tr>
+  <tr><td>Dispute and reconciliation triage</td><td><strong>App triage, web resolution</strong></td><td>Assigning, prioritising and escalating works on a phone; investigating and resolving needs the wide view</td></tr>
+  <tr><td>Workflow intervention on a stuck operation</td><td><strong>App for safe actions, web for the rest</strong></td><td>Retrying or escalating is one tap; anything with financial consequence stays on web with confirmation</td></tr>
+  <tr><td>Rule tables, fee and entitlement configuration</td><td><strong>Web only</strong></td><td>Statutory rates, bearer settings and thresholds are high-consequence configuration; they need review, comparison and a considered commit</td></tr>
+  <tr><td>Bulk operations and data corrections</td><td><strong>Web only</strong></td><td>Volume work with preview and error reporting</td></tr>
+  <tr><td>Reporting and cross-record investigation</td><td><strong>Web only</strong></td><td>Multi-column tables and exports</td></tr>
+</table>
 
 <table>
   <tr><th style="width:20%">Web surface</th><th style="width:16%">Users</th><th style="width:13%">Priority</th><th>Why it cannot be a phone screen</th></tr>
-  <tr><td><strong>Rentora Admin Console</strong><br><span class="nb">web only</span></td><td>Platform Admin, support, finance, compliance</td><td><span class="pill p1">P1</span> from first paying customer</td><td>Rule-table maintenance, approval queues, reconciliation and dispute desks, fee configuration, workflow intervention, moderation, platform health — all multi-column review and configuration work. <strong>This surface is never built as an app.</strong></td></tr>
+  <tr><td><strong>Rentora Admin Console</strong><br><span class="nb">web + mobile app</span></td><td>Platform Admin, support, finance, compliance</td><td><span class="pill p1">P1</span> from first paying customer</td><td>Web carries the depth — rule tables, fee configuration, bulk operations, reconciliation and dispute desks, cross-record investigation, moderation. The app carries the urgency — alerts, approvals, triage and on-call intervention. <strong>One permission model, one audit trail, two form factors.</strong></td></tr>
   <tr><td><strong>Manager back-office</strong><br><span class="nb">web primary, app companion</span></td><td>Manager, accountant</td><td><span class="pill p1">P1</span></td><td>Portfolio tables of hundreds of units, accounting and statements, fee and mandate configuration, bulk import, reporting, staff and vendor administration.</td></tr>
   <tr><td><strong>Owner web</strong><br><span class="nb">responsive, app-first</span></td><td>Owner, NRI owner</td><td><span class="pill p2">P2</span></td><td>Annual statements, tax exports, multi-property comparison, document downloads at tax time.</td></tr>
   <tr><td><strong>Vendor firm web</strong><br><span class="nb">responsive</span></td><td>Service provider back-office</td><td><span class="pill p2">P2</span></td><td>Technician roster, rate cards, invoices and settlement history — the firm's admin, distinct from the technician's job app.</td></tr>
@@ -826,8 +841,9 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 </table>
 
 <div class="callout">
-  <span class="h">Admin console — first-release scope</span>
-  <p>The Admin console must exist from the first paying customer, not after it. At minimum it ships with: organisation, user and tenancy lookup with full access auditing and field redaction; onboarding approval queues for managers, vendors and agents; statutory and configuration rule tables (GST, TDS, stamp duty, deposit caps, schedules of rates, SLA targets, platform fee); the reconciliation and dispute desk with ageing; workflow inspection with safe operator actions; entitlement and feature control; and the platform health dashboard. Without it, every support question becomes an engineering task and every rate change becomes a release.</p>
+  <span class="h">Admin — first-release scope</span>
+  <p><strong>Web (P1, from the first paying customer):</strong> organisation, user and tenancy lookup with full access auditing and field redaction; onboarding approval queues for managers, vendors and agents; statutory and configuration rule tables (GST, TDS, stamp duty, deposit caps, schedules of rates, SLA targets, platform fee and bearer settings); the reconciliation and dispute desk with ageing; workflow inspection with safe operator actions; entitlement and feature control; moderation; and the platform health dashboard. Without it, every support question becomes an engineering task and every rate change becomes a release.</p>
+  <p><strong>App (P2, shortly after):</strong> push alerts on platform health and SLO breach with acknowledgement; the approval queues with evidence inline; customer lookup with the same redaction rules; dispute and reconciliation triage; and a constrained set of safe on-call actions. The app is a <em>view onto the same system</em> — identical permissions, identical audit trail, no capability that exists only there. High-consequence configuration is deliberately absent from it.</p>
 </div>
 
 <h2><span class="num">8.</span> Critical end-to-end workflows</h2>
@@ -1002,7 +1018,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 <table>
   <tr><th style="width:26%">Decision</th><th style="width:44%">Why it blocks</th><th>Needed by</th></tr>
   <tr><td>Launch states</td><td>Determines e-stamping channel, stamp duty rules, police verification flow, Model Tenancy Act applicability</td><td>P0</td></tr>
-  <tr><td>Mobile framework</td><td>Four apps depend on it; reversing the choice later is a rebuild</td><td>P0</td></tr>
+  <tr><td>Mobile framework</td><td>Five apps depend on it, including Admin; reversing the choice later is a rebuild</td><td>P0</td></tr>
   <tr><td>Payment aggregator and payout rails</td><td>Mandate caps, payout timing, settlement format and the vendor-payment model all follow from it</td><td>P0</td></tr>
   <tr><td>Whether the manager may collect into their own account</td><td>Changes the entire money-flow, custody and reconciliation design</td><td>P0</td></tr>
   <tr><td>Vendor payment model</td><td>Platform-advanced-then-recovered versus direct-to-vendor has regulatory and working-capital consequences</td><td>P3</td></tr>
@@ -1034,7 +1050,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <div class="callout warn" style="margin-top:22px">
   <span class="h">Document control</span>
-  <p>Version 1.1 replaces the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
+  <p>Version 1.2 makes the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
 </div>
 
 </body>
