@@ -24,7 +24,11 @@ pandoc rentora-requirements.html -f html -t docx --toc --toc-depth=3 \
 A copy of both is delivered to `~/Desktop/samyak-work/projects/Property-Manager/` as
 `Rentora_High_Level_Product_Requirements.{pdf,docx}`.
 
-v1.8 settles three things: the **property manager bears the 3.9% fee** (generalised as
+v1.8 charges the 3.9% platform fee on **both legs** of the money flow — the tenant bears
+it paying rent in, the property manager bears it paying the owner out (~7.8% effective per
+managed rent cycle). Rate, base, cap and bearer are per-leg rule-table values.
+
+v1.7 settled three things: the **property manager bears the 3.9% fee** (generalised as
 "the party earning the operating margin" — §5.5, the tenant is never surcharged); the
 **authorisation model shape** with its type inventory, DSL sketch and nine isolation
 invariants (§9.7); and **Rentora Ops as a full web console** that is a peer of the app,
