@@ -2,7 +2,7 @@
 
 | Document | Source | Output |
 |---|---|---|
-| High-Level Product Requirements & User Story Catalogue (v1.9) | `rentora-requirements.html` | [`Rentora-Requirements-v1.9.pdf`](Rentora-Requirements-v1.9.pdf) · [`Rentora-Requirements-v1.9.docx`](Rentora-Requirements-v1.9.docx) |
+| High-Level Product Requirements & User Story Catalogue (v2.0) | `rentora-requirements.html` | [`Rentora-Requirements-v2.0.pdf`](Rentora-Requirements-v2.0.pdf) · [`Rentora-Requirements-v2.0.docx`](Rentora-Requirements-v2.0.docx) |
 
 The PDF is generated from the HTML source — edit the HTML, never the PDF:
 
@@ -10,7 +10,7 @@ The PDF is generated from the HTML source — edit the HTML, never the PDF:
 cd docs/requirements
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \\
   --headless=new --disable-gpu --no-pdf-header-footer \\
-  --print-to-pdf="Rentora-Requirements-v1.9.pdf" \\
+  --print-to-pdf="Rentora-Requirements-v2.0.pdf" \\
   "file://$PWD/rentora-requirements.html"
 ```
 
@@ -18,13 +18,19 @@ DOCX is produced from the same source:
 
 ```bash
 pandoc rentora-requirements.html -f html -t docx --toc --toc-depth=3 \
-  -o Rentora-Requirements-v1.9.docx
+  -o Rentora-Requirements-v2.0.docx
 ```
 
 A copy of both is delivered to `~/Desktop/samyak-work/projects/Property-Manager/` as
 `Rentora_High_Level_Product_Requirements.{pdf,docx}`.
 
-v1.9 charges the 3.9% platform fee **once, deducted by the property manager when they pay
+v2.0 sets the platform fee at **2.99%**, fixes the backend as **one modular monolith API**
+serving every client, and adds **25 capabilities** found by benchmarking against PropertyMe
+(Australia's largest PM platform) — bank feeds, routine inspections, a compliance register,
+supplier bill capture, period close, workflow automation (new module M20) and more. The
+comparison and every gap it found are recorded in appendix §14.
+
+v1.9 charged the platform fee **once, deducted by the property manager when they pay
 the owner** — the tenant is never surcharged for paying rent. Payment instrument costs
 (card, netbanking, NACH) are separate disclosed pass-throughs. Rate, base and cap are
 rule-table values, and a per-payout cap ships from day one.

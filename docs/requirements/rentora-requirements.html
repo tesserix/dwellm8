@@ -87,10 +87,10 @@
   <div class="title">High-Level Product Requirements<br>&amp; User Story Catalogue</div>
   <div class="sub">A mobile-first, one-stop property operating system for India — covering residential rentals, hostels and PG accommodation, and commercial premises, with the property manager as the operating middle layer between owners, tenants and service providers. Free to use, monetised on transactions.</div>
   <div class="meta">
-    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.9)</div>
+    <div><b>Document</b> &nbsp; Product Requirements — High Level (v2.0)</div>
     <div><b>Product</b> &nbsp; Rentora · <code>tesserix/rentora</code></div>
     <div><b>Date</b> &nbsp; 29 July 2026</div>
-    <div><b>Monetisation</b> &nbsp; No subscriptions — 3.9% platform fee deducted by the manager at payout; instrument costs passed through; premium AI tier ₹499/org/month (future)</div>
+    <div><b>Monetisation</b> &nbsp; No subscriptions — 2.99% platform fee deducted by the manager at payout; instrument costs passed through; premium AI tier ₹499/org/month (future)</div>
     <div><b>Status</b> &nbsp; Draft for review — supersedes the vertical and pricing scope in <code>docs/product-brief.md</code></div>
     <div><b>Audience</b> &nbsp; Product, engineering, design, compliance and commercial stakeholders</div>
   </div>
@@ -104,7 +104,7 @@
     <li><b>Personas and roles</b> <span>— nine actors, what each is accountable for</span></li>
     <li><b>The three verticals</b> <span>— residential, hostel/PG/co-living, commercial</span></li>
     <li><b>The operating model</b> <span>— money flows, cost sharing, the manager's mandate</span></li>
-    <li><b>Module requirements and user stories</b> <span>— M1–M19, 267 stories</span></li>
+    <li><b>Module requirements and user stories</b> <span>— M1–M20, 296 stories</span></li>
     <li><b>Mobile-first experience requirements</b> <span>— five apps and the web surfaces; Admin is both</span></li>
     <li><b>Critical end-to-end workflows</b> <span>— the five journeys that cross every module</span></li>
     <li><b>Integrations, data, stack, identity and access</b> <span>— adapters, stack, the authorisation model, access tiers and demo data</span></li>
@@ -112,6 +112,7 @@
     <li><b>India regulatory summary</b> <span>— payments, documents, tax, privacy</span></li>
     <li><b>Phased delivery plan</b> <span>— what ships when, and why in that order</span></li>
     <li><b>Assumptions and open decisions</b> <span>— what must be answered before build</span></li>
+    <li><b>Appendix — competitive parity check</b> <span>— PropertyMe comparison, gaps found and closed</span></li>
   </ol>
 </section>
 
@@ -185,6 +186,7 @@
   <tr><td>M17 Analytics &amp; reporting</td><td colspan="3" style="text-align:center">Cross-cutting</td><td>Owner, Manager, Admin</td></tr>
   <tr><td>M18 AI capabilities <span class="nb">(premium)</span></td><td colspan="3" style="text-align:center">Cross-cutting — the only paid tier</td><td>Manager, Owner, Operator</td></tr>
   <tr><td>M19 Demo &amp; sandbox</td><td colspan="3" style="text-align:center">Cross-cutting — every vertical demonstrable</td><td>Visitor, Sales, Prospect</td></tr>
+  <tr><td>M20 Workflow automation</td><td colspan="3" style="text-align:center">Cross-cutting</td><td>Manager, Operator</td></tr>
 </table>
 
 <h3>2.2 Story priority convention</h3>
@@ -264,7 +266,7 @@ FLOW B — PAYOUT            Collections ─► [ − manager fee − GST − TD
 FLOW C — SERVICE JOB       Liable party ──► Vendor  (direct)   or
                            Platform pays vendor ──► recovers from liable party in the next cycle
 
-FLOW D — PLATFORM REVENUE  3.9% deducted by the manager when paying the owner
+FLOW D — PLATFORM REVENUE  2.99% deducted by the manager when paying the owner
                            (outbound leg only; tenant never surcharged)
                            + card/netbanking instrument cost passed through separately
                            + premium AI tier INR 499/org/month (future)
@@ -334,7 +336,7 @@ FLOW D — PLATFORM REVENUE  3.9% deducted by the manager when paying the owner
 
 <div class="callout">
   <span class="h">The pricing rule</span>
-  <p><strong>A flat 3.9% platform fee, deducted by the property manager when they pay the owner.</strong> It is charged once per rent cycle, on the outbound leg only. The tenant pays exactly the rent — there is no surcharge on money coming in. No subscription, no per-unit charge, no feature gating, no seat limits. Every capability in this document — collections, agreements, maintenance, marketplace, hostel, commercial, accounting, sales — is included from day one. The only future exception is the premium AI tier described in §5.6.</p>
+  <p><strong>A flat 2.99% platform fee, deducted by the property manager when they pay the owner.</strong> It is charged once per rent cycle, on the outbound leg only. The tenant pays exactly the rent — there is no surcharge on money coming in. No subscription, no per-unit charge, no feature gating, no seat limits. Every capability in this document — collections, agreements, maintenance, marketplace, hostel, commercial, accounting, sales — is included from day one. The only future exception is the premium AI tier described in §5.6.</p>
 </div>
 
 <h4>Why this works</h4>
@@ -354,7 +356,7 @@ FLOW D — PLATFORM REVENUE  3.9% deducted by the manager when paying the owner
   <tr><td>Token advance and brokerage settled in-app</td><td><strong>Yes</strong></td><td>Sale consideration itself is out of scope — the platform never touches it</td></tr>
   <tr><td>Offline cash and direct bank transfers recorded but not transacted</td><td>No</td><td>Recording stays free on both legs; it is the honesty mechanism that keeps the ledger true</td></tr>
   <tr><td>Refunds, reversals and deposit returns</td><td>No</td><td>Never fee a customer for getting their own money back</td></tr>
-  <tr><td><strong>Outbound leg</strong> — the manager paying the owner</td><td><strong>Yes — 3.9%</strong><br><span class="nb">deducted by the manager at payout</span></td><td>The single charge point. The manager is the party Rentora does the operating work for, and this is where the owner statement already itemises deductions.</td></tr>
+  <tr><td><strong>Outbound leg</strong> — the manager paying the owner</td><td><strong>Yes — 2.99%</strong><br><span class="nb">deducted by the manager at payout</span></td><td>The single charge point. The manager is the party Rentora does the operating work for, and this is where the owner statement already itemises deductions.</td></tr>
 </table>
 
 <h4>Who bears it, and where it is charged</h4>
@@ -373,18 +375,18 @@ FLOW D — PLATFORM REVENUE  3.9% deducted by the manager when paying the owner
 </table>
 
 <h4>Payment instrument costs are separate and passed through</h4>
-<p>The 3.9% is a <strong>platform fee, not a payment-processing charge</strong>. Where a payment instrument carries a real cost — credit card, some netbanking, NACH — that cost is handled separately as a disclosed pass-through surcharge at the point of payment, exactly as Indian rent-payment services already do. UPI and offline transfers carry no instrument cost and therefore no surcharge, which keeps the default path free for the tenant and cheap for the platform.</p>
+<p>The 2.99% is a <strong>platform fee, not a payment-processing charge</strong>. Where a payment instrument carries a real cost — credit card, some netbanking, NACH — that cost is handled separately as a disclosed pass-through surcharge at the point of payment, exactly as Indian rent-payment services already do. UPI and offline transfers carry no instrument cost and therefore no surcharge, which keeps the default path free for the tenant and cheap for the platform.</p>
 
 <div class="callout warn">
   <span class="h">The economics to keep an eye on</span>
-  <p>A manager typically earns <strong>8–10% of collected rent</strong>, so 3.9% of gross rent is roughly <strong>40–50% of their revenue</strong> — ₹1,072 against a ₹2,200 fee on ₹27,500 of rent. That is the first calculation a manager will run, and it is a high share by international norms: Australian property-management platforms charge the agency a flat per-property subscription of roughly A$2.50–3.25 per property per month all-in, which on a typical rent is on the order of <em>0.1% of rent</em> rather than 3.9%.</p>
+  <p>A manager typically earns <strong>8–10% of collected rent</strong>, so 2.99% of gross rent is roughly <strong>30–37% of their revenue</strong> — ₹822 against a ₹2,200 fee on ₹27,500 of rent. That is the first calculation a manager will run, and it is a high share by international norms: Australian property-management platforms charge the agency a flat per-property subscription of roughly A$2.50–3.25 per property per month all-in, which on a typical rent is on the order of <em>0.1% of rent</em> rather than 2.99%.</p>
   <p>India is not Australia — there is no statutory trust-account regime, managers are smaller, software willingness-to-pay is far lower, and Rentora bundles collections, maintenance, a vendor marketplace and compliance rather than selling a ledger. A transaction model may well be the right answer here where a subscription is not. But the gap is large enough that <strong>rate, base and cap must all be rule-table values from the first release</strong>: charging on the manager's fee instead of gross rent, capping the fee per payout, or tiering by monthly volume must each be a configuration change, never a rewrite. A per-payout cap is the cheapest insurance and should exist from day one even if it is set high.</p>
 </div>
 
 <h4>Residual streams</h4>
 <table>
   <tr><th style="width:26%">Stream</th><th style="width:26%">Basis</th><th>Notes</th></tr>
-  <tr><td><strong>Platform fee</strong></td><td>3.9%, once per cycle, deducted at payout</td><td>The whole business at launch</td></tr>
+  <tr><td><strong>Platform fee</strong></td><td>2.99%, once per cycle, deducted at payout</td><td>The whole business at launch</td></tr>
   <tr><td>Premium AI tier</td><td>₹499 per organisation per month (future)</td><td>The only paid plan that will ever exist — see §5.6</td></tr>
   <tr><td>Sale brokerage</td><td>Share of a negotiated brokerage on a completed sale</td><td>Separately contracted; not a platform fee percentage</td></tr>
   <tr><td>Partner referrals</td><td>Insurance, deposit alternatives, home loans, movers, utilities</td><td>Referral fee only; Rentora carries no risk and discloses the relationship</td></tr>
@@ -402,7 +404,7 @@ FLOW D — PLATFORM REVENUE  3.9% deducted by the manager when paying the owner
 
 <h2><span class="num">6.</span> Module requirements and user stories</h2>
 
-<p class="lede">Nineteen modules, each with its scope, its rules and its high-level stories. Eighteen are free to every organisation; only the AI tier of §5.6 is paid. Stories are epic-level: each will decompose into several engineering stories on the delivery board using the standard template. Priorities are as defined in §2.2.</p>
+<p class="lede">Twenty modules, each with its scope, its rules and its high-level stories. Nineteen are free to every organisation; only the AI tier of §5.6 is paid. Stories are epic-level: each will decompose into several engineering stories on the delivery board using the standard template. Priorities are as defined in §2.2.</p>
 
 <h3>M1 · Identity, organisations and access</h3>
 <p><strong>Purpose.</strong> Establish who a person is, which organisation they are acting for, and what they may do — on a phone, with a phone number, on a shared low-end device.</p>
@@ -442,6 +444,7 @@ FLOW D — PLATFORM REVENUE  3.9% deducted by the manager when paying the owner
   <tr><td>INV-10</td><td>Manager</td><td>a single occupancy view across every unit and bed I manage</td><td>I can see vacancy and revenue at risk in one screen</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>INV-11</td><td>Manager</td><td>photographic condition records per unit at move-in and move-out</td><td>deposit deductions are evidenced rather than argued</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>INV-12</td><td>Owner / Manager</td><td>segment templates for residential, hostel and commercial at property creation</td><td>onboarding is fast without losing segment-specific fields</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>INV-14</td><td>Manager</td><td>key and access-card tracking with check-out, return and overdue alerts</td><td>I know who holds the keys to every property I manage</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>INV-13</td><td>Platform Admin</td><td>configurable property fields, document types and regional settings</td><td>state and customer variation is handled without a release</td><td><span class="pill p2">P2</span></td></tr>
 </table>
 
@@ -514,6 +517,10 @@ FLOW D — PLATFORM REVENUE  3.9% deducted by the manager when paying the owner
   <tr><td>BIL-14</td><td>Manager</td><td>bulk collection actions and a daily collection worklist</td><td>chasing 300 units is a queue, not a memory exercise</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>BIL-15</td><td>Operations</td><td>nightly reconciliation against the aggregator settlement with drift alerts</td><td>unmatched money is found in a day, not when a landlord complains</td><td><span class="pill p0">P0</span></td></tr>
   <tr><td>BIL-16</td><td>Tenant</td><td>a clear breakdown of every charge on my invoice</td><td>I understand what I am paying for and dispute less</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>BIL-18</td><td>Manager</td><td>automatic bank feeds importing account transactions daily</td><td>money that arrives by NEFT or IMPS reconciles itself instead of by hand</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>BIL-19</td><td>Manager</td><td>bank statement import and matching for accounts without a live feed</td><td>every bank a customer uses is supported, not only the integrated ones</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>BIL-20</td><td>Manager</td><td>rent credits, concessions and negotiated adjustments applied with a reason</td><td>a rent-free month or a goodwill credit is recorded properly rather than by editing an invoice</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>BIL-21</td><td>Manager</td><td>one-time fee types — letting fee, onboarding, admin, renewal — charged automatically</td><td>everything I bill an owner is on the platform, not in a side invoice</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>BIL-17</td><td>Hostel operator</td><td>mess and service charges adjusted for declared leave</td><td>residents are billed for what they consumed, which is the top fee complaint</td><td><span class="pill p2">P2</span></td></tr>
 </table>
 
@@ -559,6 +566,11 @@ raise ─► triage &amp; categorise ─► liability evaluated &amp; disclosed 
   <tr><td>MNT-10</td><td>Hostel warden</td><td>bulk and recurring tasks — housekeeping rounds, pest control, water tank cleaning</td><td>routine operations are scheduled rather than remembered</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>MNT-11</td><td>Tenant</td><td>an emergency path for water, electrical, gas, lift or safety issues</td><td>a genuine emergency is not queued behind a squeaking door</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>MNT-12</td><td>Manager</td><td>rework tracked against the original job under warranty at no extra cost</td><td>a badly done repair is the vendor's problem, not the owner's</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>MNT-14</td><td>Manager</td><td>scheduled routine inspections with notice to the tenant, photos, comments and a signed report</td><td>periodic inspection is a workflow, not a diary entry and a camera roll</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>MNT-15</td><td>Field agent</td><td>a day's inspections planned into a route with map ordering</td><td>I am not driving across the city twice in one morning</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>MNT-16</td><td>Tenant</td><td>to complete a guided self-inspection from my phone when that is agreed</td><td>a routine check does not need someone to visit and disturb me</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>MNT-17</td><td>Owner</td><td>an inspection report with photos and condition notes delivered automatically</td><td>I can see the state of my property without being there</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>MNT-18</td><td>Manager</td><td>a compliance register per property with renewal dates and evidence</td><td>fire safety, lift, electrical, water tank, insurance and society NOCs never lapse unnoticed</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>MNT-13</td><td>Owner</td><td>to approve or decline a quote from a push notification in one tap</td><td>a ₹3,000 decision does not need me to open a laptop</td><td><span class="pill p1">P1</span></td></tr>
 </table>
 
@@ -591,6 +603,9 @@ raise ─► triage &amp; categorise ─► liability evaluated &amp; disclosed 
   <tr><td>VND-12</td><td>Manager</td><td>to bring my own trusted vendors onto the platform alongside marketplace ones</td><td>I do not have to abandon relationships I have built over years</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>VND-13</td><td>Owner</td><td>a warranty period on every job with free rework inside it</td><td>I pay once for a repair that should have worked the first time</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>VND-14</td><td>Tenant</td><td>to book a service directly for something I am paying for myself</td><td>the app is useful to me even when my landlord is not involved</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>VND-17</td><td>Manager</td><td>supplier bills captured by scan or upload and allocated to the right property and vendor</td><td>a stack of bills becomes ledger entries without manual data entry</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>VND-18</td><td>Manager</td><td>recurring supplier bills and outgoings — society dues, AMC, insurance, property tax</td><td>predictable costs are scheduled rather than remembered</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>VND-19</td><td>Owner / Manager</td><td>multi-step bill approval above a threshold</td><td>no single person can approve and pay a bill alone</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>VND-15</td><td>Manager</td><td>AMC packages sold per property with scheduled visits</td><td>maintenance becomes predictable revenue rather than reactive cost</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>VND-16</td><td>Provider</td><td>an earnings dashboard with jobs, ratings and settlement history</td><td>I can run my business from the app I take jobs on</td><td><span class="pill p2">P2</span></td></tr>
 </table>
@@ -638,6 +653,9 @@ raise ─► triage &amp; categorise ─► liability evaluated &amp; disclosed 
   <tr><td>FIN-12</td><td>Manager</td><td>an export in the format my chartered accountant actually uses</td><td>year end does not require re-keying twelve months of data</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>FIN-13</td><td>Operations</td><td>payouts executed as compensating workflows with verified settlement</td><td>a partial failure can never leave money and the ledger out of step</td><td><span class="pill p0">P0</span></td></tr>
   <tr><td>FIN-14</td><td>Owner</td><td>refunds and adjustments handled with correct postings and evidence</td><td>money returned is as traceable as money collected</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>FIN-18</td><td>Owner / Manager</td><td>payouts triggered by a date or by an available balance threshold</td><td>owners are paid on the rhythm they chose, not when someone remembers</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>FIN-19</td><td>Manager</td><td>bulk disbursement and a bank batch file for payments outside the platform rails</td><td>paying ninety owners is one action, not ninety transfers</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>FIN-20</td><td>Accountant</td><td>a period close with a locked month and an audit-ready pack</td><td>the books for a closed month cannot silently change afterwards</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>FIN-16</td><td>Platform Admin</td><td>bank and settlement details verified before collections or payouts are enabled</td><td>money never moves to an unverified account</td><td><span class="pill p0">P0</span></td></tr>
   <tr><td>FIN-17</td><td>Manager</td><td>the platform fee computed, disclosed and posted per the organisation's bearer setting</td><td>everyone sees what the platform costs, on the invoice, before paying</td><td><span class="pill p0">P0</span></td></tr>
   <tr><td>FIN-15</td><td>Hostel operator</td><td>revenue reporting per bed, per room type and per occupancy month</td><td>I can see yield rather than just total collections</td><td><span class="pill p2">P2</span></td></tr>
@@ -696,6 +714,10 @@ raise ─► triage &amp; categorise ─► liability evaluated &amp; disclosed 
   <tr><td>NTF-04</td><td>Manager</td><td>delivery and read reporting on important notices</td><td>I can prove a notice reached the people it had to reach</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>NTF-05</td><td>Any user</td><td>quiet hours and per-category notification preferences</td><td>I am not woken by a reminder for a bill due next week</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>NTF-06</td><td>Tenant &amp; Manager</td><td>an in-app conversation thread attached to a ticket or a tenancy</td><td>the conversation and its context live in the same place</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>NTF-10</td><td>Manager</td><td>a template library for email, SMS, WhatsApp and letters with merge fields</td><td>routine correspondence is consistent and takes seconds</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>NTF-11</td><td>Manager</td><td>replies to arrive back in one inbox, whichever channel the tenant used</td><td>a reply by SMS does not vanish into someone's personal phone</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>NTF-12</td><td>Any user</td><td>a time-stamped activity feed on every property, tenancy, ticket and contact</td><td>anyone picking up the file can see the whole history at a glance</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>NTF-13</td><td>Manager</td><td>to mention a colleague on a record and have it reach their queue</td><td>handing over a task does not require a separate message</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>NTF-08</td><td>Manager</td><td>surveys and feedback requests to residents or owners</td><td>I hear about a problem before it becomes a vacancy</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>NTF-09</td><td>Resident</td><td>a community board for a building or hostel</td><td>residents help each other without a WhatsApp group nobody moderates</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>NTF-07</td><td>Any user</td><td>the interface and messages in English or Hindi at minimum</td><td>the product works for the people who actually use it</td><td><span class="pill p2">P2</span></td></tr>
@@ -759,6 +781,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>SAL-29</td><td>Hostel operator</td><td>a bed-level listing with sharing type, gender policy, mess inclusion and available-from date</td><td>a student can find and reserve a bed before arriving in the city</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>SAL-30</td><td>Commercial manager</td><td>a commercial listing with chargeable area, floor, fit-out status, CAM and parking</td><td>a business can evaluate the space on the terms it actually cares about</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>SAL-31</td><td>Prospect</td><td>a shareable listing link that previews correctly on WhatsApp</td><td>I can send it to my family and decide together</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-33</td><td>Owner / Manager</td><td>my listing published to the major Indian portals from one place</td><td>I reach the whole market without maintaining four listings</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>SAL-32</td><td>Anonymous visitor</td><td>to browse listings and understand what Rentora does without creating an account</td><td>I can judge whether it is worth signing up before I hand over my number</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>SAL-17</td><td>Platform Admin</td><td>listing moderation and compliance guardrails on claims</td><td>the platform is not liable for what an agent wrote at midnight</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>SAL-18</td><td>Seller</td><td>outstanding society dues and tenancy encumbrances flagged before listing</td><td>a sale does not collapse at the NOC stage</td><td><span class="pill p3">P3</span></td></tr>
@@ -793,6 +816,8 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>RPT-04</td><td>Manager</td><td>a maintenance spend analysis by category, vendor and property</td><td>I can renegotiate rates and spot a recurring failure</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>RPT-05</td><td>Operator</td><td>hostel occupancy and revenue per bed by room type and season</td><td>pricing and capacity decisions are evidence-based</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>RPT-06</td><td>Manager</td><td>scheduled reports delivered to owners automatically</td><td>reporting is not a monthly manual ritual</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>RPT-11</td><td>Manager</td><td>portfolio KPIs — properties gained and lost, response times, overdue tasks, inspection compliance</td><td>I can see whether the business is improving, not just what is outstanding today</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>RPT-12</td><td>Manager</td><td>to switch between a property view and a client view of the same data</td><td>I can work the way the question is asked — by building or by person</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>RPT-08</td><td>New owner or manager</td><td>a populated demonstration workspace on first sign-in, clearly marked as sample data</td><td>I can see exactly what the product does before entering anything of my own</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>RPT-09</td><td>New owner or manager</td><td>to explore the sample portfolio — open a tenancy, raise a ticket, walk an approval, view a statement</td><td>I learn the product by using it rather than by reading a tour</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>RPT-10</td><td>New owner or manager</td><td>the demonstration workspace removed entirely the moment I add my first real property</td><td>sample figures can never be confused with my money</td><td><span class="pill p1">P1</span></td></tr>
@@ -818,6 +843,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>AIX-10</td><td>Manager</td><td>anomalies flagged — unusual utility consumption, duplicate billing, unexpected ledger movement</td><td>a leak or a mistake is found before it becomes a quarter's loss</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>AIX-11</td><td>Support / Manager</td><td>a tenancy or dispute history summarised before a conversation</td><td>I walk into a call already knowing the facts</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>AIX-12</td><td>Operator</td><td>occupancy, churn and vacancy forecasts per property or room type</td><td>I plan capacity and pricing ahead of the season</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>AIX-16</td><td>Manager</td><td>state-specific compliance guidance in context, citing the rule</td><td>I get an answer where the work is, instead of searching a government site</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>AIX-13</td><td>Owner / Manager</td><td>a free trial, then to subscribe or cancel the AI tier in the app in one step</td><td>I can judge whether ₹499 is worth it on my own data</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>AIX-14</td><td>Platform Admin</td><td>AI entitlement enforced server-side with per-organisation usage and cost attribution</td><td>the tier is neither bypassable nor unprofitable</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>AIX-15</td><td>Any user</td><td>every AI output labelled as assistive, with its source data and a correction path</td><td>I know what the machine suggested and what a person decided</td><td><span class="pill p2">P2</span></td></tr>
@@ -851,6 +877,20 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>DMO-18</td><td>Existing customer</td><td>to try a new release in the sandbox before it reaches my live account</td><td>a change to how I get paid never surprises me on the first of the month</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>DMO-19</td><td>Any user</td><td>a what's-new walkthrough that runs on sample data rather than my own</td><td>I can learn a new feature by trying it, not by reading release notes</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>DMO-20</td><td>Manager or platform</td><td>training completion visible per staff member</td><td>I know who has actually been trained before they touch a live tenancy</td><td><span class="pill p3">P3</span></td></tr>
+</table>
+
+
+<h3>M20 · Workflow automation</h3>
+<p><strong>Purpose.</strong> Let a manager encode their own operating procedure — triggers, conditions and actions — without an engineer. This is what separates software a firm uses from software a firm runs on.</p>
+<p><strong>Key rules.</strong> Automations are configuration, versioned and auditable. Nothing automated may move money, sign a document or dispatch a vendor without the approval the mandate requires. Every automated action is attributed to the automation that caused it, and any automation can be paused instantly.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>AUT-01</td><td>Manager</td><td>ready-made automations for the routine work — arrears follow-up, lease expiry, inspection scheduling, compliance renewals</td><td>the obvious things run themselves from day one</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>AUT-02</td><td>Manager</td><td>to build my own rules from triggers, conditions and actions without code</td><td>the platform fits how my firm actually works</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>AUT-03</td><td>Manager</td><td>one action to fire a whole checklist — a move-in, a move-out, an owner onboarding</td><td>a multi-step process is one click and nothing is skipped</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>AUT-04</td><td>Manager</td><td>to see what an automation did, and pause it instantly</td><td>an automation that misbehaves is stopped in seconds, and its effects are traceable</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>AUT-05</td><td>Manager</td><td>automations blocked from moving money or dispatching without the required approval</td><td>convenience never becomes an unauthorised spend</td><td><span class="pill p0">P0</span></td></tr>
 </table>
 
 <h2><span class="num">7.</span> Mobile-first experience requirements</h2>
@@ -998,7 +1038,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <h3>9.2 Data model principles</h3>
 <ul>
-  <li><strong>One core, extended per segment.</strong> Residential, hostel and commercial share organisation, property, unit, occupancy and ledger. A vertical adds inventory depth, charge heads and modules — never a parallel data model.</li>
+  <li><strong>One API, one core, extended per segment.</strong> A single Go monolith serves every client; verticals add modules inside it, never a parallel service. Residential, hostel and commercial share organisation, property, unit, occupancy and ledger. A vertical adds inventory depth, charge heads and modules — never a parallel data model.</li>
   <li><strong>Everything effective-dated.</strong> Ownership, rent, occupancy, membership, mandates and fee agreements are validity intervals, not overwritten rows.</li>
   <li><strong>Money is postings.</strong> Balances are derived; there is no stored, mutable amount-due column anywhere in the system.</li>
   <li><strong>One identity, many scoped roles</strong>, always bound to <code>(organisation, property, unit)</code>.</li>
@@ -1012,10 +1052,16 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 <h3>9.3 Technology stack</h3>
 <p>Settled, and aligned with the platform patterns already proven in the org's other products (<code>mark8ly</code>, <code>Home-Chef-App</code>) so that tooling, CI and the design system are shared rather than reinvented.</p>
 
+<div class="callout">
+  <span class="h">One API, one deployable</span>
+  <p><strong>Rentora is a modular monolith, not a set of microservices.</strong> One Go API serves every client — Live, Own, Ops, Pro and Admin on mobile; the Ops, Owner, Admin and vendor consoles on web; and the public listing site. There is one OpenAPI specification, one authentication and authorisation path, one database and one transaction boundary.</p>
+  <p>This is the right call for this product, and deliberately so. The domain is <em>densely</em> interconnected — a maintenance job touches the ticket, the liability matrix, the vendor, the ledger, the owner statement and the notification ladder in a single logical operation. Splitting that across services would replace transactions with distributed sagas and turn a correctness problem into a coordination problem, for a team that does not need to scale services independently. Modularity is enforced <strong>inside</strong> the codebase — clear module boundaries, no cross-module database access, an internal event bus — so that if a module ever genuinely needs to be extracted, the seam already exists.</p>
+</div>
+
 <table>
   <tr><th style="width:20%">Layer</th><th style="width:32%">Choice</th><th>Notes</th></tr>
   <tr><td>Web</td><td><strong>Next.js</strong> with the org design system</td><td>Public listing site (SEO and server rendering matter), owner and manager consoles, and the Admin console</td></tr>
-  <tr><td>Backend</td><td><strong>Go</strong> with Gin</td><td>Domain services per §2 boundaries; REST externally, gRPC internally where it earns its keep</td></tr>
+  <tr><td>Backend</td><td><strong>One Go monolith API</strong> with Gin</td><td><strong>A single deployable API serves every client</strong> — five apps, three web consoles and the public site. Modular inside (property, lease, money, maintenance, marketplace, documents, notifications, identity), one deployment, one database, one transaction boundary.</td></tr>
   <tr><td>Mobile</td><td><strong>React Native on Expo</strong>, expo-router, NativeWind + Tailwind, <code>@tesserix/native</code> and design tokens</td><td>Matches the existing HomeChef and mark8ly apps exactly — same navigation, styling, icon and font conventions</td></tr>
   <tr><td>Mobile data layer</td><td>TanStack Query, zustand, react-hook-form + zod, axios</td><td>Query persistence and a netinfo-aware queue give the offline tolerance §7.2 requires</td></tr>
   <tr><td>Mobile platform services</td><td>expo-secure-store, expo-notifications, expo-image-picker/manipulator, expo-location, react-native-maps, expo-updates</td><td>Evidence capture, push, deep links, routing for technicians and site visits, OTA fixes</td></tr>
@@ -1252,8 +1298,8 @@ type listing
 <ol>
   <li>Launch is India-only, in a small number of states chosen by e-stamping and verification coverage rather than by market size.</li>
   <li>One identity provider serves everyone; there is no separate staff identity stack, and platform administrators hold no implicit privilege.</li>
-  <li><strong>There are no subscriptions.</strong> The entire product is free and monetised by a flat 3.9% fee on payments transacted through the app; the premium AI tier at ₹499 per organisation per month is the only paid plan and arrives later.</li>
-  <li>Aggregator cost is netted from the 3.9%, so margin varies by payment instrument and must be monitored per instrument from launch.</li>
+  <li><strong>There are no subscriptions.</strong> The entire product is free and monetised by a flat 2.99% fee on payments transacted through the app; the premium AI tier at ₹499 per organisation per month is the only paid plan and arrives later.</li>
+  <li>Aggregator cost is netted from the 2.99%, so margin varies by payment instrument and must be monitored per instrument from launch.</li>
   <li>AI is never load-bearing: a non-paying organisation can operate a property end to end with no blocked action.</li>
   <li>Rentora never holds client funds. Every design here assumes settlement through a regulated aggregator.</li>
   <li>Residential is the beachhead. Hostel and commercial reuse the same core and are sequenced after the manager platform exists.</li>
@@ -1273,12 +1319,12 @@ type listing
   <tr><td>Whether the manager may collect into their own account</td><td>Changes the entire money-flow, custody and reconciliation design</td><td>P0</td></tr>
   <tr><td>Vendor payment model</td><td>Platform-advanced-then-recovered versus direct-to-vendor has regulatory and working-capital consequences</td><td>P3</td></tr>
   <tr><td>Hostel GST treatment</td><td>Composite supply of stay plus food materially changes billing; requires professional advice</td><td>P5</td></tr>
-  <tr><td><s>Who bears the 3.9% fee</s> — <strong>decided</strong></td><td>The property manager, generalised as "the party earning the operating margin"; owner where self-managed, operator for hostels, society for dues, vendor for jobs (§5.5)</td><td>Closed</td></tr>
+  <tr><td><s>Who bears the 2.99% fee</s> — <strong>decided</strong></td><td>The property manager, generalised as "the party earning the operating margin"; owner where self-managed, operator for hostels, society for dues, vendor for jobs (§5.5)</td><td>Closed</td></tr>
   <tr><td>Fee base, cap and tiering</td><td>Whether the fee stays on gross rent at a flat rate, or moves to the manager's fee, a per-transaction cap or a volume tier — all rule-table values, but the market answer is unknown</td><td>P3</td></tr>
-  <tr><td>Fee treatment on cards and NACH</td><td>Aggregator cost on some instruments approaches or exceeds 3.9%; capping, surcharging or restricting an instrument must be decided</td><td>P1</td></tr>
-  <tr><td>GST treatment of the platform fee</td><td>The fee is a taxable service; whether it is charged on top of or within 3.9% affects both pricing and every invoice</td><td>P0</td></tr>
+  <tr><td>Fee treatment on cards and NACH</td><td>Aggregator cost on some instruments approaches or exceeds 2.99%; capping, surcharging or restricting an instrument must be decided</td><td>P1</td></tr>
+  <tr><td>GST treatment of the platform fee</td><td>The fee is a taxable service; whether it is charged on top of or within 2.99% affects both pricing and every invoice</td><td>P0</td></tr>
   <tr><td>AI tier scope and cost ceiling</td><td>Which capabilities sit behind ₹499 and what per-organisation inference cost is sustainable at that price</td><td>P8</td></tr>
-  <tr><td>Marketplace fee application</td><td>Whether the 3.9% on a job is taken from the vendor, added for the customer, or absorbed in the job price</td><td>P4</td></tr>
+  <tr><td>Marketplace fee application</td><td>Whether the 2.99% on a job is taken from the vendor, added for the customer, or absorbed in the job price</td><td>P4</td></tr>
   <tr><td>Brokerage and RERA posture</td><td>Whether Rentora acts as an agent or only as a facilitator determines registration obligations</td><td>P7</td></tr>
   <tr><td>Insurance and liability</td><td>Who is liable when a dispatched technician causes damage in a customer's home</td><td>P4</td></tr>
 </table>
@@ -1286,7 +1332,7 @@ type listing
 <h3>11.3 Principal risks</h3>
 <table>
   <tr><th style="width:30%">Risk</th><th>Mitigation the backlog must carry</th></tr>
-  <tr><td><strong>The 3.9% fee drives users back to cash</strong></td><td>Bearer setting configurable and disclosed; value must be visibly worth the fee (documents, maintenance, ledger, compliance); offline recording stays free so the ledger stays true even when the rail is bypassed</td></tr>
+  <tr><td><strong>The 2.99% fee drives users back to cash</strong></td><td>Bearer setting configurable and disclosed; value must be visibly worth the fee (documents, maintenance, ledger, compliance); offline recording stays free so the ledger stays true even when the rail is bypassed</td></tr>
   <tr><td>Payment mix erodes margin below the fee</td><td>Instrument-level margin monitoring from launch; UPI-first design; explicit decision on cards and NACH</td></tr>
   <tr><td>Free product with no subscription floor cannot fund support</td><td>Support cost per organisation tracked against fee revenue; self-service and the Admin console reduce human touch</td></tr>
   <tr><td>Owners churn after one collection failure</td><td>Reconciliation, alerting and a degraded mode that still shows correct balances</td></tr>
@@ -1299,9 +1345,63 @@ type listing
   <tr><td>The product becomes three products</td><td>One core enforced architecturally — verticals add modules and billing bases, never a parallel data model</td></tr>
 </table>
 
+<h2><span class="num">14.</span> Appendix — competitive parity check</h2>
+
+<p class="lede">Rentora was compared against PropertyMe, Australia's largest property-management platform and the most mature example of the manager-in-the-middle model, in July 2026. The purpose was to find capability gaps, not to copy a pricing or regulatory model that does not apply in India.</p>
+
+<h3>14.1 What their model tells us</h3>
+<table>
+  <tr><th style="width:24%">Dimension</th><th style="width:36%">PropertyMe (Australia)</th><th>Rentora (India)</th></tr>
+  <tr><td>Charging model</td><td>Per-property subscription to the agency, roughly A$1.50–2.15 per property per month by plan, payments an add-on at about A$1.10 per property. No percentage of rent.</td><td>No subscription. 2.99% platform fee deducted once, by the manager, at payout.</td></tr>
+  <tr><td>Effective share of rent</td><td>On the order of 0.1%</td><td>2.99% — about 30–37% of a manager's own 8–10% fee</td></tr>
+  <tr><td>Why the difference is defensible</td><td colspan="2">Australian management is performed by licensed agencies operating statutory trust accounts; the software is a regulated ledger sold as infrastructure, and the percentage economics sit with the agency. India has no equivalent regime, managers are far smaller, subscription willingness-to-pay is low, and Rentora bundles collections, maintenance, a vendor marketplace, documents and compliance rather than selling a ledger. A transaction model can be right here where a subscription is not — provided rate, base and cap remain rule-table values.</td></tr>
+  <tr><td>Tenant-side charging</td><td>None — tenants pay by BPAY, direct debit or EFT at no cost. Card surcharging is being banned outright from 1 October 2026 following the RBA's retail payments review.</td><td>None. The tenant pays exactly the rent; instrument costs are passed through separately and UPI carries none.</td></tr>
+  <tr><td>Where the fee appears</td><td>Agency's technology and admin cost, passed to the owner as a statement line</td><td>Platform fee, itemised on the owner statement beside the management fee</td></tr>
+</table>
+
+<h3>14.2 Capability gaps found, and now specified</h3>
+<p>Twenty-five stories were added as a result of this comparison. Where a capability was Australia-specific — statutory trust accounting, sales trust, BPAY batching — it was translated into its Indian equivalent rather than copied.</p>
+
+<table>
+  <tr><th style="width:30%">Capability they have</th><th style="width:12%">Our status before</th><th>Now specified as</th></tr>
+  <tr><td>Automatic bank feeds and statement import</td><td>Missing</td><td>BIL-18, BIL-19 — daily feeds plus import for banks without one. <strong>The most important gap</strong>: most Indian rent moves bank-to-bank, and we only reconciled the gateway.</td></tr>
+  <tr><td>Routine periodic inspections with photos, notes and a signed report</td><td>Missing — we had move-in, move-out and prospect viewings only</td><td>MNT-14, MNT-17</td></tr>
+  <tr><td>Inspection route planning from geodata</td><td>Missing</td><td>MNT-15</td></tr>
+  <tr><td>Tenant-completed self inspection</td><td>Missing</td><td>MNT-16</td></tr>
+  <tr><td>Compliance register — smoke alarms, pool safety, insurance renewals</td><td>Partial — expiry tracking only</td><td>MNT-18, translated to fire safety, lift, electrical, water tank, insurance and society NOCs</td></tr>
+  <tr><td>Supplier bill capture, scanning and allocation</td><td>Missing</td><td>VND-17</td></tr>
+  <tr><td>Recurring supplier bills and outgoings</td><td>Missing</td><td>VND-18 — society dues, AMC, insurance, property tax</td></tr>
+  <tr><td>Multi-step bill approval</td><td>Partial</td><td>VND-19</td></tr>
+  <tr><td>Disbursements triggered by date or balance</td><td>Partial — fixed schedule only</td><td>FIN-18</td></tr>
+  <tr><td>Bulk disbursement and bank batch files</td><td>Missing</td><td>FIN-19</td></tr>
+  <tr><td>Period close and audit-ready pack</td><td>Missing</td><td>FIN-20</td></tr>
+  <tr><td>Automated fee types — letting, admin, renewal</td><td>Partial — management fee only</td><td>BIL-21</td></tr>
+  <tr><td>Rent credits and concessions</td><td>Missing</td><td>BIL-20</td></tr>
+  <tr><td>Key and access-card management</td><td>Missing</td><td>INV-14</td></tr>
+  <tr><td>Message template library with merge fields</td><td>Partial — fixed ladder only</td><td>NTF-10</td></tr>
+  <tr><td>Inbound replies into a unified inbox</td><td>Missing</td><td>NTF-11</td></tr>
+  <tr><td>Activity feed on every record</td><td>Missing — we had an audit trail, not a readable history</td><td>NTF-12</td></tr>
+  <tr><td>Internal mentions and hand-off</td><td>Missing</td><td>NTF-13</td></tr>
+  <tr><td>Portal syndication</td><td>Explicitly excluded</td><td>SAL-33 — reinstated at P3 for the Indian portals</td></tr>
+  <tr><td>Portfolio KPIs — gained and lost, response times, overdue</td><td>Partial</td><td>RPT-11</td></tr>
+  <tr><td>Property view versus client view</td><td>Missing</td><td>RPT-12</td></tr>
+  <tr><td>Workflow automation and a no-code builder</td><td>Missing</td><td><strong>Module M20</strong> — AUT-01 to AUT-05</td></tr>
+  <tr><td>In-context compliance guidance (AI)</td><td>Partial</td><td>AIX-16</td></tr>
+</table>
+
+<h3>14.3 Where Rentora goes further</h3>
+<ul>
+  <li><strong>Three verticals on one core</strong> — hostel and PG with bed-level inventory and a guardian payer, and commercial with CAM and metered utilities, alongside residential. PropertyMe is residential and commercial only, with no bed-level model.</li>
+  <li><strong>An embedded service marketplace</strong> — verified vendors, OTP-gated jobs, quotes, warranty and settlement — rather than integrating with a third-party job service.</li>
+  <li><strong>Cost-sharing as a rule engine</strong> — who pays is decided from the agreement before dispatch, rather than being a note on a work order.</li>
+  <li><strong>Public discovery and inspection booking</strong> in the same product that operates the tenancy, so a listing converts into a tenancy with no re-keying.</li>
+  <li><strong>India's compliance mechanics as product</strong> — e-stamping, Aadhaar e-sign, police verification, GST and TDS as workflow rather than advice.</li>
+  <li><strong>A no-sign-up sandbox</strong> for evaluation and for staff training on releases.</li>
+</ul>
+
 <div class="callout warn" style="margin-top:22px">
   <span class="h">Document control</span>
-  <p>Version 1.9 charges the platform fee once, deducted by the manager at payout, with instrument costs passed through separately. Version 1.7 settled the fee bearer, specifies the authorisation model and makes Rentora Ops a full web console as well as an app. Version 1.6 added module M19 — a no-sign-up sandbox anyone can use before creating an account, and a training and release-preview sandbox for existing customers and their staff. Version 1.5 defined the five access tiers, the no-anonymous rule for administrative surfaces, and the demonstration-data workspace. Version 1.4 settled identity and authorisation — Google Identity Platform for every user, OpenFGA plus RBAC for permissions. Version 1.3 added public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
+  <p>Version 2.0 sets the fee at 2.99%, fixes the backend as one modular monolith API serving every client, adds 25 capabilities found by benchmarking against PropertyMe, and adds module M20 workflow automation. Version 1.9 charged the platform fee once, deducted by the manager at payout, with instrument costs passed through separately. Version 1.7 settled the fee bearer, specifies the authorisation model and makes Rentora Ops a full web console as well as an app. Version 1.6 added module M19 — a no-sign-up sandbox anyone can use before creating an account, and a training and release-preview sandbox for existing customers and their staff. Version 1.5 defined the five access tiers, the no-anonymous rule for administrative surfaces, and the demonstration-data workspace. Version 1.4 settled identity and authorisation — Google Identity Platform for every user, OpenFGA plus RBAC for permissions. Version 1.3 added public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 2.99% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
 </div>
 
 </body>
