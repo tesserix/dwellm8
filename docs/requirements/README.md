@@ -2,7 +2,7 @@
 
 | Document | Source | Output |
 |---|---|---|
-| High-Level Product Requirements & User Story Catalogue (v1.3) | `rentora-requirements.html` | [`Rentora-Requirements-v1.3.pdf`](Rentora-Requirements-v1.3.pdf) · [`Rentora-Requirements-v1.3.docx`](Rentora-Requirements-v1.3.docx) |
+| High-Level Product Requirements & User Story Catalogue (v1.4) | `rentora-requirements.html` | [`Rentora-Requirements-v1.4.pdf`](Rentora-Requirements-v1.4.pdf) · [`Rentora-Requirements-v1.4.docx`](Rentora-Requirements-v1.4.docx) |
 
 The PDF is generated from the HTML source — edit the HTML, never the PDF:
 
@@ -10,7 +10,7 @@ The PDF is generated from the HTML source — edit the HTML, never the PDF:
 cd docs/requirements
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \\
   --headless=new --disable-gpu --no-pdf-header-footer \\
-  --print-to-pdf="Rentora-Requirements-v1.3.pdf" \\
+  --print-to-pdf="Rentora-Requirements-v1.4.pdf" \\
   "file://$PWD/rentora-requirements.html"
 ```
 
@@ -18,13 +18,18 @@ DOCX is produced from the same source:
 
 ```bash
 pandoc rentora-requirements.html -f html -t docx --toc --toc-depth=3 \
-  -o Rentora-Requirements-v1.3.docx
+  -o Rentora-Requirements-v1.4.docx
 ```
 
 A copy of both is delivered to `~/Desktop/samyak-work/projects/Property-Manager/` as
 `Rentora_High_Level_Product_Requirements.{pdf,docx}`.
 
-v1.3 adds public discovery, listings and inspection scheduling (a new **Prospect** persona
+v1.4 settles identity and authorisation in a new §9.4: **Google Identity Platform for
+every user** (consumers, staff and admin alike — no Keycloak) with **OpenFGA plus RBAC**
+for permissions. Tokens carry identity, never authority; OpenFGA decides, and PostgreSQL
+row-level security remains an independent second line of defence.
+
+v1.3 added public discovery, listings and inspection scheduling (a new **Prospect** persona
 and 13 stories in M15), and settles the technology stack in §9.3 — **Next.js** web,
 **Go + Gin** services, and **React Native on Expo** for the five apps, matching the
 existing `mark8ly` and `Home-Chef-App` mobile stack (expo-router, NativeWind,

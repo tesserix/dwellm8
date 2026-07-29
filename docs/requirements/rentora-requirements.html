@@ -87,7 +87,7 @@
   <div class="title">High-Level Product Requirements<br>&amp; User Story Catalogue</div>
   <div class="sub">A mobile-first, one-stop property operating system for India — covering residential rentals, hostels and PG accommodation, and commercial premises, with the property manager as the operating middle layer between owners, tenants and service providers. Free to use, monetised on transactions.</div>
   <div class="meta">
-    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.3)</div>
+    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.4)</div>
     <div><b>Product</b> &nbsp; Rentora · <code>tesserix/rentora</code></div>
     <div><b>Date</b> &nbsp; 29 July 2026</div>
     <div><b>Monetisation</b> &nbsp; No subscriptions — flat 3.9% platform fee on in-app payments; premium AI tier ₹499/org/month (future)</div>
@@ -107,7 +107,7 @@
     <li><b>Module requirements and user stories</b> <span>— M1–M18, 241 stories</span></li>
     <li><b>Mobile-first experience requirements</b> <span>— five apps and the web surfaces; Admin is both</span></li>
     <li><b>Critical end-to-end workflows</b> <span>— the five journeys that cross every module</span></li>
-    <li><b>Integrations, data principles and stack</b> <span>— adapters, schema rules, and the settled technology choices</span></li>
+    <li><b>Integrations, data, stack and identity</b> <span>— adapters, schema rules, technology choices, and the authorisation model</span></li>
     <li><b>Non-functional requirements</b> <span>— reliability, security, performance, scale</span></li>
     <li><b>India regulatory summary</b> <span>— payments, documents, tax, privacy</span></li>
     <li><b>Phased delivery plan</b> <span>— what ships when, and why in that order</span></li>
@@ -209,7 +209,7 @@
 
 <div class="callout">
   <span class="h">The identity rule that everything depends on</span>
-  <p>A person is <strong>one identity holding many scoped roles</strong>. The same phone number is an owner of two flats in Pune, a tenant in Bengaluru, a guardian of a hostel resident in Manipal and a committee member of a society in Noida. Roles are always scoped to <code>(organisation, property, unit)</code> and never global. Permissions are never merged across organisations, and the app switches context explicitly rather than blending it.</p>
+  <p>A person is <strong>one identity holding many scoped relationships</strong>. The same phone number is an owner of two flats in Pune, a tenant in Bengaluru, a guardian of a hostel resident in Manipal and a committee member of a society in Noida. Roles are always scoped to <code>(organisation, property, unit)</code> and never global. Permissions are never merged across organisations, and the app switches context explicitly rather than blending it.</p>
 </div>
 
 <h2><span class="num">4.</span> The three verticals</h2>
@@ -384,7 +384,7 @@ FLOW D — PLATFORM REVENUE  3.9% platform fee on every in-app payment  (no subs
 
 <h3>M1 · Identity, organisations and access</h3>
 <p><strong>Purpose.</strong> Establish who a person is, which organisation they are acting for, and what they may do — on a phone, with a phone number, on a shared low-end device.</p>
-<p><strong>Key rules.</strong> Phone-number-first authentication with OTP; email optional. Roles scoped to <code>(organisation, property, unit)</code>. A manager acting for an owner always traverses an explicit mandate. Authorisation is fail-closed at the service boundary. Context switching between organisations is explicit and visible.</p>
+<p><strong>Key rules.</strong> Phone-number-first authentication with OTP through Google Identity Platform for <em>every</em> user, including platform admins. Authorisation is a fail-closed OpenFGA check at the service boundary, with RBAC roles layered on the relationship graph — a token never carries authority. Roles and relationships are scoped to <code>(organisation, property, unit)</code>. A manager acting for an owner always traverses an explicit, effective-dated mandate tuple. Context switching between organisations is explicit and visible. See §9.4.</p>
 
 <table class="stories">
   <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
@@ -964,13 +964,39 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>Payments in app</td><td>react-native-razorpay with UPI intent handling</td><td>Same integration already running in the org's consumer apps</td></tr>
   <tr><td>Mobile build</td><td>EAS Build with a manual-dispatch CI workflow, per-app <code>eas.json</code></td><td>Native binaries, not container images — a separate path from the web and API pipelines</td></tr>
   <tr><td>Shared mobile package</td><td>A single <code>mobile-shared</code> workspace package — api client, auth, hooks, types, theme, ui, shared screens</td><td>Five apps share one implementation; a fix lands once</td></tr>
+  <tr><td>Identity</td><td><strong>Google Identity Platform</strong> (Firebase Auth) for every user — consumers, staff and admin alike</td><td>Phone OTP as the primary factor, matching the existing org apps; one provider, one integration, no second identity stack to operate</td></tr>
+  <tr><td>Authorisation</td><td><strong>OpenFGA</strong> for relationship-based access, with RBAC roles on top</td><td>Fail-closed decisions at the service boundary; PostgreSQL row-level security stays as the second line of defence, not a replacement for it</td></tr>
   <tr><td>Data &amp; runtime</td><td>PostgreSQL with row-level security, Redis, NATS JetStream, Temporal, GKE + Istio + ArgoCD, OpenTelemetry</td><td>Per §9.2 and §10</td></tr>
 </table>
 
-<div class="callout warn">
-  <span class="h">Open: the authentication path</span>
-  <p>The org's existing mobile apps use Firebase / Google Identity Platform phone auth, while this document specifies Keycloak. The likely resolution is <strong>GIP phone-OTP for consumer identities</strong> (tenant, resident, guardian, prospect, technician) and <strong>Keycloak for staff and platform identities</strong> (manager staff, admin), with one canonical user record on the Rentora side and roles resolved there. This must be decided by an ADR before the first app screen is built — it is the one mobile choice that is expensive to reverse.</p>
+<h3>9.4 Identity and authorisation — GIP everywhere, OpenFGA for permissions</h3>
+
+<div class="callout">
+  <span class="h">Decided</span>
+  <p><strong>Authentication is Google Identity Platform for every user</strong> — tenant, resident, guardian, prospect, owner, manager, field agent, warden, technician, agent and platform admin. There is no second identity provider and no Keycloak. <strong>Authorisation is OpenFGA</strong>, with conventional RBAC roles layered on top of its relationship model. Authentication proves <em>who you are</em>, exactly once; everything about <em>what you may do</em> is an authorisation decision made against the relationship graph.</p>
 </div>
+
+<p>The separation matters because Rentora's permission model is inherently relational, not hierarchical. "This manager may approve spend on this unit because the owner granted a mandate scoped to it, which is still in force" is a relationship question, and expressing it as a role string in a token is how permission models rot.</p>
+
+<h4>What this gives us</h4>
+<ul>
+  <li><strong>One identity integration.</strong> Phone OTP is the primary factor for everyone, matching the apps already running in the org. Nothing to operate twice, and no user who exists in two providers.</li>
+  <li><strong>Relationships as first-class permissions.</strong> Ownership, delegation mandates, staff assignment, committee membership, guardian-of, technician-assigned-to-job and agent-assigned-to-listing are all tuples in the same graph.</li>
+  <li><strong>Effective-dated authority genuinely enforced.</strong> A revoked mandate or an expired committee term stops granting access because the tuple is gone, not because a nightly job remembered to strip a role.</li>
+  <li><strong>Auditable decisions.</strong> Every check can be explained — which relationship granted it — which is exactly what an owner asking "how did my manager approve that" needs.</li>
+</ul>
+
+<h4>The rules this imposes</h4>
+<table>
+  <tr><th style="width:26%">Rule</th><th>Detail</th></tr>
+  <tr><td>Admin is not a super-user</td><td>Platform staff authenticate through the same provider as everyone else and hold explicitly modelled administrative relationships. There is no implicit bypass, and elevated access is time-bound, justified and audited.</td></tr>
+  <tr><td>Tokens carry identity, not authority</td><td>A GIP token establishes the subject. It never carries a role list that a service trusts. Every authorisation decision is a check against the graph.</td></tr>
+  <tr><td>OpenFGA does not replace row-level security</td><td>The graph decides <em>whether</em> an action is permitted; the database still enforces tenant isolation on every query. Two independent mechanisms, and a bug in one must not be sufficient to leak data.</td></tr>
+  <tr><td>Tuples are derived from domain events</td><td>Ownership, mandate, staff assignment and occupancy changes write tuples transactionally with the domain change — never by a reconciliation job that can drift.</td></tr>
+  <tr><td>Fail closed, always</td><td>An unavailable or ambiguous authorisation decision denies. A degraded authorisation service degrades access, never expands it.</td></tr>
+  <tr><td>Checks are on the critical path</td><td>Every request incurs at least one check, so latency budget, caching strategy and cache invalidation on revocation are design requirements, not tuning work.</td></tr>
+  <tr><td>Anonymous access is modelled too</td><td>A prospect browsing listings has no identity. Public read access is an explicit relation in the model, not an unauthenticated code path that skips the check.</td></tr>
+</table>
 
 <h2><span class="num">10.</span> Non-functional requirements</h2>
 
@@ -980,7 +1006,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td><strong>Reliability</strong></td><td>The collection chain — invoice, reminder, collect, reconcile — is resumable at every step. Every multi-system operation is a durable workflow with compensations. Defined degraded mode: with the aggregator down, offline payments are still recorded and balances remain correct.</td></tr>
   <tr><td><strong>Idempotency</strong></td><td>Every collection, payout, refund, dispatch and notification is idempotent. Every webhook is deduplicated on provider event id and is replay-safe. A retried operation can never double-charge, double-pay or double-notify.</td></tr>
   <tr><td><strong>Isolation</strong></td><td><code>tenant_id</code> on every table with database-enforced row-level security. Cross-organisation access always traverses an explicit, revocable grant. An automated isolation test suite runs on every pull request and blocks merge on failure.</td></tr>
-  <tr><td><strong>Security</strong></td><td>Fail-closed authorisation at the service boundary. Sensitive-action audit logging. Dependency, container and secret scanning in CI. Threat model maintained, with a security review gate for any story touching money, identity or documents.</td></tr>
+  <tr><td><strong>Security</strong></td><td>Fail-closed OpenFGA authorisation at the service boundary, independent of and in addition to database row-level security. Sensitive-action audit logging. Dependency, container and secret scanning in CI. Threat model maintained, with a security review gate for any story touching money, identity or documents.</td></tr>
   <tr><td><strong>Privacy</strong></td><td>Aadhaar numbers never stored, logged or sent to analytics. PAN, bank and payout details encrypted or held in a secret manager. Telemetry excludes identifiers, document contents and full phone numbers. Retention matrix enforced automatically.</td></tr>
   <tr><td><strong>Performance</strong></td><td>Budgets set against an entry-level Android on a 3G-equivalent connection: app cold start, payment screen interactive, ticket submit, and list scrolling. Reporting reads never touch the transactional primary.</td></tr>
   <tr><td><strong>Availability</strong></td><td>Collection and payment paths carry the highest availability target. Rent due dates cluster at month start, so capacity is planned for a peak that is 8–10× the daily average, not for the average.</td></tr>
@@ -1040,6 +1066,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 <h3>11.1 Assumptions this document makes</h3>
 <ol>
   <li>Launch is India-only, in a small number of states chosen by e-stamping and verification coverage rather than by market size.</li>
+  <li>One identity provider serves everyone; there is no separate staff identity stack, and platform administrators hold no implicit privilege.</li>
   <li><strong>There are no subscriptions.</strong> The entire product is free and monetised by a flat 3.9% fee on payments transacted through the app; the premium AI tier at ₹499 per organisation per month is the only paid plan and arrives later.</li>
   <li>Aggregator cost is netted from the 3.9%, so margin varies by payment instrument and must be monitored per instrument from launch.</li>
   <li>AI is never load-bearing: a non-paying organisation can operate a property end to end with no blocked action.</li>
@@ -1055,7 +1082,8 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><th style="width:26%">Decision</th><th style="width:44%">Why it blocks</th><th>Needed by</th></tr>
   <tr><td>Launch states</td><td>Determines e-stamping channel, stamp duty rules, police verification flow, Model Tenancy Act applicability</td><td>P0</td></tr>
   <tr><td><s>Mobile framework</s> — <strong>decided</strong></td><td>React Native on Expo with expo-router and NativeWind, matching mark8ly and HomeChef (§9.3)</td><td>Closed</td></tr>
-  <tr><td>Consumer vs staff auth provider</td><td>GIP phone-OTP for consumers alongside Keycloak for staff — one canonical user record either way (§9.3)</td><td>P0</td></tr>
+  <tr><td><s>Auth provider</s> — <strong>decided</strong></td><td>Google Identity Platform for every user including admin; OpenFGA plus RBAC for authorisation (§9.4)</td><td>Closed</td></tr>
+  <tr><td>OpenFGA authorisation model</td><td>The type and relation definitions, and the check-latency and caching strategy on the critical path</td><td>P0</td></tr>
   <tr><td>Payment aggregator and payout rails</td><td>Mandate caps, payout timing, settlement format and the vendor-payment model all follow from it</td><td>P0</td></tr>
   <tr><td>Whether the manager may collect into their own account</td><td>Changes the entire money-flow, custody and reconciliation design</td><td>P0</td></tr>
   <tr><td>Vendor payment model</td><td>Platform-advanced-then-recovered versus direct-to-vendor has regulatory and working-capital consequences</td><td>P3</td></tr>
@@ -1087,7 +1115,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <div class="callout warn" style="margin-top:22px">
   <span class="h">Document control</span>
-  <p>Version 1.3 adds public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
+  <p>Version 1.4 settles identity and authorisation — Google Identity Platform for every user, OpenFGA plus RBAC for permissions. Version 1.3 added public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
 </div>
 
 </body>
