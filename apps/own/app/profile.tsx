@@ -33,6 +33,11 @@ export default function Profile() {
           <Text style={s.detail}>{profile.phone}</Text>
         </View>
 
+        <Text style={s.section}>Access</Text>
+        <Card>
+          <Row icon={<GlobeIcon size={22} />} label="People with access" onPress={() => router.push('/access')} />
+        </Card>
+
         <Text style={s.section}>General</Text>
         <Card>
           <Row icon={<GlobeIcon size={22} />} label="Terms and Conditions" />
@@ -49,8 +54,8 @@ export default function Profile() {
   );
 }
 
-const Row = ({ icon, label }: { icon: React.ReactNode; label: string }) => (
-  <Pressable style={s.row}>
+const Row = ({ icon, label, onPress }: { icon: React.ReactNode; label: string; onPress?: () => void }) => (
+  <Pressable style={s.row} onPress={onPress}>
     {icon}
     <Text style={s.rowLabel}>{label}</Text>
     <ChevronRight size={20} c={color.inkFaint} />

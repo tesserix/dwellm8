@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Dwellm8 Find",
+    "slug": "dwellm8-find",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "dwellm8find",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#EAF2FA",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.dwellm8.find"
+    },
+    "android": {
+      "package": "app.dwellm8.find"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

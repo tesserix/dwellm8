@@ -399,3 +399,42 @@ export const notifications = [
   { id: 'n4', kind: 'inspection', title: 'Inspection report filed', body: 'Routine inspection at Flat 402 — two findings', at: '26 Jul', unread: false },
   { id: 'n5', kind: 'money', title: 'Payout released', body: '₹44,505.45 to HDFC ••4471, UTR issued', at: '22 Jul', unread: false },
 ];
+
+/* ---------------------------------------------------------------- access */
+
+export const accessRoles = [
+  {
+    name: 'Co-owner',
+    hint: 'A joint owner or spouse — the same view as you',
+    limitPaise: 0,
+    can: ['See everything you see', 'Approve spend, renewals and offers', 'Download statements and tax documents'],
+    cannot: ['Change where payouts are sent', 'Remove you from the property'],
+  },
+  {
+    name: 'Accountant',
+    hint: 'Your CA — the numbers, and nothing else',
+    limitPaise: 0,
+    can: ['See statements, payouts and the tax pack', 'Download every document', 'Export the ledger'],
+    cannot: ['Approve any spend', 'See tenant contact details', 'Message your manager on your behalf'],
+  },
+  {
+    name: 'Caretaker',
+    hint: 'A relative or caretaker on the ground',
+    limitPaise: 5_00_00,
+    can: ['See the property and its repairs', 'Approve spend up to the limit you set', 'Talk to the manager about a job'],
+    cannot: ['See rent, statements or payouts', 'Approve a renewal or a letting offer'],
+  },
+  {
+    name: 'View only',
+    hint: 'Someone who should watch, not act',
+    limitPaise: 0,
+    can: ['See the property, tenancy and repair history'],
+    cannot: ['Approve anything', 'See money', 'Download documents'],
+  },
+];
+
+export const access = [
+  { id: 'ac1', name: 'Priya Rout', phone: '+91 98450 44602', role: 'Co-owner', since: 'Since Apr 2026', state: 'Active' as const, limitPaise: 0 },
+  { id: 'ac2', name: 'S Krishnan & Co', phone: '+91 80 4123 8890', role: 'Accountant', since: 'Since Jun 2025', state: 'Active' as const, limitPaise: 0 },
+  { id: 'ac3', name: 'Ramesh Rout', phone: '+91 94480 21190', role: 'Caretaker', since: 'Invited 26 Jul', state: 'Invited' as const, limitPaise: 5_00_00 },
+];
