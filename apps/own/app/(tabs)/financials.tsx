@@ -1,0 +1,175 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
+import {
+  Screen, AppHeader, AvatarButton, Card, Segmented, SectionTitle,
+  MoneyRow, ProgressBar, BarChart, DottedRule, ActivityRow, ui,
+} from '../../src/components/ui';
+import { ChevronDown, DocIcon } from '../../src/components/icons';
+import { color, font, radius, space } from '../../src/theme/tokens';
+import {
+  balance, chart, chartMax, expenseBreakdown, inr, properties, statements,
+} from '../../src/data/mock';
+
+export default function Financials() {
+  const router = useRouter();
+  const [tab, setTab] = useState('Dashboard');
+  const scope = properties[0];
+
+  return (
+    <>
+      <AppHeader
+        title={scope.address}
+        onTitlePress={() => router.push('/switcher')}
+        left={<AvatarButton onPress={() => router.push('/profile')} />}
+      />
+      <View style={{ backgroundColor: '#FFF', paddingBottom: space(3) }}>
+        <Segmented items={['Dashboard', 'Statements', 'Transactions']} value={tab} onChange={setTab} />
+      </View>
+
+      <Screen>
+        {tab === 'Dashboard' ? <Dashboard /> : null}
+        {tab === 'Statements' ? <Statements /> : null}
+        {tab === 'Transactions' ? <Transactions /> : null}
+      </Screen>
+    </>
+  );
+}
+
+function Dashboard() {
+  const current = chart[chart.length - 1];
+  const totalExpense = expenseBreakdown.reduce((a, b) => a + b.paise, 0);
+
+  return (
+    <>
+      <View style={s.band}>
+        <SectionTitle style={{ marginTop: space(4) }}>Current Balance</SectionTitle>
+        <Card>
+          <MoneyRow label="Net balance" value={inr(balance.net)} strong />
+          <MoneyRow label="Opening balance" value={inr(balance.opening)} />
+          <MoneyRow label="Money in" value={inr(balance.moneyIn)} tone="positive" />
+          <MoneyRow label="Money out" value={inr(balance.moneyOut)} tone="negative" />
+          <MoneyRow label="Uncleared funds" value={inr(balance.uncleared)} />
+          <MoneyRow label="Unpaid bills" value={inr(balance.unpaidBills)} tone="negative" last />
+        </Card>
+      </View>
+
+      <SectionTitle>Insights</SectionTitle>
+      <Text style={s.caption}>Current &amp; archived properties</Text>
+      <Pressable style={s.select}>
+        <Text style={s.selectText}>Last 6 months</Text>
+        <ChevronDown size={20} />
+      </Pressable>
+
+      <SectionTitle>Income vs Expenses</SectionTitle>
+      <Card>
+        <Text style={s.monthLabel}>July 2026</Text>
+        <View style={{ flexDirection: 'row', gap: 14, marginTop: 3, marginBottom: space(4) }}>
+          <Text style={[s.legend, { color: color.positive }]}>Income: {inr(current.income)}</Text>
+          <Text style={[s.legend, { color: color.negative }]}>Expenses: {inr(current.expense)}</Text>
+        </View>
+        <BarChart data={chart} max={chartMax} />
+        <Text style={s.year}>2026</Text>
+      </Card>
+
+      <SectionTitle>Expenses Breakdown</SectionTitle>
+      <Card>
+        {expenseBreakdown.map((e, i) => (
+          <View key={e.label} style={{ paddingVertical: space(2) }}>
+            <View style={s.expenseRow}>
+              <Text style={s.expenseLabel} numberOfLines={1}>{e.label}</Text>
+              <Text style={s.expenseValue}>{inr(e.paise)}</Text>
+            </View>
+            <ProgressBar pct={(e.paise / totalExpense) * 100} tint={e.tint} />
+            {i < expenseBreakdown.length - 1 ? <View style={{ height: space(2) }} /> : null}
+          </View>
+        ))}
+      </Card>
+    </>
+  );
+}
+
+function Statements() {
+  const byMonth = statements.reduce<Record<string, typeof statements>>((acc, st) => {
+    (acc[st.month] ||= []).push(st);
+    return acc;
+  }, {});
+
+  return (
+    <>
+      <SectionTitle>2026</SectionTitle>
+      {Object.entries(byMonth).map(([month, list]) => (
+        <View key={month}>
+          <Text style={s.monthHeading}>{month}</Text>
+          {list.map((st) => (
+            <Card key={st.id} padded={false}>
+              <View style={s.stHead}>
+                <Text style={s.stHeadText}>{properties.find((p) => p.id === st.propertyId)?.address}</Text>
+              </View>
+              <View style={{ padding: space(4), paddingTop: space(1) }}>
+                {st.lines.map((l, i) => (
+                  <MoneyRow
+                    key={l.label}
+                    label={l.label}
+                    value={inr(l.paise)}
+                    tone={l.paise >= 0 ? 'positive' : 'negative'}
+                    last={i === st.lines.length - 1}
+                  />
+                ))}
+                <View style={{ height: space(2) }} />
+                <DottedRule />
+                <MoneyRow label={`Statement ${st.n} · ${st.date}`} value={inr(st.netPaise)} strong last />
+              </View>
+            </Card>
+          ))}
+        </View>
+      ))}
+    </>
+  );
+}
+
+function Transactions() {
+  return (
+    <>
+      <SectionTitle>Recent transactions</SectionTitle>
+      {statements.map((st) => (
+        <ActivityRow
+          key={st.id}
+          icon={<DocIcon size={22} c={color.inkFaint} />}
+          title={`Statement ${st.n} — ${inr(st.netPaise)}`}
+          subtitle={
+            <Text style={{ ...font.small, marginTop: 3 }}>
+              <Text style={{ color: color.positive }}>Income {inr(st.incomePaise)}</Text>
+              <Text style={{ color: color.inkFaint }}>{'  •  '}</Text>
+              <Text style={{ color: color.negative }}>Expense {inr(st.expensePaise)}</Text>
+            </Text>
+          }
+          meta={st.date}
+        />
+      ))}
+    </>
+  );
+}
+
+const s = StyleSheet.create({
+  band: { backgroundColor: color.bgBand, paddingBottom: space(4) },
+  caption: { ...font.body, color: color.ink, marginHorizontal: space(4), marginBottom: space(3) },
+  select: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#FFF', borderRadius: radius.pill, borderWidth: 1, borderColor: color.line,
+    paddingHorizontal: space(5), paddingVertical: space(4), marginHorizontal: space(4),
+  },
+  selectText: { ...font.h3, color: color.inkStrong, fontWeight: '600' },
+  monthLabel: { ...font.h3, color: color.inkStrong },
+  legend: { ...font.small, fontWeight: '700' },
+  year: { ...font.label, color: color.inkStrong, textAlign: 'center', marginTop: space(2) },
+  expenseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  expenseLabel: { ...font.body, color: color.inkStrong, flexShrink: 1 },
+  expenseValue: { ...font.body, color: color.inkStrong, fontWeight: '700' },
+  monthHeading: { ...font.h3, color: color.inkStrong, marginHorizontal: space(4), marginBottom: space(2), marginTop: space(2) },
+  stHead: {
+    backgroundColor: '#E7ECF2', paddingVertical: space(3), alignItems: 'center',
+    borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg,
+  },
+  stHeadText: { ...font.label, color: color.inkStrong },
+});

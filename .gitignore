@@ -1,19 +1,5 @@
-# OS
-.DS_Store
-
-# Editors
-.idea/
-.vscode/
-
-# Env / secrets
-.env
-.env.*
-!.env.example
-
-# Local session history
-.remember/
-
-# Dependencies / build output
 node_modules/
+.expo/
 dist/
-build/
+*.log
+.DS_Store

@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "Rentora Own",
+    "slug": "rentora-own",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "rentora",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": { "backgroundColor": "#EAF2FA", "resizeMode": "contain" },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "app.rentora.own" },
+    "android": { "package": "app.rentora.own" },
+    "web": { "bundler": "metro", "output": "single" },
+    "plugins": ["expo-router"],
+    "experiments": { "typedRoutes": true }
+  }
+}
