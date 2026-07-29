@@ -87,7 +87,7 @@
   <div class="title">High-Level Product Requirements<br>&amp; User Story Catalogue</div>
   <div class="sub">A mobile-first, one-stop property operating system for India — covering residential rentals, hostels and PG accommodation, and commercial premises, with the property manager as the operating middle layer between owners, tenants and service providers. Free to use, monetised on transactions.</div>
   <div class="meta">
-    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.5)</div>
+    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.6)</div>
     <div><b>Product</b> &nbsp; Rentora · <code>tesserix/rentora</code></div>
     <div><b>Date</b> &nbsp; 29 July 2026</div>
     <div><b>Monetisation</b> &nbsp; No subscriptions — flat 3.9% platform fee on in-app payments; premium AI tier ₹499/org/month (future)</div>
@@ -104,7 +104,7 @@
     <li><b>Personas and roles</b> <span>— nine actors, what each is accountable for</span></li>
     <li><b>The three verticals</b> <span>— residential, hostel/PG/co-living, commercial</span></li>
     <li><b>The operating model</b> <span>— money flows, cost sharing, the manager's mandate</span></li>
-    <li><b>Module requirements and user stories</b> <span>— M1–M18, 246 stories</span></li>
+    <li><b>Module requirements and user stories</b> <span>— M1–M19, 266 stories</span></li>
     <li><b>Mobile-first experience requirements</b> <span>— five apps and the web surfaces; Admin is both</span></li>
     <li><b>Critical end-to-end workflows</b> <span>— the five journeys that cross every module</span></li>
     <li><b>Integrations, data, stack, identity and access</b> <span>— adapters, stack, the authorisation model, access tiers and demo data</span></li>
@@ -184,6 +184,7 @@
   <tr><td>M16 Platform administration</td><td colspan="3" style="text-align:center">Cross-cutting</td><td>Platform Admin</td></tr>
   <tr><td>M17 Analytics &amp; reporting</td><td colspan="3" style="text-align:center">Cross-cutting</td><td>Owner, Manager, Admin</td></tr>
   <tr><td>M18 AI capabilities <span class="nb">(premium)</span></td><td colspan="3" style="text-align:center">Cross-cutting — the only paid tier</td><td>Manager, Owner, Operator</td></tr>
+  <tr><td>M19 Demo &amp; sandbox</td><td colspan="3" style="text-align:center">Cross-cutting — every vertical demonstrable</td><td>Visitor, Sales, Prospect</td></tr>
 </table>
 
 <h3>2.2 Story priority convention</h3>
@@ -380,7 +381,7 @@ FLOW D — PLATFORM REVENUE  3.9% platform fee on every in-app payment  (no subs
 
 <h2><span class="num">6.</span> Module requirements and user stories</h2>
 
-<p class="lede">Eighteen modules, each with its scope, its rules and its high-level stories. Seventeen are free to every organisation; the eighteenth is the premium AI tier of §5.6. Stories are epic-level: each will decompose into several engineering stories on the delivery board using the standard template. Priorities are as defined in §2.2.</p>
+<p class="lede">Nineteen modules, each with its scope, its rules and its high-level stories. Eighteen are free to every organisation; only the AI tier of §5.6 is paid. Stories are epic-level: each will decompose into several engineering stories on the delivery board using the standard template. Priorities are as defined in §2.2.</p>
 
 <h3>M1 · Identity, organisations and access</h3>
 <p><strong>Purpose.</strong> Establish who a person is, which organisation they are acting for, and what they may do — on a phone, with a phone number, on a shared low-end device.</p>
@@ -800,6 +801,36 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>AIX-15</td><td>Any user</td><td>every AI output labelled as assistive, with its source data and a correction path</td><td>I know what the machine suggested and what a person decided</td><td><span class="pill p2">P2</span></td></tr>
 </table>
 
+
+<h3>M19 · Demo, sandbox and trial experience</h3>
+<p><strong>Purpose.</strong> One sandbox, two jobs. <strong>Before sign-up:</strong> let anyone — a landlord, a management firm, a hostel operator, a prospective tenant — use the real product with no account at all, then continue into a real account without starting again. <strong>After sign-up:</strong> give existing customers and their staff a safe place to <strong>test and train on new features and releases</strong> without touching live money, live tenants or live vendors.</p>
+<p>The second job is the one that keeps the sandbox honest. A demo built purely for marketing rots, because nobody depends on it. A sandbox that a manager uses to train a new field agent every month, and that customers use to try each release, stays current because it is part of how the product ships.</p>
+<p><strong>Key rules.</strong> No sign-up, no phone number and no email is required to start a demo — that is what makes it usable both by a stranger evaluating the product and by an existing customer's new staff member on their first day. <strong>Every demo or sandbox account is fully isolated:</strong> its own ephemeral organisation, seeded from a template, private to that session or that user, enforced by the same tenancy and authorisation mechanisms that separate two paying customers — never a shared mutable account that people edit over each other, and never a flag on a real organisation. Isolation is what makes the sandbox safe to leave open to the internet and safe to hand to a trainee. Everything in §9.6 applies without exception: marked as sample, isolated, structurally inert, non-routable contacts, excluded from all real reporting. <strong>There is no administrative demo.</strong> The demo uses the real product's components and flows, not a mock — what is demonstrated must be what is delivered.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>DMO-01</td><td>Visitor</td><td>to start a demo in one tap from the website or the app, with no sign-up, phone number or email</td><td>I can try the product before deciding to give anyone my details</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DMO-02</td><td>Visitor</td><td>to choose the demo that matches me — landlord, management firm, hostel operator, commercial, or tenant</td><td>I see my own situation, not a generic showcase</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DMO-03</td><td>Visitor</td><td>my own private sandbox rather than a shared account other people are editing</td><td>what I change stays mine and nobody else's mess confuses me</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DMO-04</td><td>Visitor</td><td>to actually operate the sandbox — record a payment, raise a ticket, approve a quote, settle a deposit, generate a statement</td><td>I judge the product by using it, not by watching a tour</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DMO-05</td><td>Visitor</td><td>to switch between roles on the same sample property — see it as the owner, then the manager, then the tenant</td><td>I understand how the parties actually connect, which is the whole point of the platform</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>DMO-06</td><td>Visitor</td><td>my demo session to survive closing the browser or the app for a few days</td><td>I can come back and continue instead of starting over</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>DMO-07</td><td>Visitor</td><td>to reset the sandbox to its starting state at any time</td><td>I can experiment freely without fear of ruining the demo</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>DMO-08</td><td>Visitor</td><td><strong>to continue into a real account</strong> from inside the demo, keeping my settings and my place</td><td>signing up is a continuation, not a restart</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DMO-09</td><td>New customer</td><td>the sandbox retired completely the moment I add my first real property</td><td>sample figures can never sit beside my actual money</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DMO-10</td><td>Visitor on mobile</td><td>the same demo inside the apps, without signing in</td><td>I can evaluate the app my tenants will actually use</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>DMO-11</td><td>Sales or partner</td><td>a pre-seeded demo for a specific vertical that I can walk a customer through live</td><td>a demonstration is consistent and never depends on the wifi in someone's office</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>DMO-12</td><td>Product team</td><td>demo funnel analytics — entry, flows completed, drop-off, conversion to a real account</td><td>we learn which parts of the product actually sell it</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>DMO-13</td><td>Platform</td><td>demo sessions rate-limited, expiring and cost-bounded</td><td>a free, unauthenticated sandbox cannot be turned into an abuse or cost problem</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DMO-14</td><td>Platform</td><td>every demo session provably inert — no posting, payment, fee, message, webhook or dispatch</td><td>the feature that sells the product can never damage it</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>DMO-15</td><td>Visitor</td><td>never to be shown an administrative surface in any demo</td><td>the control plane is not advertised, demonstrated or reachable</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>DMO-16</td><td>Existing customer</td><td>a sandbox I can open from inside my real account, seeded to look like my own portfolio</td><td>I can try something risky without doing it to my actual tenants and money</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>DMO-17</td><td>Manager</td><td>to train new staff in the sandbox before giving them access to the real book</td><td>a new field agent learns on sample data instead of on a real arrears call</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>DMO-18</td><td>Existing customer</td><td>to try a new release in the sandbox before it reaches my live account</td><td>a change to how I get paid never surprises me on the first of the month</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>DMO-19</td><td>Any user</td><td>a what's-new walkthrough that runs on sample data rather than my own</td><td>I can learn a new feature by trying it, not by reading release notes</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>DMO-20</td><td>Manager or platform</td><td>training completion visible per staff member</td><td>I know who has actually been trained before they touch a live tenancy</td><td><span class="pill p3">P3</span></td></tr>
+</table>
+
 <h2><span class="num">7.</span> Mobile-first experience requirements</h2>
 
 <p class="lede">Rentora is used standing in a corridor, at a gate, on a scooter and on a ₹9,000 Android phone with two bars of signal. Mobile is not a companion to the web product; for tenants, residents, guardians, technicians and field agents it is the <em>only</em> product.</p>
@@ -1009,7 +1040,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <table>
   <tr><th style="width:17%">Tier</th><th style="width:16%">Who</th><th style="width:34%">Can see and do</th><th>Cannot, under any circumstance</th></tr>
-  <tr><td><strong>Anonymous</strong></td><td>Prospective tenant, hostel seeker, commercial occupier, curious owner — no account</td><td>Browse and search published listings; open a listing with photos, amenities and the full cost breakdown; see approximate location; view the public product pages that explain how Rentora works; shortlist locally on the device; share a listing</td><td>See exact addresses, occupant details, owner or manager phone numbers, any unpublished unit, any financial record, or any authenticated screen</td></tr>
+  <tr><td><strong>Anonymous</strong></td><td>Prospective tenant, hostel seeker, commercial occupier, curious owner — no account</td><td>Browse and search published listings; open a listing with photos, amenities and the full cost breakdown; see approximate location; view the public product pages that explain how Rentora works; <strong>run a full product demo in a private sandbox (M19)</strong>; shortlist locally on the device; share a listing</td><td>See exact addresses, occupant details, owner or manager phone numbers, any unpublished unit, any financial record, or any authenticated screen</td></tr>
   <tr><td><strong>Verified prospect</strong></td><td>Someone who has verified a phone number to act</td><td>Enquire, message the manager through masking, book an inspection, save a search, persist a shortlist, apply for a tenancy</td><td>See anything about a property beyond what its listing publishes, or contact anyone outside the enquiry they created</td></tr>
   <tr><td><strong>Customer</strong></td><td>Tenant, resident, guardian, owner</td><td>Everything scoped to their own occupancy, property or portfolio</td><td>Reach another organisation's data by any route</td></tr>
   <tr><td><strong>Operator</strong></td><td>Manager, field agent, warden, technician, agent</td><td>What their assignment or mandate grants, and only for its validity period</td><td>Act beyond the mandate's scope, spend authority or dates</td></tr>
@@ -1025,7 +1056,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <p>An owner who signs up has an empty dashboard, and an empty dashboard sells nothing. The first-run experience therefore presents a <strong>fully populated demonstration workspace</strong> — a sample portfolio with properties, tenancies, collections, arrears, tickets, vendor jobs and statements — so a prospective customer can see exactly what the product does with their own hands before entering a single real record. The same populated views drive the public product pages and sales demonstrations.</p>
 
-<p>This is a marketing surface pointed at a financial product, so the rules protecting it are strict.</p>
+<p>The same machinery serves a second, larger job: a <strong>demo anyone can use before signing up at all</strong> — see module M19. This is a marketing surface pointed at a financial product, so the rules protecting it are strict, and they apply identically to both.</p>
 
 <table>
   <tr><th style="width:26%">Rule</th><th>Detail</th></tr>
@@ -1155,7 +1186,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <div class="callout warn" style="margin-top:22px">
   <span class="h">Document control</span>
-  <p>Version 1.5 defines the five access tiers, the no-anonymous rule for administrative surfaces, and the demonstration-data workspace. Version 1.4 settled identity and authorisation — Google Identity Platform for every user, OpenFGA plus RBAC for permissions. Version 1.3 added public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
+  <p>Version 1.6 adds module M19 — a no-sign-up sandbox anyone can use before creating an account, and a training and release-preview sandbox for existing customers and their staff. Version 1.5 defined the five access tiers, the no-anonymous rule for administrative surfaces, and the demonstration-data workspace. Version 1.4 settled identity and authorisation — Google Identity Platform for every user, OpenFGA plus RBAC for permissions. Version 1.3 added public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
 </div>
 
 </body>

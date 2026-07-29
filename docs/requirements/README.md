@@ -2,7 +2,7 @@
 
 | Document | Source | Output |
 |---|---|---|
-| High-Level Product Requirements & User Story Catalogue (v1.5) | `rentora-requirements.html` | [`Rentora-Requirements-v1.5.pdf`](Rentora-Requirements-v1.5.pdf) · [`Rentora-Requirements-v1.5.docx`](Rentora-Requirements-v1.5.docx) |
+| High-Level Product Requirements & User Story Catalogue (v1.6) | `rentora-requirements.html` | [`Rentora-Requirements-v1.6.pdf`](Rentora-Requirements-v1.6.pdf) · [`Rentora-Requirements-v1.6.docx`](Rentora-Requirements-v1.6.docx) |
 
 The PDF is generated from the HTML source — edit the HTML, never the PDF:
 
@@ -10,7 +10,7 @@ The PDF is generated from the HTML source — edit the HTML, never the PDF:
 cd docs/requirements
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \\
   --headless=new --disable-gpu --no-pdf-header-footer \\
-  --print-to-pdf="Rentora-Requirements-v1.5.pdf" \\
+  --print-to-pdf="Rentora-Requirements-v1.6.pdf" \\
   "file://$PWD/rentora-requirements.html"
 ```
 
@@ -18,13 +18,19 @@ DOCX is produced from the same source:
 
 ```bash
 pandoc rentora-requirements.html -f html -t docx --toc --toc-depth=3 \
-  -o Rentora-Requirements-v1.5.docx
+  -o Rentora-Requirements-v1.6.docx
 ```
 
 A copy of both is delivered to `~/Desktop/samyak-work/projects/Property-Manager/` as
 `Rentora_High_Level_Product_Requirements.{pdf,docx}`.
 
-v1.5 adds §9.5 access tiers (anonymous → verified prospect → customer → operator →
+v1.6 adds module **M19 Demo & Sandbox** — one fully isolated sandbox serving two jobs:
+try the real product with **no sign-up at all** and continue into a real account, and give
+existing customers and their staff a safe place to **test and train on new features and
+releases**. Each demo or sandbox account is its own ephemeral organisation, isolated by
+the same tenancy and authorisation mechanisms that separate two paying customers.
+
+v1.5 added §9.5 access tiers (anonymous → verified prospect → customer → operator →
 administrator, each an explicit relation) with a hard **no-anonymous rule for every
 administrative surface**, and §9.6 the **demonstration workspace** — a populated sample
 portfolio for new owners and managers, structurally isolated and provably inert.
