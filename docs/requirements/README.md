@@ -2,7 +2,7 @@
 
 | Document | Source | Output |
 |---|---|---|
-| High-Level Product Requirements & User Story Catalogue (v1.7) | `rentora-requirements.html` | [`Rentora-Requirements-v1.7.pdf`](Rentora-Requirements-v1.7.pdf) · [`Rentora-Requirements-v1.7.docx`](Rentora-Requirements-v1.7.docx) |
+| High-Level Product Requirements & User Story Catalogue (v1.8) | `rentora-requirements.html` | [`Rentora-Requirements-v1.8.pdf`](Rentora-Requirements-v1.8.pdf) · [`Rentora-Requirements-v1.8.docx`](Rentora-Requirements-v1.8.docx) |
 
 The PDF is generated from the HTML source — edit the HTML, never the PDF:
 
@@ -10,7 +10,7 @@ The PDF is generated from the HTML source — edit the HTML, never the PDF:
 cd docs/requirements
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \\
   --headless=new --disable-gpu --no-pdf-header-footer \\
-  --print-to-pdf="Rentora-Requirements-v1.7.pdf" \\
+  --print-to-pdf="Rentora-Requirements-v1.8.pdf" \\
   "file://$PWD/rentora-requirements.html"
 ```
 
@@ -18,13 +18,13 @@ DOCX is produced from the same source:
 
 ```bash
 pandoc rentora-requirements.html -f html -t docx --toc --toc-depth=3 \
-  -o Rentora-Requirements-v1.7.docx
+  -o Rentora-Requirements-v1.8.docx
 ```
 
 A copy of both is delivered to `~/Desktop/samyak-work/projects/Property-Manager/` as
 `Rentora_High_Level_Product_Requirements.{pdf,docx}`.
 
-v1.7 settles three things: the **property manager bears the 3.9% fee** (generalised as
+v1.8 settles three things: the **property manager bears the 3.9% fee** (generalised as
 "the party earning the operating margin" — §5.5, the tenant is never surcharged); the
 **authorisation model shape** with its type inventory, DSL sketch and nine isolation
 invariants (§9.7); and **Rentora Ops as a full web console** that is a peer of the app,
