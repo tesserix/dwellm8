@@ -97,6 +97,11 @@ Gin · PostgreSQL (CNPG) with row-level security · Redis · NATS JetStream · T
 money and document workflows · Keycloak for identity · GKE + Istio + ArgoCD ·
 OpenTelemetry.
 
+Everything is served from **dwellm8.com** — the production domain, bound to the Istio
+VirtualService in `tesserix-k8s`. The marketing site and the web consoles live on it;
+the mobile apps talk to the same origin. Sub-brands keep the `dwellm8.com` root rather
+than taking their own domains.
+
 REST externally, gRPC internally where it earns its keep. Start as ~6–8 services with
 clean domain boundaries — property, lease, money, maintenance, community, documents,
 notifications, identity — not thirty microservices.
