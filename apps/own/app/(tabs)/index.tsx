@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { activities, inr, properties, statements, upNext } from '../../src/data/mock';
+import { activities, approvals, inr, properties, statements, upNext } from '../../src/data/mock';
 import {
   ActivityRow,
   AppHeader,
+  ListRow,
+  StatusPill,
   AvatarButton,
   Badge,
   CalendarIcon,
@@ -84,6 +86,27 @@ export default function Home() {
             <View key={p.id} style={[s.dot, i === 0 && s.dotActive]} />
           ))}
         </View>
+
+        {/* Anything waiting on the owner outranks everything else on the screen. */}
+        {approvals.length ? (
+          <>
+            <CollapsibleHeader title="Waiting on you" />
+            <Card padded={false} style={{ paddingHorizontal: space(4) }}>
+              {approvals.map((a, i) => (
+                <ListRow
+                  key={a.id}
+                  title={`${a.title} — ${inr(a.quotePaise, { noPaise: true })}`}
+                  subtitle={properties.find((p) => p.id === a.propertyId)?.address}
+                  meta={`Raised ${a.raised} · ${a.vendor}`}
+                  right={<StatusPill text={a.urgency} tone={a.urgency === 'Urgent' ? 'amber' : 'neutral'} />}
+                  onPress={() => router.push(`/approve?id=${a.id}`)}
+                  last={i === approvals.length - 1}
+                  tone="violet"
+                />
+              ))}
+            </Card>
+          </>
+        ) : null}
 
         <ChipRow
           items={[

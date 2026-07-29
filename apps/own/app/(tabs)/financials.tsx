@@ -17,6 +17,7 @@ import {
   ProgressBar,
   Screen,
   SectionTitle,
+  ListRow,
   Segmented,
   color,
   font,
@@ -51,6 +52,7 @@ export default function Financials() {
 }
 
 function Dashboard() {
+  const router = useRouter();
   const current = chart[chart.length - 1];
   const totalExpense = expenseBreakdown.reduce((a, b) => a + b.paise, 0);
 
@@ -99,6 +101,27 @@ function Dashboard() {
           </View>
         ))}
       </Card>
+
+      <SectionTitle>Also here</SectionTitle>
+      <Card padded={false} style={{ paddingHorizontal: space(4) }}>
+        <ListRow
+          title="Payouts"
+          subtitle="What reached your bank, and the deductions behind each one"
+          onPress={() => router.push('/payouts')}
+        />
+        <ListRow
+          title="Tax pack 2025–26"
+          subtitle="Income from house property, TDS credit and the certificates"
+          onPress={() => router.push('/tax')}
+        />
+        <ListRow
+          title="Documents"
+          subtitle="Statements, agreements, compliance and tax"
+          onPress={() => router.push('/documents')}
+          last
+        />
+      </Card>
+
     </>
   );
 }

@@ -127,6 +127,18 @@ export default function Portfolio() {
             title="Owner payouts"
             subtitle="2 ready to release, 2 blocked"
             onPress={() => router.push('/payouts')}
+          />
+          <ListRow
+            left={<BuildingIcon size={20} />}
+            title="Society — Brigade Palm Grove RWA"
+            subtitle="87% of dues collected, 9 flats in arrears"
+            onPress={() => router.push('/society')}
+          />
+          <ListRow
+            left={<ShieldIcon size={20} />}
+            title="Compliance register"
+            subtitle="1 expired, 2 due within 60 days"
+            onPress={() => router.push('/compliance')}
             last
           />
         </Card>

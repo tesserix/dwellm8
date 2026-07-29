@@ -447,3 +447,69 @@ export const approvals = [
   { id: 'ap1', title: 'Geyser repair quote', ref: 't-2209', amountPaise: 18_40_00, who: 'Samyak Rout', property: 'Flat 402, Brigade Palm Grove', state: 'Sent 29 Jul, 4:25 PM' },
   { id: 'ap2', title: 'Waterproofing — second coat', ref: 't-2196', amountPaise: 14_00_00, who: 'Nandini Gupta', property: 'D-1102, Purva Skywood', state: 'Sent 28 Jul' },
 ];
+
+/* -------------------------------------------------------------- society */
+
+export const society = {
+  name: 'Brigade Palm Grove RWA',
+  flats: 120,
+  committee: 'Elected Mar 2026 · 7 members',
+  corpusPaise: 42_80_000_00,
+  monthlyDuePaise: 3_000_00,
+  collectedPct: 87,
+  defaulters: 9,
+  arrearsPaise: 2_16_000_00,
+};
+
+export type Due = {
+  id: string;
+  flat: string;
+  resident: string;
+  duePaise: number;
+  months: number;
+  state: 'Paid' | 'Due' | 'Late';
+};
+
+export const societyDues: Due[] = [
+  { id: 'd1', flat: 'A-204', resident: 'Kiran Prabhu', duePaise: 9_000_00, months: 3, state: 'Late' },
+  { id: 'd2', flat: 'B-701', resident: 'Meenal Joshi', duePaise: 6_000_00, months: 2, state: 'Late' },
+  { id: 'd3', flat: 'C-105', resident: 'Farhan Ali', duePaise: 3_000_00, months: 1, state: 'Due' },
+  { id: 'd4', flat: 'A-402', resident: 'Sneha Pillai', duePaise: 0, months: 0, state: 'Paid' },
+  { id: 'd5', flat: 'D-808', resident: 'Ravi Chandran', duePaise: 3_000_00, months: 1, state: 'Due' },
+];
+
+export const societyNotices = [
+  { id: 'sn1', title: 'Water tank cleaning', body: 'Saturday 2 August, 10:00 – 14:00. Supply off in all towers.', at: '28 Jul', audience: 'All residents' },
+  { id: 'sn2', title: 'AGM — 17 August', body: 'Accounts for 2025–26, corpus utilisation and the lift AMC renewal.', at: '25 Jul', audience: 'Owners' },
+  { id: 'sn3', title: 'Diwali decoration committee', body: 'Volunteers wanted. Budget approved: ₹40,000.', at: '20 Jul', audience: 'All residents' },
+];
+
+export const amenities = [
+  { id: 'am1', name: 'Clubhouse', bookings: 4, next: 'Sat 2 Aug, 18:00 — A-204 birthday', ratePaise: 2_500_00 },
+  { id: 'am2', name: 'Swimming pool', bookings: 0, next: 'Open 06:00 – 09:00, 16:00 – 20:00', ratePaise: 0 },
+  { id: 'am3', name: 'Guest suite', bookings: 2, next: 'Wed 6 Aug — C-105, two nights', ratePaise: 1_200_00 },
+  { id: 'am4', name: 'Gym', bookings: 0, next: 'Open 05:00 – 22:00', ratePaise: 0 },
+];
+
+/* ------------------------------------------------------------ compliance */
+
+export type Compliance = {
+  id: string;
+  item: string;
+  property: string;
+  authority: string;
+  expires: string;
+  daysLeft: number;
+  owner: 'Owner' | 'Society' | 'Manager';
+  costPaise: number;
+  state: 'Current' | 'Due soon' | 'Expired';
+};
+
+export const compliance: Compliance[] = [
+  { id: 'cm1', item: 'Lift AMC', property: 'Brigade Palm Grove', authority: 'Vertex Elevators', expires: '23 Dec 2026', daysLeft: 146, owner: 'Society', costPaise: 1_80_000_00, state: 'Current' },
+  { id: 'cm2', item: 'Fire safety NOC', property: 'Brigade Palm Grove', authority: 'Karnataka Fire & Emergency Services', expires: '05 Feb 2027', daysLeft: 190, owner: 'Society', costPaise: 45_000_00, state: 'Current' },
+  { id: 'cm3', item: 'Electrical safety certificate', property: 'Sobha Dream Acres', authority: 'Licensed electrical inspector', expires: '08 Sep 2026', daysLeft: 40, owner: 'Owner', costPaise: 12_000_00, state: 'Due soon' },
+  { id: 'cm4', item: 'Trade licence — PG', property: 'Nest PG, Marathahalli', authority: 'BBMP', expires: '31 Aug 2026', daysLeft: 32, owner: 'Manager', costPaise: 25_000_00, state: 'Due soon' },
+  { id: 'cm5', item: 'Police verification — residents', property: 'Nest PG, Marathahalli', authority: 'Marathahalli PS', expires: '14 Jul 2026', daysLeft: -16, owner: 'Manager', costPaise: 0, state: 'Expired' },
+  { id: 'cm6', item: 'Property tax receipt', property: 'Anchor Arcade', authority: 'BBMP', expires: '31 Mar 2027', daysLeft: 244, owner: 'Owner', costPaise: 88_000_00, state: 'Current' },
+];

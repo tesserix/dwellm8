@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   AppHeader, AvatarButton, Card, CollapsibleHeader, Screen, SectionTitle,
   ProgressBar, StatusPill, Metric, ListRow, Avatar, SyncBadge,
-  AlertIcon, BedIcon, CalendarIcon, ChartIcon, ChatIcon, ClipboardIcon, DocIcon,
+  AlertIcon, BedIcon, BuildingIcon, CalendarIcon, ChartIcon, ChatIcon, ClipboardIcon, DocIcon,
   KeyIcon, RupeeIcon, ShieldIcon, UsersIcon, WrenchIcon,
   color, font, inr, inrShort, radius, space,
 } from '@dwellm8/mobile-shared';
@@ -152,6 +152,8 @@ export default function Today() {
           <Quick icon={<BedIcon size={22} />} label="Bed allocation" onPress={() => router.push('/beds')} />
           <Quick icon={<UsersIcon size={22} />} label="Leads" onPress={() => router.push('/leads')} />
           <Quick icon={<ChartIcon size={22} />} label="Owner payouts" onPress={() => router.push('/payouts')} />
+          <Quick icon={<BuildingIcon size={22} />} label="Society" onPress={() => router.push('/society')} />
+          <Quick icon={<ShieldIcon size={22} />} label="Compliance" onPress={() => router.push('/compliance')} />
         </View>
 
         <View style={s.footNote}>

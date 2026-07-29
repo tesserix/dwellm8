@@ -18,6 +18,8 @@ export default function RootLayout() {
           <Stack.Screen name="property" options={{ presentation: 'modal' }} />
           <Stack.Screen name="beds" />
           <Stack.Screen name="gate" />
+          <Stack.Screen name="society" />
+          <Stack.Screen name="compliance" />
           <Stack.Screen name="leads" />
           <Stack.Screen name="payouts" />
           <Stack.Screen name="thread" />

@@ -21,6 +21,10 @@ export default function RootLayout() {
         <Stack.Screen name="switcher" options={{ presentation: 'modal' }} />
         <Stack.Screen name="property" options={{ presentation: 'modal' }} />
         <Stack.Screen name="job" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="approve" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="payouts" />
+        <Stack.Screen name="tax" />
+        <Stack.Screen name="documents" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="thread" />
       </Stack>
