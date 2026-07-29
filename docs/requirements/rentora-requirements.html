@@ -87,7 +87,7 @@
   <div class="title">High-Level Product Requirements<br>&amp; User Story Catalogue</div>
   <div class="sub">A mobile-first, one-stop property operating system for India — covering residential rentals, hostels and PG accommodation, and commercial premises, with the property manager as the operating middle layer between owners, tenants and service providers. Free to use, monetised on transactions.</div>
   <div class="meta">
-    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.6)</div>
+    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.7)</div>
     <div><b>Product</b> &nbsp; Rentora · <code>tesserix/rentora</code></div>
     <div><b>Date</b> &nbsp; 29 July 2026</div>
     <div><b>Monetisation</b> &nbsp; No subscriptions — flat 3.9% platform fee on in-app payments; premium AI tier ₹499/org/month (future)</div>
@@ -104,7 +104,7 @@
     <li><b>Personas and roles</b> <span>— nine actors, what each is accountable for</span></li>
     <li><b>The three verticals</b> <span>— residential, hostel/PG/co-living, commercial</span></li>
     <li><b>The operating model</b> <span>— money flows, cost sharing, the manager's mandate</span></li>
-    <li><b>Module requirements and user stories</b> <span>— M1–M19, 266 stories</span></li>
+    <li><b>Module requirements and user stories</b> <span>— M1–M19, 267 stories</span></li>
     <li><b>Mobile-first experience requirements</b> <span>— five apps and the web surfaces; Admin is both</span></li>
     <li><b>Critical end-to-end workflows</b> <span>— the five journeys that cross every module</span></li>
     <li><b>Integrations, data, stack, identity and access</b> <span>— adapters, stack, the authorisation model, access tiers and demo data</span></li>
@@ -355,9 +355,25 @@ FLOW D — PLATFORM REVENUE  3.9% platform fee on every in-app payment  (no subs
   <tr><td>Owner payouts</td><td>No</td><td>The fee was already taken on the inbound leg; charging both sides is double-dipping</td></tr>
 </table>
 
+<h4>Who bears the fee</h4>
+<p><strong>Decided: the property manager bears the platform fee.</strong> The generalising principle is that <em>the fee is borne by the party earning the operating margin on the transaction</em> — the party for whom Rentora is doing the work. That resolves every arrangement without a special case:</p>
+
+<table>
+  <tr><th style="width:32%">Arrangement</th><th style="width:20%">Bearer</th><th>Reasoning</th></tr>
+  <tr><td>Property under management</td><td><strong>Property manager</strong></td><td>The manager earns a fee for operating the property; Rentora is the system that lets them do it. The tenant pays exactly the rent, and the owner receives exactly what their agreement says.</td></tr>
+  <tr><td>Owner self-managing, no manager</td><td>Owner</td><td>There is no manager to bear it; the owner is operating the property themselves and is the party benefiting</td></tr>
+  <tr><td>Hostel or co-living</td><td>Operator</td><td>The operator is the manager in this vertical</td></tr>
+  <tr><td>Society or RWA dues</td><td>Society</td><td>The society is the collecting and operating entity</td></tr>
+  <tr><td>Marketplace service job</td><td>Vendor</td><td>The vendor earns the job revenue; this replaces a separate marketplace commission</td></tr>
+  <tr><td>Any of the above</td><td>Per-organisation override</td><td>The bearer is configuration, not code — a manager may negotiate to pass it on, and it is always disclosed on the invoice or statement before payment</td></tr>
+</table>
+
+<p><strong>What this means for the tenant:</strong> nothing. A tenant paying rent through Rentora pays the rent. That is the right outcome — a visible surcharge on rent is precisely what would push people back to cash and hollow out the ledger the whole product depends on.</p>
+
 <div class="callout warn">
-  <span class="h">The design question the fee creates — and it must be answered before build</span>
-  <p>On ₹27,500 of rent, 3.9% is ₹1,072 a month. Someone must bear it, and the choice changes behaviour: <strong>charge the tenant</strong> and they will pay in cash to avoid it; <strong>charge the owner</strong> and they will notice it against their yield; <strong>absorb it</strong> and there is no business. The fee must therefore be a <strong>configurable, disclosed bearer setting per organisation</strong> — tenant-borne, owner-borne, manager-borne or split — computed by the ledger, shown on the invoice or statement before payment, and never a surprise line. Aggregator cost (UPI, cards, NACH, payouts) is netted from this 3.9%, so the <em>real</em> margin varies by instrument: card payments can approach or exceed the fee. Instrument-level margin monitoring is a launch requirement, not an analytics nicety. Recommendation: default to tenant-borne and disclosed for rent, marketplace-inclusive for jobs, with a per-organisation override.</p>
+  <span class="h">The economics this creates, stated plainly</span>
+  <p>A manager typically earns <strong>8–10% of collected rent</strong>. A 3.9% fee on the <em>gross rent</em> is therefore roughly <strong>40–50% of that manager's revenue</strong> — on ₹27,500 of rent, ₹1,072 of a ₹2,200 fee. That is a very large share of the customer segment the platform depends on for scale, and it is the number a manager will run on the first day of their evaluation.</p>
+  <p>Three levers exist if that proves too heavy in market, and the fee engine should be built so any of them is a configuration change rather than a rewrite: <strong>(a)</strong> charge the fee on the <em>manager's fee</em> rather than on gross rent, <strong>(b)</strong> cap the fee per transaction above a rent threshold, or <strong>(c)</strong> tier the rate by monthly transacted volume. This is not a reason to change the decision now — it is a reason to make the rate, the base and the cap all rule-table values from the first release, which is how the engine is specified.</p>
 </div>
 
 <h4>Residual streams</h4>
@@ -399,6 +415,7 @@ FLOW D — PLATFORM REVENUE  3.9% platform fee on every in-app payment  (no subs
   <tr><td>IDN-08</td><td>Manager</td><td>an audit trail of every action taken by my staff and by the platform</td><td>I can answer an owner's question about who did what, when</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>IDN-09</td><td>Platform Admin</td><td>time-bound, justified and audited impersonation for support</td><td>support can resolve issues without unrestricted access to customer data</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>IDN-10</td><td>Enterprise manager</td><td>single sign-on against my corporate identity provider</td><td>Rentora passes my organisation's security review</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>IDN-12</td><td>Manager</td><td>a full web console covering everything I can do in the app, and a full app covering everything I do in the field</td><td>I work from a desk and from a scooter without either surface being a compromise</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>IDN-11</td><td>Any user</td><td>my account to survive a change of phone number without losing history</td><td>changing my SIM does not erase my tenancy record</td><td><span class="pill p2">P2</span></td></tr>
 </table>
 
@@ -868,7 +885,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <li><strong>Settle a deposit</strong> — inspection photos → itemised deductions → tenant reviews and accepts → refund initiated same day.</li>
 </ol>
 <h3>7.4 Web surfaces — and the Admin surface across both</h3>
-<p>Mobile-first is a rule about the field, not a ban on the desktop. Four kinds of work are genuinely bad on a phone and must be delivered as responsive web: <strong>configuration</strong>, <strong>wide tabular review</strong>, <strong>bulk operations</strong> and <strong>investigation across many records</strong>. Much of an administrator's day is exactly that work — so Admin is <strong>web and mobile together</strong>, split by the nature of the task rather than by user.</p>
+<p><strong>The property manager is the exception that proves the rule: they need both, fully.</strong> A manager runs listings, collections, dispatch and accounting from a desk, and inspections, cash collection and site visits from a phone. Rentora Ops is therefore delivered as a <strong>complete web console and a complete mobile app</strong> — peers sharing one permission model and one audit trail, not a product and its companion. Beyond that, mobile-first is a rule about the field, not a ban on the desktop. Four kinds of work are genuinely bad on a phone and must be delivered as responsive web: <strong>configuration</strong>, <strong>wide tabular review</strong>, <strong>bulk operations</strong> and <strong>investigation across many records</strong>. Much of an administrator's day is exactly that work — so Admin is <strong>web and mobile together</strong>, split by the nature of the task rather than by user.</p>
 
 <table>
   <tr><th style="width:26%">Admin task</th><th style="width:16%">Surface</th><th>Why</th></tr>
@@ -885,7 +902,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 <table>
   <tr><th style="width:20%">Web surface</th><th style="width:16%">Users</th><th style="width:13%">Priority</th><th>Why it cannot be a phone screen</th></tr>
   <tr><td><strong>Rentora Admin Console</strong><br><span class="nb">web + mobile app</span></td><td>Platform Admin, support, finance, compliance</td><td><span class="pill p1">P1</span> from first paying customer</td><td>Web carries the depth — rule tables, fee configuration, bulk operations, reconciliation and dispute desks, cross-record investigation, moderation. The app carries the urgency — alerts, approvals, triage and on-call intervention. <strong>One permission model, one audit trail, two form factors.</strong></td></tr>
-  <tr><td><strong>Manager back-office</strong><br><span class="nb">web primary, app companion</span></td><td>Manager, accountant</td><td><span class="pill p1">P1</span></td><td>Portfolio tables of hundreds of units, accounting and statements, fee and mandate configuration, bulk import, reporting, staff and vendor administration.</td></tr>
+  <tr><td><strong>Rentora Ops Web</strong><br><span class="nb">full console — web and app are peers</span></td><td>Manager, accountant, warden, agent</td><td><span class="pill p1">P1</span></td><td>The manager's primary workplace and a <strong>complete</strong> surface, not a back-office annexe: portfolios and tenancies, collections worklist, <strong>listings and the lead-to-lease pipeline</strong>, inspection calendar, ticket queue and dispatch, vendor management, owner statements and payouts, accounting and tax, fee and mandate configuration, bulk import, staff administration and reporting. Anything the Ops app can do, the web console can do.</td></tr>
   <tr><td><strong>Owner web</strong><br><span class="nb">responsive, app-first</span></td><td>Owner, NRI owner</td><td><span class="pill p2">P2</span></td><td>Annual statements, tax exports, multi-property comparison, document downloads at tax time.</td></tr>
   <tr><td><strong>Vendor firm web</strong><br><span class="nb">responsive</span></td><td>Service provider back-office</td><td><span class="pill p2">P2</span></td><td>Technician roster, rate cards, invoices and settlement history — the firm's admin, distinct from the technician's job app.</td></tr>
   <tr><td><strong>Warden console</strong><br><span class="nb">web + tablet</span></td><td>Warden, hostel operator</td><td><span class="pill p2">P2</span></td><td>Bed allocation grids, mess planning, attendance registers — grid work that needs screen area.</td></tr>
@@ -1069,6 +1086,98 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td><strong>Never for administrators</strong></td><td>Demonstration mode exists for owners, managers and operators evaluating the product. Administrative surfaces have no demo mode and no sample tenant — they show real platform state to an authenticated administrator, or nothing.</td></tr>
 </table>
 
+<h3>9.7 The authorisation model — shape, isolation and the DSL sketch</h3>
+
+<p>The model has one organising idea: <strong>every object belongs to exactly one organisation, and no relation may cross an organisation boundary except through a mandate.</strong> Tenant isolation is therefore a property of the graph's shape, not a filter applied afterwards.</p>
+
+<h4>Type inventory</h4>
+<table>
+  <tr><th style="width:20%">Type</th><th style="width:34%">Key relations</th><th>Notes</th></tr>
+  <tr><td><code>organisation</code></td><td>principal, staff, accountant, field_agent, warden, support_admin</td><td>The tenancy boundary. Landlord account, management firm, society, hostel operator, vendor firm and the platform itself are all organisations.</td></tr>
+  <tr><td><code>mandate</code></td><td>grantor (org), grantee (org), scope, spend_ceiling, valid window</td><td><strong>The only legal bridge between two organisations.</strong> Carries a validity condition, so an expired or revoked mandate stops granting without a job running.</td></tr>
+  <tr><td><code>property</code></td><td>organisation, owner, co_owner, managed_by (via mandate), assigned_agent</td><td>Permissions on a property cascade down to its units, beds, tickets and documents — deliberately, and only downward.</td></tr>
+  <tr><td><code>unit</code> / <code>room</code> / <code>bed</code></td><td>parent, occupant</td><td>Bed is a first-class object so a hostel resident's access is scoped to their bed, not the building.</td></tr>
+  <tr><td><code>occupancy</code></td><td>unit, tenant, co_tenant, guardian, payer</td><td>Lease, licence or commercial deed. Guardian gets payer and welfare relations without the occupant's full access.</td></tr>
+  <tr><td><code>invoice</code>, <code>payment</code>, <code>deposit</code>, <code>payout</code>, <code>statement</code></td><td>occupancy or property parent</td><td>Financial objects inherit visibility from their occupancy and property, never from organisation membership alone.</td></tr>
+  <tr><td><code>ticket</code>, <code>job</code></td><td>unit, reporter, assignee, vendor_org</td><td>A technician's access is a <em>conditional</em> relation valid only while the job is assigned and within its window.</td></tr>
+  <tr><td><code>listing</code>, <code>listing_media</code></td><td>property, public_viewer</td><td>The only types permitted a wildcard subject, and only when published.</td></tr>
+  <tr><td><code>enquiry</code>, <code>inspection</code></td><td>listing, prospect, assigned_agent</td><td>Gives a phone-verified prospect access to their own enquiry and nothing else.</td></tr>
+  <tr><td><code>document</code></td><td>parent object</td><td>Never independently permissioned; always inherits from what it evidences.</td></tr>
+  <tr><td><code>demo_session</code></td><td>demo organisation</td><td>Isolated exactly like a customer organisation; carries no relation to any real object and no administrative relation.</td></tr>
+</table>
+
+<h4>DSL sketch — the shape, not the final model</h4>
+<div class="flow">type organisation
+  relations
+    define principal: [user]
+    define staff: [user]
+    define accountant: [user]
+    define support_admin: [user with elevation_window]     # platform, time-bound, audited
+    define can_administer: principal or support_admin
+
+type mandate
+  relations
+    define grantor: [organisation]
+    define grantee: [organisation]
+    define active_manager: staff from grantee with mandate_valid   # condition: valid_from/valid_to
+
+type property
+  relations
+    define org: [organisation]
+    define owner: [user] or principal from org
+    define mandate_ref: [mandate]
+    define manager: active_manager from mandate_ref
+    define field_agent: [user with assignment_valid]
+    define can_view: owner or manager or field_agent or can_administer from org
+    define can_manage_listing: owner or manager
+    define can_approve_spend: owner or manager                     # ceiling checked in the domain
+
+type unit
+  relations
+    define parent: [property]
+    define occupant: [user]
+    define can_view: occupant or can_view from parent
+
+type occupancy
+  relations
+    define unit_ref: [unit]
+    define tenant: [user]
+    define guardian: [user]
+    define payer: tenant or guardian
+    define can_view_financials: tenant or guardian or can_view from unit_ref
+
+type job
+  relations
+    define ticket_ref: [ticket]
+    define technician: [user with job_window]                      # expires with the job
+    define can_view: technician or can_view from ticket_ref
+
+type listing
+  relations
+    define property_ref: [property]
+    define published: [organisation]
+    define public_view: [user:*] if published                      # the ONLY wildcard in the model
+    define can_manage: can_manage_listing from property_ref</div>
+
+<h4>Isolation invariants — testable, and tested</h4>
+<table>
+  <tr><th style="width:36%">Invariant</th><th>Why it matters</th></tr>
+  <tr><td>Every object type resolves to exactly one <code>organisation</code></td><td>An object with no organisation has no isolation boundary and cannot be reasoned about</td></tr>
+  <tr><td>No relation crosses organisations except through <code>mandate</code></td><td>One bridge, one place to audit, one place to revoke</td></tr>
+  <tr><td>Permissions cascade downward only — property → unit → occupancy → financial object</td><td>Upward inheritance would let a tenant's access reach their neighbour's</td></tr>
+  <tr><td>Organisation membership alone grants nothing</td><td>A firm's accountant sees the properties they are assigned to, not everything the firm touches</td></tr>
+  <tr><td><code>user:*</code> appears on published listings and their media, nowhere else</td><td>One wildcard, provable by inspecting the model rather than by testing every endpoint</td></tr>
+  <tr><td>Administrative relations are explicit, time-bound and audited</td><td>There is no implicit super-user, and elevation is visible</td></tr>
+  <tr><td>Time-bound relations expire by condition, not by cleanup job</td><td>A revoked mandate, an ended assignment or a finished job stops granting immediately</td></tr>
+  <tr><td>Every check is paired with database row-level security on the same request</td><td>Two independent mechanisms; a bug in either is not sufficient to leak data</td></tr>
+  <tr><td>Demo organisations hold no relation to any real object</td><td>The sandbox cannot become a path into customer data</td></tr>
+</table>
+
+<div class="callout">
+  <span class="h">How OpenFGA and row-level security divide the work</span>
+  <p><strong>OpenFGA answers "may this subject take this action on this object".</strong> It is the decision point, and it understands relationships — ownership, mandates, assignments, occupancy, guardianship. <strong>Row-level security answers "may this database session see rows belonging to this organisation".</strong> It is the containment mechanism, and it understands nothing about intent. Both run on every request: the check decides, and the session binding — derived from the authorised organisation, never from a client-supplied value — contains. Neither is a substitute for the other, and the test suite proves each still denies with the other disabled.</p>
+</div>
+
 <h2><span class="num">10.</span> Non-functional requirements</h2>
 
 <table>
@@ -1159,7 +1268,8 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>Whether the manager may collect into their own account</td><td>Changes the entire money-flow, custody and reconciliation design</td><td>P0</td></tr>
   <tr><td>Vendor payment model</td><td>Platform-advanced-then-recovered versus direct-to-vendor has regulatory and working-capital consequences</td><td>P3</td></tr>
   <tr><td>Hostel GST treatment</td><td>Composite supply of stay plus food materially changes billing; requires professional advice</td><td>P5</td></tr>
-  <tr><td><strong>Who bears the 3.9% fee</strong></td><td>Tenant-borne, owner-borne, manager-borne or split — it changes payment behaviour, disclosure obligations and whether users flee to cash</td><td>P0</td></tr>
+  <tr><td><s>Who bears the 3.9% fee</s> — <strong>decided</strong></td><td>The property manager, generalised as "the party earning the operating margin"; owner where self-managed, operator for hostels, society for dues, vendor for jobs (§5.5)</td><td>Closed</td></tr>
+  <tr><td>Fee base, cap and tiering</td><td>Whether the fee stays on gross rent at a flat rate, or moves to the manager's fee, a per-transaction cap or a volume tier — all rule-table values, but the market answer is unknown</td><td>P3</td></tr>
   <tr><td>Fee treatment on cards and NACH</td><td>Aggregator cost on some instruments approaches or exceeds 3.9%; capping, surcharging or restricting an instrument must be decided</td><td>P1</td></tr>
   <tr><td>GST treatment of the platform fee</td><td>The fee is a taxable service; whether it is charged on top of or within 3.9% affects both pricing and every invoice</td><td>P0</td></tr>
   <tr><td>AI tier scope and cost ceiling</td><td>Which capabilities sit behind ₹499 and what per-organisation inference cost is sustainable at that price</td><td>P8</td></tr>
@@ -1186,7 +1296,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <div class="callout warn" style="margin-top:22px">
   <span class="h">Document control</span>
-  <p>Version 1.6 adds module M19 — a no-sign-up sandbox anyone can use before creating an account, and a training and release-preview sandbox for existing customers and their staff. Version 1.5 defined the five access tiers, the no-anonymous rule for administrative surfaces, and the demonstration-data workspace. Version 1.4 settled identity and authorisation — Google Identity Platform for every user, OpenFGA plus RBAC for permissions. Version 1.3 added public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
+  <p>Version 1.7 settles the fee bearer, specifies the authorisation model and makes Rentora Ops a full web console as well as an app. Version 1.6 added module M19 — a no-sign-up sandbox anyone can use before creating an account, and a training and release-preview sandbox for existing customers and their staff. Version 1.5 defined the five access tiers, the no-anonymous rule for administrative surfaces, and the demonstration-data workspace. Version 1.4 settled identity and authorisation — Google Identity Platform for every user, OpenFGA plus RBAC for permissions. Version 1.3 added public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
 </div>
 
 </body>

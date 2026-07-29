@@ -2,7 +2,7 @@
 
 | Document | Source | Output |
 |---|---|---|
-| High-Level Product Requirements & User Story Catalogue (v1.6) | `rentora-requirements.html` | [`Rentora-Requirements-v1.6.pdf`](Rentora-Requirements-v1.6.pdf) · [`Rentora-Requirements-v1.6.docx`](Rentora-Requirements-v1.6.docx) |
+| High-Level Product Requirements & User Story Catalogue (v1.7) | `rentora-requirements.html` | [`Rentora-Requirements-v1.7.pdf`](Rentora-Requirements-v1.7.pdf) · [`Rentora-Requirements-v1.7.docx`](Rentora-Requirements-v1.7.docx) |
 
 The PDF is generated from the HTML source — edit the HTML, never the PDF:
 
@@ -10,7 +10,7 @@ The PDF is generated from the HTML source — edit the HTML, never the PDF:
 cd docs/requirements
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \\
   --headless=new --disable-gpu --no-pdf-header-footer \\
-  --print-to-pdf="Rentora-Requirements-v1.6.pdf" \\
+  --print-to-pdf="Rentora-Requirements-v1.7.pdf" \\
   "file://$PWD/rentora-requirements.html"
 ```
 
@@ -18,13 +18,19 @@ DOCX is produced from the same source:
 
 ```bash
 pandoc rentora-requirements.html -f html -t docx --toc --toc-depth=3 \
-  -o Rentora-Requirements-v1.6.docx
+  -o Rentora-Requirements-v1.7.docx
 ```
 
 A copy of both is delivered to `~/Desktop/samyak-work/projects/Property-Manager/` as
 `Rentora_High_Level_Product_Requirements.{pdf,docx}`.
 
-v1.6 adds module **M19 Demo & Sandbox** — one fully isolated sandbox serving two jobs:
+v1.7 settles three things: the **property manager bears the 3.9% fee** (generalised as
+"the party earning the operating margin" — §5.5, the tenant is never surcharged); the
+**authorisation model shape** with its type inventory, DSL sketch and nine isolation
+invariants (§9.7); and **Rentora Ops as a full web console** that is a peer of the app,
+not a back-office annexe.
+
+v1.6 added module **M19 Demo & Sandbox** — one fully isolated sandbox serving two jobs:
 try the real product with **no sign-up at all** and continue into a real account, and give
 existing customers and their staff a safe place to **test and train on new features and
 releases**. Each demo or sandbox account is its own ephemeral organisation, isolated by
