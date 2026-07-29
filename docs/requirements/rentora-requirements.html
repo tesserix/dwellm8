@@ -87,7 +87,7 @@
   <div class="title">High-Level Product Requirements<br>&amp; User Story Catalogue</div>
   <div class="sub">A mobile-first, one-stop property operating system for India — covering residential rentals, hostels and PG accommodation, and commercial premises, with the property manager as the operating middle layer between owners, tenants and service providers. Free to use, monetised on transactions.</div>
   <div class="meta">
-    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.2)</div>
+    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.3)</div>
     <div><b>Product</b> &nbsp; Rentora · <code>tesserix/rentora</code></div>
     <div><b>Date</b> &nbsp; 29 July 2026</div>
     <div><b>Monetisation</b> &nbsp; No subscriptions — flat 3.9% platform fee on in-app payments; premium AI tier ₹499/org/month (future)</div>
@@ -104,10 +104,10 @@
     <li><b>Personas and roles</b> <span>— nine actors, what each is accountable for</span></li>
     <li><b>The three verticals</b> <span>— residential, hostel/PG/co-living, commercial</span></li>
     <li><b>The operating model</b> <span>— money flows, cost sharing, the manager's mandate</span></li>
-    <li><b>Module requirements and user stories</b> <span>— M1–M18, 228 stories</span></li>
+    <li><b>Module requirements and user stories</b> <span>— M1–M18, 241 stories</span></li>
     <li><b>Mobile-first experience requirements</b> <span>— five apps and the web surfaces; Admin is both</span></li>
     <li><b>Critical end-to-end workflows</b> <span>— the five journeys that cross every module</span></li>
-    <li><b>Integrations and data principles</b> <span>— adapters, and the rules the schema obeys</span></li>
+    <li><b>Integrations, data principles and stack</b> <span>— adapters, schema rules, and the settled technology choices</span></li>
     <li><b>Non-functional requirements</b> <span>— reliability, security, performance, scale</span></li>
     <li><b>India regulatory summary</b> <span>— payments, documents, tax, privacy</span></li>
     <li><b>Phased delivery plan</b> <span>— what ships when, and why in that order</span></li>
@@ -203,6 +203,7 @@
   <tr><td><strong>Warden / Hostel operator</strong></td><td>Runs the hostel property day to day — beds, mess, attendance, discipline</td><td>Occupancy, resident welfare and safety, mess operations, in–out register</td><td>Warden console + gate app</td></tr>
   <tr><td><strong>Service provider</strong></td><td>Vendor firm and its individual technicians — plumber, electrician, carpenter, painter, pest control, AC, cleaning</td><td>Accepting jobs, quoting honestly, completing to SLA with evidence, honouring warranty</td><td>Vendor app (technician) + vendor web (firm)</td></tr>
   <tr><td><strong>Agent / Broker</strong></td><td>Rentora-side or partner agent handling lease origination and property sales</td><td>Listing quality, lead conversion, site visits, negotiation, closing and handover</td><td>Agent app + CRM in the manager console</td></tr>
+  <tr><td><strong>Prospect</strong></td><td>Someone looking for a flat, a hostel bed or commercial space — not yet a customer, often not yet a user</td><td>Finding a property, contacting the manager, attending an inspection, and applying</td><td>Public listing site (web, SEO) + Rentora Live app</td></tr>
   <tr><td><strong>Platform Admin</strong></td><td>Rentora's own operations, support, finance and compliance staff</td><td>Onboarding approval, statutory rule tables, dispute desk, reconciliation, platform health</td><td>Admin console (web) + Admin app (mobile)</td></tr>
 </table>
 
@@ -691,8 +692,9 @@ raise ─► triage &amp; categorise ─► liability evaluated &amp; disclosed 
   <tr><td>DOC-06</td><td>Platform Admin</td><td>a retention matrix enforced automatically</td><td>we neither hoard data nor delete records we are obliged to keep</td><td><span class="pill p2">P2</span></td></tr>
 </table>
 
-<h3>M15 · Sales, listings and brokerage</h3>
-<p><strong>Purpose.</strong> Extend the platform from operating a property to transacting it — filling a vacancy, and ultimately selling the asset — using the tenancy, maintenance and document history the platform already holds.</p>
+<h3>M15 · Discovery, listings, inspections and brokerage</h3>
+<p><strong>Purpose.</strong> Extend the platform from operating a property to transacting it — helping a prospect <em>find</em> a property, <em>connect</em> with the manager and <em>book an inspection</em>; then filling the vacancy, and ultimately selling the asset — using the tenancy, maintenance and document history the platform already holds.</p>
+<p><strong>The discovery loop.</strong> A vacancy in the operating system becomes a public listing; a prospect finds it without an account; they enquire and are connected to the manager or owner; they book an inspection slot; the visit outcome is captured; and the accepted prospect converts into a tenancy with every field carried over. No re-keying at any step, and no listing that describes a unit which is not actually available.</p>
 <p><strong>Key rules.</strong> RERA and advertising rules constrain what a listing may claim. A listing is generated from real inventory, so it cannot describe a unit that does not exist or is already occupied. Rentora does not take custody of transaction money; token and consideration flow between the parties through regulated rails. The document vault is the platform's structural advantage at sale time.</p>
 
 <div class="flow">RENTAL FUNNEL   vacancy ─► listing ─► enquiry ─► qualification ─► site visit ─► offer
@@ -721,6 +723,19 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>SAL-14</td><td>Both parties</td><td>registration, stamp duty and the appointment tracked to completion</td><td>the legal step is managed rather than left to a runner</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>SAL-15</td><td>Buyer</td><td>post-sale transfers — society NOC, utilities, property tax — as a checklist</td><td>the loose ends that take months are closed in weeks</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>SAL-16</td><td>Agent</td><td>brokerage computed, invoiced and split with the platform automatically</td><td>I get paid correctly without an argument at the end</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>SAL-19</td><td>Prospect</td><td>to search listings by city, locality, budget, configuration, furnishing, sharing type or commercial area</td><td>I can find a place that actually fits, without an account</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-20</td><td>Prospect</td><td>a listing page with real photos, the full monthly cost broken down, deposit, amenities and availability date</td><td>I know the true cost before I travel to see it</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-21</td><td>Manager / Owner</td><td>a listing published from live inventory, with status following occupancy automatically</td><td>a let unit disappears from search the moment it is let</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-22</td><td>Prospect</td><td>to contact the manager from the listing without exposing either party's number</td><td>I can ask a question without inviting months of broker calls</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-23</td><td>Prospect</td><td><strong>to book an inspection slot</strong> from the listing and get directions and a reminder</td><td>seeing a property takes two taps rather than six phone calls</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-24</td><td>Manager / Agent</td><td>an inspection calendar with slot capacity, staff assignment and travel grouping</td><td>a day of viewings is planned rather than improvised</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-25</td><td>Prospect &amp; Manager</td><td>reschedule, cancel and no-show handling with automatic reminders</td><td>nobody waits at an empty flat for someone who is not coming</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-26</td><td>Agent</td><td>to capture the inspection outcome — interest level, objections, offer, next action</td><td>the owner learns why the property is not renting</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-27</td><td>Prospect</td><td>to shortlist listings, save a search and be alerted when a match appears</td><td>I do not have to check the app every day</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>SAL-28</td><td>Prospect</td><td>to apply from the listing, with my details reused into KYC and the agreement</td><td>applying does not mean filling the same form three times</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-29</td><td>Hostel operator</td><td>a bed-level listing with sharing type, gender policy, mess inclusion and available-from date</td><td>a student can find and reserve a bed before arriving in the city</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-30</td><td>Commercial manager</td><td>a commercial listing with chargeable area, floor, fit-out status, CAM and parking</td><td>a business can evaluate the space on the terms it actually cares about</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>SAL-31</td><td>Prospect</td><td>a shareable listing link that previews correctly on WhatsApp</td><td>I can send it to my family and decide together</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>SAL-17</td><td>Platform Admin</td><td>listing moderation and compliance guardrails on claims</td><td>the platform is not liable for what an agent wrote at midnight</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>SAL-18</td><td>Seller</td><td>outstanding society dues and tenancy encumbrances flagged before listing</td><td>a sale does not collapse at the NOC stage</td><td><span class="pill p3">P3</span></td></tr>
 </table>
@@ -902,7 +917,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <li>New manager onboarded onto the same property with no data loss and no tenant disruption.</li>
 </ol>
 
-<h2><span class="num">9.</span> Integrations and data principles</h2>
+<h2><span class="num">9.</span> Integrations, data principles and technology stack</h2>
 
 <h3>9.1 Integration framework</h3>
 <p>Every external dependency sits behind an adapter with a canonical internal model. The platform must never depend on a single provider in any category, and swapping one must not touch domain code.</p>
@@ -935,6 +950,27 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <li><strong>Schema lives in the platform infrastructure repository</strong>; application repositories hold ORM models only.</li>
 </ul>
 
+
+<h3>9.3 Technology stack</h3>
+<p>Settled, and aligned with the platform patterns already proven in the org's other products (<code>mark8ly</code>, <code>Home-Chef-App</code>) so that tooling, CI and the design system are shared rather than reinvented.</p>
+
+<table>
+  <tr><th style="width:20%">Layer</th><th style="width:32%">Choice</th><th>Notes</th></tr>
+  <tr><td>Web</td><td><strong>Next.js</strong> with the org design system</td><td>Public listing site (SEO and server rendering matter), owner and manager consoles, and the Admin console</td></tr>
+  <tr><td>Backend</td><td><strong>Go</strong> with Gin</td><td>Domain services per §2 boundaries; REST externally, gRPC internally where it earns its keep</td></tr>
+  <tr><td>Mobile</td><td><strong>React Native on Expo</strong>, expo-router, NativeWind + Tailwind, <code>@tesserix/native</code> and design tokens</td><td>Matches the existing HomeChef and mark8ly apps exactly — same navigation, styling, icon and font conventions</td></tr>
+  <tr><td>Mobile data layer</td><td>TanStack Query, zustand, react-hook-form + zod, axios</td><td>Query persistence and a netinfo-aware queue give the offline tolerance §7.2 requires</td></tr>
+  <tr><td>Mobile platform services</td><td>expo-secure-store, expo-notifications, expo-image-picker/manipulator, expo-location, react-native-maps, expo-updates</td><td>Evidence capture, push, deep links, routing for technicians and site visits, OTA fixes</td></tr>
+  <tr><td>Payments in app</td><td>react-native-razorpay with UPI intent handling</td><td>Same integration already running in the org's consumer apps</td></tr>
+  <tr><td>Mobile build</td><td>EAS Build with a manual-dispatch CI workflow, per-app <code>eas.json</code></td><td>Native binaries, not container images — a separate path from the web and API pipelines</td></tr>
+  <tr><td>Shared mobile package</td><td>A single <code>mobile-shared</code> workspace package — api client, auth, hooks, types, theme, ui, shared screens</td><td>Five apps share one implementation; a fix lands once</td></tr>
+  <tr><td>Data &amp; runtime</td><td>PostgreSQL with row-level security, Redis, NATS JetStream, Temporal, GKE + Istio + ArgoCD, OpenTelemetry</td><td>Per §9.2 and §10</td></tr>
+</table>
+
+<div class="callout warn">
+  <span class="h">Open: the authentication path</span>
+  <p>The org's existing mobile apps use Firebase / Google Identity Platform phone auth, while this document specifies Keycloak. The likely resolution is <strong>GIP phone-OTP for consumer identities</strong> (tenant, resident, guardian, prospect, technician) and <strong>Keycloak for staff and platform identities</strong> (manager staff, admin), with one canonical user record on the Rentora side and roles resolved there. This must be decided by an ADR before the first app screen is built — it is the one mobile choice that is expensive to reverse.</p>
+</div>
 
 <h2><span class="num">10.</span> Non-functional requirements</h2>
 
@@ -1018,7 +1054,8 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 <table>
   <tr><th style="width:26%">Decision</th><th style="width:44%">Why it blocks</th><th>Needed by</th></tr>
   <tr><td>Launch states</td><td>Determines e-stamping channel, stamp duty rules, police verification flow, Model Tenancy Act applicability</td><td>P0</td></tr>
-  <tr><td>Mobile framework</td><td>Five apps depend on it, including Admin; reversing the choice later is a rebuild</td><td>P0</td></tr>
+  <tr><td><s>Mobile framework</s> — <strong>decided</strong></td><td>React Native on Expo with expo-router and NativeWind, matching mark8ly and HomeChef (§9.3)</td><td>Closed</td></tr>
+  <tr><td>Consumer vs staff auth provider</td><td>GIP phone-OTP for consumers alongside Keycloak for staff — one canonical user record either way (§9.3)</td><td>P0</td></tr>
   <tr><td>Payment aggregator and payout rails</td><td>Mandate caps, payout timing, settlement format and the vendor-payment model all follow from it</td><td>P0</td></tr>
   <tr><td>Whether the manager may collect into their own account</td><td>Changes the entire money-flow, custody and reconciliation design</td><td>P0</td></tr>
   <tr><td>Vendor payment model</td><td>Platform-advanced-then-recovered versus direct-to-vendor has regulatory and working-capital consequences</td><td>P3</td></tr>
@@ -1050,7 +1087,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <div class="callout warn" style="margin-top:22px">
   <span class="h">Document control</span>
-  <p>Version 1.2 makes the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
+  <p>Version 1.3 adds public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 3.9% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
 </div>
 
 </body>
