@@ -1,4 +1,4 @@
-# dwellm8 Admin
+# Dwellm8 Admin
 
 The mobile half of the Admin surface. The app carries the urgency — alerts,
 approvals, triage and on-call intervention. The web console carries the depth —

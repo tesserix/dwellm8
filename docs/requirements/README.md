@@ -38,7 +38,7 @@ rule-table values, and a per-payout cap ships from day one.
 v1.7 settled three things: the **property manager bears the 3.9% fee** (generalised as
 "the party earning the operating margin" — §5.5, the tenant is never surcharged); the
 **authorisation model shape** with its type inventory, DSL sketch and nine isolation
-invariants (§9.7); and **dwellm8 Ops as a full web console** that is a peer of the app,
+invariants (§9.7); and **Dwellm8 Ops as a full web console** that is a peer of the app,
 not a back-office annexe.
 
 v1.6 added module **M19 Demo & Sandbox** — one fully isolated sandbox serving two jobs:

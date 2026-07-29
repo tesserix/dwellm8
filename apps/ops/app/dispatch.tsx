@@ -56,7 +56,7 @@ export default function Dispatch() {
               <KeyValue k="Start code" v="4471 — technician enters this on arrival" last />
             </View>
             <Text style={s.note}>
-              The technician sees this in dwellm8 Pro. Work starts only when the tenant's OTP is
+              The technician sees this in Dwellm8 Pro. Work starts only when the tenant's OTP is
               entered, so an unannounced visit cannot be billed.
             </Text>
           </Card>

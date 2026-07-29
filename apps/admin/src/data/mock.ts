@@ -11,7 +11,7 @@ export const admin = {
   initials: 'KD',
   name: 'Kavya Desai',
   role: 'Platform Operations',
-  team: 'dwellm8 Platform',
+  team: 'Dwellm8 Platform',
   email: 'kavya@dwellm8.app',
   onCall: true,
   onCallUntil: '30 Jul, 09:00',

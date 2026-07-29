@@ -5,7 +5,7 @@ import { color } from '../theme/tokens';
 /**
  * Mobile-native app shell.
  *
- * dwellm8 Own is a phone app first. On a real device this is a pass-through —
+ * Dwellm8 Own is a phone app first. On a real device this is a pass-through —
  * the app fills the screen. On a desktop browser it constrains the app to a
  * phone-width column and centres it, so the web build behaves like the app it
  * is rather than stretching a phone layout across 1700px of monitor.

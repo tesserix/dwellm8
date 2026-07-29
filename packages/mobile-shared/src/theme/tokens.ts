@@ -1,5 +1,5 @@
 /**
- * dwellm8 design tokens — Own app.
+ * Dwellm8 design tokens — Own app.
  *
  * The visual language: a pale blue-tinted canvas, white rounded cards with a
  * soft shadow, teal links, and money always coloured (green in, red out).

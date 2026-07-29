@@ -64,7 +64,7 @@ export default function Profile() {
           <ListRow left={<DocIcon size={20} />} title="Runbooks" onPress={() => {}} last />
         </Card>
 
-        <Text style={s.version}>dwellm8 Admin {admin.version} · demonstration data</Text>
+        <Text style={s.version}>Dwellm8 Admin {admin.version} · demonstration data</Text>
       </ScrollView>
     </View>
   );

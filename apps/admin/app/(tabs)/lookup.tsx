@@ -60,7 +60,7 @@ export default function Lookup() {
             <Text style={s.h}>What you can see here</Text>
           </View>
           <Text style={s.body}>
-            State, plan, volume and recent events. No Aadhaar number is stored anywhere in dwellm8,
+            State, plan, volume and recent events. No Aadhaar number is stored anywhere in Dwellm8,
             and bank and PAN details are never rendered in the app — the console shows only the last
             four digits, and only to finance.
           </Text>

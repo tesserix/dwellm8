@@ -90,7 +90,7 @@ export default function Payouts() {
         <Card>
           <Text style={s.h}>Where the fee is charged</Text>
           <Text style={s.body}>
-            dwellm8 takes {PLATFORM_FEE_PCT}% once, here, deducted from the payout. Instrument costs —
+            Dwellm8 takes {PLATFORM_FEE_PCT}% once, here, deducted from the payout. Instrument costs —
             a card surcharge, an NEFT charge — are passed through separately and shown before anyone
             pays. A tenant paying by UPI is never charged a platform fee.
           </Text>

@@ -1,4 +1,4 @@
-# dwellm8 Ops
+# Dwellm8 Ops
 
 The manager, field agent and warden app — the mobile half of a surface whose
 other half is the Ops web console. Anything the app can do, the console can do;

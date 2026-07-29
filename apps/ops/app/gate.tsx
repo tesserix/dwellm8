@@ -106,7 +106,7 @@ export default function Gate() {
             <Text style={s.h}>How passes work</Text>
           </View>
           <Text style={s.body}>
-            A resident pre-approves a visitor in dwellm8 Live and the gate sees a code. Anyone who
+            A resident pre-approves a visitor in Dwellm8 Live and the gate sees a code. Anyone who
             arrives unannounced waits here for the resident's answer — the warden never decides on
             their behalf.
           </Text>

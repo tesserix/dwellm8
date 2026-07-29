@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "dwellm8 Own",
+    "name": "Dwellm8 Own",
     "slug": "dwellm8-own",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "dwellm8",
+    "scheme": "Dwellm8",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": { "backgroundColor": "#EAF2FA", "resizeMode": "contain" },

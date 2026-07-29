@@ -88,7 +88,7 @@ function PayTab() {
         </Text>
       </Pressable>
       <Text style={s.ctaNote}>
-        dwellm8 never adds a fee to your rent. Your receipt arrives the moment payment confirms.
+        Dwellm8 never adds a fee to your rent. Your receipt arrives the moment payment confirms.
       </Text>
     </>
   );

@@ -47,12 +47,12 @@ export default function Profile() {
           <ListRow left={<BellIcon size={20} />} title="Notifications" subtitle="SLA breaches, failed mandates, owner approvals" onPress={() => {}} />
           <ListRow left={<RefreshIcon size={20} />} title="Offline queue" subtitle="2 items waiting to sync" onPress={() => {}} />
           <ListRow left={<GlobeIcon size={20} />} title="Language" subtitle="English · हिन्दी available" onPress={() => {}} />
-          <ListRow left={<ShieldIcon size={20} />} title="Privacy and data" subtitle="What dwellm8 stores about you" onPress={() => {}} />
+          <ListRow left={<ShieldIcon size={20} />} title="Privacy and data" subtitle="What Dwellm8 stores about you" onPress={() => {}} />
           <ListRow left={<DocIcon size={20} />} title="Terms and conditions" onPress={() => {}} last />
         </Card>
 
         <Button label="Web console" tone="secondary" onPress={() => {}} style={{ marginHorizontal: space(4) }} />
-        <Text style={s.version}>dwellm8 Ops {staff.version} · demonstration data</Text>
+        <Text style={s.version}>Dwellm8 Ops {staff.version} · demonstration data</Text>
       </ScrollView>
     </View>
   );

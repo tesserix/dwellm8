@@ -1,6 +1,6 @@
 # Backlog conventions
 
-The dwellm8 backlog follows the same model as the other tesserix planning repositories
+The Dwellm8 backlog follows the same model as the other tesserix planning repositories
 (`tesserix/hms`, `tesserix/TripBaba`): every work item is a GitHub issue in this
 repository written to a single engineering-story template, classified by labels, and
 tracked on one org-level project board.

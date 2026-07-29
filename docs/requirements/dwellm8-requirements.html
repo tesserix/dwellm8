@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>dwellm8 — High-Level Product Requirements</title>
+<title>Dwellm8 — High-Level Product Requirements</title>
 <style>
   :root{
     --ink:#14202B;
@@ -88,7 +88,7 @@
   <div class="sub">A mobile-first, one-stop property operating system for India — covering residential rentals, hostels and PG accommodation, and commercial premises, with the property manager as the operating middle layer between owners, tenants and service providers. Free to use, monetised on transactions.</div>
   <div class="meta">
     <div><b>Document</b> &nbsp; Product Requirements — High Level (v2.0)</div>
-    <div><b>Product</b> &nbsp; dwellm8 · <code>tesserix/dwellm8</code></div>
+    <div><b>Product</b> &nbsp; Dwellm8 · <code>tesserix/dwellm8</code></div>
     <div><b>Date</b> &nbsp; 29 July 2026</div>
     <div><b>Monetisation</b> &nbsp; No subscriptions — 2.99% platform fee deducted by the manager at payout; instrument costs passed through; premium AI tier ₹499/org/month (future)</div>
     <div><b>Status</b> &nbsp; Draft for review — supersedes the vertical and pricing scope in <code>docs/product-brief.md</code></div>
@@ -118,7 +118,7 @@
 
 <h2 style="page-break-before:avoid;"><span class="num">1.</span> Executive summary</h2>
 
-<p class="lede">dwellm8 is the system of record for a property in India — one property, one unit, one occupancy, one ledger, one document set — with a front door for each party who touches it: the owner, the property manager, the occupant, the service provider and the platform operator. It runs three verticals on one core, and it extends from renting a property to maintaining it and ultimately to selling it.</p>
+<p class="lede">Dwellm8 is the system of record for a property in India — one property, one unit, one occupancy, one ledger, one document set — with a front door for each party who touches it: the owner, the property manager, the occupant, the service provider and the platform operator. It runs three verticals on one core, and it extends from renting a property to maintaining it and ultimately to selling it.</p>
 
 <h3>1.1 The problem</h3>
 <p>Indian property is operated on WhatsApp threads, Excel files and cash. An owner does not know what was collected, what was spent, or what is owed. A manager runs a book of hundreds of units across a dozen spreadsheets and a personal phone. A tenant has no record of anything, and finds an electrician through a neighbour. A hostel operator tracks beds on a whiteboard. A commercial landlord reconciles CAM once a year and loses the argument. Every one of these parties knows exactly what they are owed and can prove none of it.</p>
@@ -154,7 +154,7 @@
 <div class="callout warn">
   <span class="h">Out of scope — permanently or until explicitly revisited</span>
   <p><strong>Not a lender.</strong> Rent-now-pay-later, deposit financing and home loans are partner-referred, never balance-sheet products.<br>
-  <strong>Not an escrow or fund custodian.</strong> Money settles owner-side through a regulated aggregator. Any design in which dwellm8 holds rent overnight in a platform account must be escalated, not implemented.<br>
+  <strong>Not an escrow or fund custodian.</strong> Money settles owner-side through a regulated aggregator. Any design in which Dwellm8 holds rent overnight in a platform account must be escalated, not implemented.<br>
   <strong>Not an employer of technicians.</strong> Service providers are onboarded partners with their own compliance obligations; the platform must not drift into a de facto employment relationship.<br>
   <strong>Not a tenant credit bureau.</strong> Screening output is advisory to the requesting owner. There is no portable tenant score and no cross-owner blacklist.<br>
   <strong>Not a developer sales channel at launch.</strong> New-project primary sales is a later, separate motion from resale and rental.</p>
@@ -206,8 +206,8 @@
   <tr><td><strong>Warden / Hostel operator</strong></td><td>Runs the hostel property day to day — beds, mess, attendance, discipline</td><td>Occupancy, resident welfare and safety, mess operations, in–out register</td><td>Warden console + gate app</td></tr>
   <tr><td><strong>Service provider</strong></td><td>Vendor firm and its individual technicians — plumber, electrician, carpenter, painter, pest control, AC, cleaning</td><td>Accepting jobs, quoting honestly, completing to SLA with evidence, honouring warranty</td><td>Vendor app (technician) + vendor web (firm)</td></tr>
   <tr><td><strong>Agent / Broker</strong></td><td>dwellm8-side or partner agent handling lease origination and property sales</td><td>Listing quality, lead conversion, site visits, negotiation, closing and handover</td><td>Agent app + CRM in the manager console</td></tr>
-  <tr><td><strong>Prospect</strong></td><td>Someone looking for a flat, a hostel bed or commercial space — not yet a customer, often not yet a user</td><td>Finding a property, contacting the manager, attending an inspection, and applying</td><td>Public listing site (web, SEO) + dwellm8 Live app</td></tr>
-  <tr><td><strong>Platform Admin</strong></td><td>dwellm8's own operations, support, finance and compliance staff</td><td>Onboarding approval, statutory rule tables, dispute desk, reconciliation, platform health</td><td>Admin console (web) + Admin app (mobile)</td></tr>
+  <tr><td><strong>Prospect</strong></td><td>Someone looking for a flat, a hostel bed or commercial space — not yet a customer, often not yet a user</td><td>Finding a property, contacting the manager, attending an inspection, and applying</td><td>Public listing site (web, SEO) + Dwellm8 Live app</td></tr>
+  <tr><td><strong>Platform Admin</strong></td><td>Dwellm8's own operations, support, finance and compliance staff</td><td>Onboarding approval, statutory rule tables, dispute desk, reconciliation, platform health</td><td>Admin console (web) + Admin app (mobile)</td></tr>
 </table>
 
 <div class="callout">
@@ -274,7 +274,7 @@ FLOW D — PLATFORM REVENUE  2.99% deducted by the manager when paying the owner
 
 <div class="callout warn">
   <span class="h">Custody posture — non-negotiable</span>
-  <p>dwellm8 is <strong>not an escrow and not a custodian of client funds</strong>. Collections settle to the owner or the manager's regulated account through the payment aggregator. Where the platform advances a vendor payment before recovering it, that advance must be structured, capped, and reviewed against RBI payment-aggregator directions before it is built. A design in which rent accumulates in a dwellm8-controlled account is escalated, never implemented.</p>
+  <p>Dwellm8 is <strong>not an escrow and not a custodian of client funds</strong>. Collections settle to the owner or the manager's regulated account through the payment aggregator. Where the platform advances a vendor payment before recovering it, that advance must be structured, capped, and reviewed against RBI payment-aggregator directions before it is built. A design in which rent accumulates in a dwellm8-controlled account is escalated, never implemented.</p>
 </div>
 
 <h3>5.2 The manager's mandate — how the middle layer is authorised</h3>
@@ -294,7 +294,7 @@ FLOW D — PLATFORM REVENUE  2.99% deducted by the manager when paying the owner
 </table>
 
 <h3>5.3 The cost-sharing rule engine</h3>
-<p>Most maintenance disputes are not about the repair; they are about who pays. dwellm8 settles that <strong>before the technician is dispatched</strong> by evaluating a liability matrix carried on the occupancy agreement.</p>
+<p>Most maintenance disputes are not about the repair; they are about who pays. Dwellm8 settles that <strong>before the technician is dispatched</strong> by evaluating a liability matrix carried on the occupancy agreement.</p>
 
 <table>
   <tr><th style="width:22%">Input</th><th>Detail</th></tr>
@@ -332,7 +332,7 @@ FLOW D — PLATFORM REVENUE  2.99% deducted by the manager when paying the owner
 
 <h3>5.5 Monetisation — a single transaction fee, no subscriptions</h3>
 
-<p>dwellm8 does <strong>not</strong> sell seats, tiers or per-unit subscriptions. Every organisation — a landlord with one flat, a firm with three hundred units, a hostel with four hundred beds — gets the <strong>complete product</strong> for free and pays only when money moves through it.</p>
+<p>Dwellm8 does <strong>not</strong> sell seats, tiers or per-unit subscriptions. Every organisation — a landlord with one flat, a firm with three hundred units, a hostel with four hundred beds — gets the <strong>complete product</strong> for free and pays only when money moves through it.</p>
 
 <div class="callout">
   <span class="h">The pricing rule</span>
@@ -343,7 +343,7 @@ FLOW D — PLATFORM REVENUE  2.99% deducted by the manager when paying the owner
 <ul>
   <li><strong>Zero adoption friction.</strong> The single hardest thing to sell an Indian landlord or hostel operator is a monthly fee for software they have never used. A free product that charges only on success removes the entire objection.</li>
   <li><strong>Revenue scales with actual usage</strong>, not with seats a customer may never log into. A manager onboarding three hundred units becomes valuable immediately without a procurement conversation.</li>
-  <li><strong>Incentives align.</strong> dwellm8 earns when collections work. That is exactly what the platform is optimised to do, and it makes reliability a revenue problem rather than a support problem.</li>
+  <li><strong>Incentives align.</strong> Dwellm8 earns when collections work. That is exactly what the platform is optimised to do, and it makes reliability a revenue problem rather than a support problem.</li>
   <li><strong>One number to explain.</strong> No plan comparison table, no upgrade prompts, no feature paywalls in the middle of a workflow.</li>
 </ul>
 
@@ -356,7 +356,7 @@ FLOW D — PLATFORM REVENUE  2.99% deducted by the manager when paying the owner
   <tr><td>Token advance and brokerage settled in-app</td><td><strong>Yes</strong></td><td>Sale consideration itself is out of scope — the platform never touches it</td></tr>
   <tr><td>Offline cash and direct bank transfers recorded but not transacted</td><td>No</td><td>Recording stays free on both legs; it is the honesty mechanism that keeps the ledger true</td></tr>
   <tr><td>Refunds, reversals and deposit returns</td><td>No</td><td>Never fee a customer for getting their own money back</td></tr>
-  <tr><td><strong>Outbound leg</strong> — the manager paying the owner</td><td><strong>Yes — 2.99%</strong><br><span class="nb">deducted by the manager at payout</span></td><td>The single charge point. The manager is the party dwellm8 does the operating work for, and this is where the owner statement already itemises deductions.</td></tr>
+  <tr><td><strong>Outbound leg</strong> — the manager paying the owner</td><td><strong>Yes — 2.99%</strong><br><span class="nb">deducted by the manager at payout</span></td><td>The single charge point. The manager is the party Dwellm8 does the operating work for, and this is where the owner statement already itemises deductions.</td></tr>
 </table>
 
 <h4>Who bears it, and where it is charged</h4>
@@ -380,7 +380,7 @@ FLOW D — PLATFORM REVENUE  2.99% deducted by the manager when paying the owner
 <div class="callout warn">
   <span class="h">The economics to keep an eye on</span>
   <p>A manager typically earns <strong>8–10% of collected rent</strong>, so 2.99% of gross rent is roughly <strong>30–37% of their revenue</strong> — ₹822 against a ₹2,200 fee on ₹27,500 of rent. That is the first calculation a manager will run, and it is a high share by international norms: Australian property-management platforms charge the agency a flat per-property subscription of roughly A$2.50–3.25 per property per month all-in, which on a typical rent is on the order of <em>0.1% of rent</em> rather than 2.99%.</p>
-  <p>India is not Australia — there is no statutory trust-account regime, managers are smaller, software willingness-to-pay is far lower, and dwellm8 bundles collections, maintenance, a vendor marketplace and compliance rather than selling a ledger. A transaction model may well be the right answer here where a subscription is not. But the gap is large enough that <strong>rate, base and cap must all be rule-table values from the first release</strong>: charging on the manager's fee instead of gross rent, capping the fee per payout, or tiering by monthly volume must each be a configuration change, never a rewrite. A per-payout cap is the cheapest insurance and should exist from day one even if it is set high.</p>
+  <p>India is not Australia — there is no statutory trust-account regime, managers are smaller, software willingness-to-pay is far lower, and Dwellm8 bundles collections, maintenance, a vendor marketplace and compliance rather than selling a ledger. A transaction model may well be the right answer here where a subscription is not. But the gap is large enough that <strong>rate, base and cap must all be rule-table values from the first release</strong>: charging on the manager's fee instead of gross rent, capping the fee per payout, or tiering by monthly volume must each be a configuration change, never a rewrite. A per-payout cap is the cheapest insurance and should exist from day one even if it is set high.</p>
 </div>
 
 <h4>Residual streams</h4>
@@ -389,7 +389,7 @@ FLOW D — PLATFORM REVENUE  2.99% deducted by the manager when paying the owner
   <tr><td><strong>Platform fee</strong></td><td>2.99%, once per cycle, deducted at payout</td><td>The whole business at launch</td></tr>
   <tr><td>Premium AI tier</td><td>₹499 per organisation per month (future)</td><td>The only paid plan that will ever exist — see §5.6</td></tr>
   <tr><td>Sale brokerage</td><td>Share of a negotiated brokerage on a completed sale</td><td>Separately contracted; not a platform fee percentage</td></tr>
-  <tr><td>Partner referrals</td><td>Insurance, deposit alternatives, home loans, movers, utilities</td><td>Referral fee only; dwellm8 carries no risk and discloses the relationship</td></tr>
+  <tr><td>Partner referrals</td><td>Insurance, deposit alternatives, home loans, movers, utilities</td><td>Referral fee only; Dwellm8 carries no risk and discloses the relationship</td></tr>
 </table>
 
 <h3>5.6 The premium AI tier — ₹499 per month</h3>
@@ -421,7 +421,7 @@ FLOW D — PLATFORM REVENUE  2.99% deducted by the manager when paying the owner
   <tr><td>IDN-07</td><td>Owner</td><td>to add a co-owner or family member with defined rights</td><td>my spouse can act when I am travelling without sharing my login</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>IDN-08</td><td>Manager</td><td>an audit trail of every action taken by my staff and by the platform</td><td>I can answer an owner's question about who did what, when</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>IDN-09</td><td>Platform Admin</td><td>time-bound, justified and audited impersonation for support</td><td>support can resolve issues without unrestricted access to customer data</td><td><span class="pill p1">P1</span></td></tr>
-  <tr><td>IDN-10</td><td>Enterprise manager</td><td>single sign-on against my corporate identity provider</td><td>dwellm8 passes my organisation's security review</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>IDN-10</td><td>Enterprise manager</td><td>single sign-on against my corporate identity provider</td><td>Dwellm8 passes my organisation's security review</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>IDN-12</td><td>Manager</td><td>a full web console covering everything I can do in the app, and a full app covering everything I do in the field</td><td>I work from a desk and from a scooter without either surface being a compromise</td><td><span class="pill p1">P1</span></td></tr>
   <tr><td>IDN-11</td><td>Any user</td><td>my account to survive a change of phone number without losing history</td><td>changing my SIM does not erase my tenancy record</td><td><span class="pill p2">P2</span></td></tr>
 </table>
@@ -740,7 +740,7 @@ raise ─► triage &amp; categorise ─► liability evaluated &amp; disclosed 
 <h3>M15 · Discovery, listings, inspections and brokerage</h3>
 <p><strong>Purpose.</strong> Extend the platform from operating a property to transacting it — helping a prospect <em>find</em> a property, <em>connect</em> with the manager and <em>book an inspection</em>; then filling the vacancy, and ultimately selling the asset — using the tenancy, maintenance and document history the platform already holds.</p>
 <p><strong>The discovery loop.</strong> A vacancy in the operating system becomes a public listing; a prospect finds it without an account; they enquire and are connected to the manager or owner; they book an inspection slot; the visit outcome is captured; and the accepted prospect converts into a tenancy with every field carried over. No re-keying at any step, and no listing that describes a unit which is not actually available.</p>
-<p><strong>Key rules.</strong> RERA and advertising rules constrain what a listing may claim. A listing is generated from real inventory, so it cannot describe a unit that does not exist or is already occupied. dwellm8 does not take custody of transaction money; token and consideration flow between the parties through regulated rails. The document vault is the platform's structural advantage at sale time.</p>
+<p><strong>Key rules.</strong> RERA and advertising rules constrain what a listing may claim. A listing is generated from real inventory, so it cannot describe a unit that does not exist or is already occupied. Dwellm8 does not take custody of transaction money; token and consideration flow between the parties through regulated rails. The document vault is the platform's structural advantage at sale time.</p>
 
 <div class="flow">RENTAL FUNNEL   vacancy ─► listing ─► enquiry ─► qualification ─► site visit ─► offer
                 ─► agreement ─► move-in checklist ─► ACTIVE TENANCY (M3)
@@ -782,13 +782,13 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>SAL-30</td><td>Commercial manager</td><td>a commercial listing with chargeable area, floor, fit-out status, CAM and parking</td><td>a business can evaluate the space on the terms it actually cares about</td><td><span class="pill p3">P3</span></td></tr>
   <tr><td>SAL-31</td><td>Prospect</td><td>a shareable listing link that previews correctly on WhatsApp</td><td>I can send it to my family and decide together</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>SAL-33</td><td>Owner / Manager</td><td>my listing published to the major Indian portals from one place</td><td>I reach the whole market without maintaining four listings</td><td><span class="pill p3">P3</span></td></tr>
-  <tr><td>SAL-32</td><td>Anonymous visitor</td><td>to browse listings and understand what dwellm8 does without creating an account</td><td>I can judge whether it is worth signing up before I hand over my number</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-32</td><td>Anonymous visitor</td><td>to browse listings and understand what Dwellm8 does without creating an account</td><td>I can judge whether it is worth signing up before I hand over my number</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>SAL-17</td><td>Platform Admin</td><td>listing moderation and compliance guardrails on claims</td><td>the platform is not liable for what an agent wrote at midnight</td><td><span class="pill p2">P2</span></td></tr>
   <tr><td>SAL-18</td><td>Seller</td><td>outstanding society dues and tenancy encumbrances flagged before listing</td><td>a sale does not collapse at the NOC stage</td><td><span class="pill p3">P3</span></td></tr>
 </table>
 
 <h3>M16 · Platform administration</h3>
-<p><strong>Purpose.</strong> Let dwellm8's own team operate the platform — onboard, configure, support, reconcile and intervene — without engineers running queries in production.</p>
+<p><strong>Purpose.</strong> Let Dwellm8's own team operate the platform — onboard, configure, support, reconcile and intervene — without engineers running queries in production.</p>
 
 <table class="stories">
   <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
@@ -895,16 +895,16 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <h2><span class="num">7.</span> Mobile-first experience requirements</h2>
 
-<p class="lede">dwellm8 is used standing in a corridor, at a gate, on a scooter and on a ₹9,000 Android phone with two bars of signal. Mobile is not a companion to the web product; for tenants, residents, guardians, technicians and field agents it is the <em>only</em> product.</p>
+<p class="lede">Dwellm8 is used standing in a corridor, at a gate, on a scooter and on a ₹9,000 Android phone with two bars of signal. Mobile is not a companion to the web product; for tenants, residents, guardians, technicians and field agents it is the <em>only</em> product.</p>
 
 <h3>7.1 Five apps, one system</h3>
 <table>
   <tr><th style="width:18%">App</th><th style="width:24%">Primary users</th><th>Core jobs</th></tr>
-  <tr><td><strong>dwellm8 Live</strong></td><td>Tenant, resident, guardian</td><td>Pay, receipts, raise and track a repair, agreement, deposit, notices, book a service</td></tr>
-  <tr><td><strong>dwellm8 Own</strong></td><td>Owner</td><td>Portfolio and collections at a glance, approve spend, payouts and statements, documents, vacancy</td></tr>
-  <tr><td><strong>dwellm8 Ops</strong></td><td>Manager, field agent, warden</td><td>Collection worklist, ticket queue, inspections, bed allocation, gate, offline capture</td></tr>
-  <tr><td><strong>dwellm8 Pro</strong></td><td>Technician, service provider</td><td>Job list, navigation, OTP start and finish, photo evidence, quotes, earnings</td></tr>
-  <tr><td><strong>dwellm8 Admin</strong></td><td>Platform Admin, support, on-call</td><td>Alerts and platform health, approval queues, dispute and reconciliation triage, customer lookup, on-call intervention — the mobile half of the Admin surface (§7.4)</td></tr>
+  <tr><td><strong>Dwellm8 Live</strong></td><td>Tenant, resident, guardian</td><td>Pay, receipts, raise and track a repair, agreement, deposit, notices, book a service</td></tr>
+  <tr><td><strong>Dwellm8 Own</strong></td><td>Owner</td><td>Portfolio and collections at a glance, approve spend, payouts and statements, documents, vacancy</td></tr>
+  <tr><td><strong>Dwellm8 Ops</strong></td><td>Manager, field agent, warden</td><td>Collection worklist, ticket queue, inspections, bed allocation, gate, offline capture</td></tr>
+  <tr><td><strong>Dwellm8 Pro</strong></td><td>Technician, service provider</td><td>Job list, navigation, OTP start and finish, photo evidence, quotes, earnings</td></tr>
+  <tr><td><strong>Dwellm8 Admin</strong></td><td>Platform Admin, support, on-call</td><td>Alerts and platform health, approval queues, dispute and reconciliation triage, customer lookup, on-call intervention — the mobile half of the Admin surface (§7.4)</td></tr>
 </table>
 <p class="nb">The apps are for what happens away from a desk. Everything that needs a keyboard, a wide table or a configuration screen lives on the web — see §7.4.</p>
 
@@ -930,7 +930,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <li><strong>Settle a deposit</strong> — inspection photos → itemised deductions → tenant reviews and accepts → refund initiated same day.</li>
 </ol>
 <h3>7.4 Web surfaces — and the Admin surface across both</h3>
-<p><strong>The property manager is the exception that proves the rule: they need both, fully.</strong> A manager runs listings, collections, dispatch and accounting from a desk, and inspections, cash collection and site visits from a phone. dwellm8 Ops is therefore delivered as a <strong>complete web console and a complete mobile app</strong> — peers sharing one permission model and one audit trail, not a product and its companion. Beyond that, mobile-first is a rule about the field, not a ban on the desktop. Four kinds of work are genuinely bad on a phone and must be delivered as responsive web: <strong>configuration</strong>, <strong>wide tabular review</strong>, <strong>bulk operations</strong> and <strong>investigation across many records</strong>. Much of an administrator's day is exactly that work — so Admin is <strong>web and mobile together</strong>, split by the nature of the task rather than by user.</p>
+<p><strong>The property manager is the exception that proves the rule: they need both, fully.</strong> A manager runs listings, collections, dispatch and accounting from a desk, and inspections, cash collection and site visits from a phone. Dwellm8 Ops is therefore delivered as a <strong>complete web console and a complete mobile app</strong> — peers sharing one permission model and one audit trail, not a product and its companion. Beyond that, mobile-first is a rule about the field, not a ban on the desktop. Four kinds of work are genuinely bad on a phone and must be delivered as responsive web: <strong>configuration</strong>, <strong>wide tabular review</strong>, <strong>bulk operations</strong> and <strong>investigation across many records</strong>. Much of an administrator's day is exactly that work — so Admin is <strong>web and mobile together</strong>, split by the nature of the task rather than by user.</p>
 
 <table>
   <tr><th style="width:26%">Admin task</th><th style="width:16%">Surface</th><th>Why</th></tr>
@@ -946,8 +946,8 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <table>
   <tr><th style="width:20%">Web surface</th><th style="width:16%">Users</th><th style="width:13%">Priority</th><th>Why it cannot be a phone screen</th></tr>
-  <tr><td><strong>dwellm8 Admin Console</strong><br><span class="nb">web + mobile app</span></td><td>Platform Admin, support, finance, compliance</td><td><span class="pill p1">P1</span> from first paying customer</td><td>Web carries the depth — rule tables, fee configuration, bulk operations, reconciliation and dispute desks, cross-record investigation, moderation. The app carries the urgency — alerts, approvals, triage and on-call intervention. <strong>One permission model, one audit trail, two form factors.</strong></td></tr>
-  <tr><td><strong>dwellm8 Ops Web</strong><br><span class="nb">full console — web and app are peers</span></td><td>Manager, accountant, warden, agent</td><td><span class="pill p1">P1</span></td><td>The manager's primary workplace and a <strong>complete</strong> surface, not a back-office annexe: portfolios and tenancies, collections worklist, <strong>listings and the lead-to-lease pipeline</strong>, inspection calendar, ticket queue and dispatch, vendor management, owner statements and payouts, accounting and tax, fee and mandate configuration, bulk import, staff administration and reporting. Anything the Ops app can do, the web console can do.</td></tr>
+  <tr><td><strong>Dwellm8 Admin Console</strong><br><span class="nb">web + mobile app</span></td><td>Platform Admin, support, finance, compliance</td><td><span class="pill p1">P1</span> from first paying customer</td><td>Web carries the depth — rule tables, fee configuration, bulk operations, reconciliation and dispute desks, cross-record investigation, moderation. The app carries the urgency — alerts, approvals, triage and on-call intervention. <strong>One permission model, one audit trail, two form factors.</strong></td></tr>
+  <tr><td><strong>Dwellm8 Ops Web</strong><br><span class="nb">full console — web and app are peers</span></td><td>Manager, accountant, warden, agent</td><td><span class="pill p1">P1</span></td><td>The manager's primary workplace and a <strong>complete</strong> surface, not a back-office annexe: portfolios and tenancies, collections worklist, <strong>listings and the lead-to-lease pipeline</strong>, inspection calendar, ticket queue and dispatch, vendor management, owner statements and payouts, accounting and tax, fee and mandate configuration, bulk import, staff administration and reporting. Anything the Ops app can do, the web console can do.</td></tr>
   <tr><td><strong>Owner web</strong><br><span class="nb">responsive, app-first</span></td><td>Owner, NRI owner</td><td><span class="pill p2">P2</span></td><td>Annual statements, tax exports, multi-property comparison, document downloads at tax time.</td></tr>
   <tr><td><strong>Vendor firm web</strong><br><span class="nb">responsive</span></td><td>Service provider back-office</td><td><span class="pill p2">P2</span></td><td>Technician roster, rate cards, invoices and settlement history — the firm's admin, distinct from the technician's job app.</td></tr>
   <tr><td><strong>Warden console</strong><br><span class="nb">web + tablet</span></td><td>Warden, hostel operator</td><td><span class="pill p2">P2</span></td><td>Bed allocation grids, mess planning, attendance registers — grid work that needs screen area.</td></tr>
@@ -1032,7 +1032,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <tr><td>Storage and media</td><td>Documents, photos, inspection evidence</td><td>Per-organisation isolation; short-lived signed access; compression at capture</td></tr>
   <tr><td>Utilities and civic</td><td>Electricity, water, property tax, DigiLocker</td><td>Opportunistic; never a hard dependency of a billing cycle</td></tr>
   <tr><td>AI and model providers</td><td>Premium AI capabilities (§5.6, M18)</td><td>Provider-abstracted; per-organisation entitlement enforced server-side; no customer data used for training; cost per organisation attributable</td></tr>
-  <tr><td>Partner services</td><td>Insurance, deposit alternatives, home loans, movers</td><td>Referral integrations with disclosure; dwellm8 carries no risk</td></tr>
+  <tr><td>Partner services</td><td>Insurance, deposit alternatives, home loans, movers</td><td>Referral integrations with disclosure; Dwellm8 carries no risk</td></tr>
   <tr><td>Public API and webhooks</td><td>Enterprise customers and partners</td><td>Versioned, organisation-scoped, rate-limited and auditable</td></tr>
 </table>
 
@@ -1054,7 +1054,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <div class="callout">
   <span class="h">One API, one deployable</span>
-  <p><strong>dwellm8 is a modular monolith, not a set of microservices.</strong> One Go API serves every client — Live, Own, Ops, Pro and Admin on mobile; the Ops, Owner, Admin and vendor consoles on web; and the public listing site. There is one OpenAPI specification, one authentication and authorisation path, one database and one transaction boundary.</p>
+  <p><strong>Dwellm8 is a modular monolith, not a set of microservices.</strong> One Go API serves every client — Live, Own, Ops, Pro and Admin on mobile; the Ops, Owner, Admin and vendor consoles on web; and the public listing site. There is one OpenAPI specification, one authentication and authorisation path, one database and one transaction boundary.</p>
   <p>This is the right call for this product, and deliberately so. The domain is <em>densely</em> interconnected — a maintenance job touches the ticket, the liability matrix, the vendor, the ledger, the owner statement and the notification ladder in a single logical operation. Splitting that across services would replace transactions with distributed sagas and turn a correctness problem into a coordination problem, for a team that does not need to scale services independently. Modularity is enforced <strong>inside</strong> the codebase — clear module boundaries, no cross-module database access, an internal event bus — so that if a module ever genuinely needs to be extracted, the seam already exists.</p>
 </div>
 
@@ -1080,7 +1080,7 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
   <p><strong>Authentication is Google Identity Platform for every user</strong> — tenant, resident, guardian, prospect, owner, manager, field agent, warden, technician, agent and platform admin. There is no second identity provider and no Keycloak. <strong>Authorisation is OpenFGA</strong>, with conventional RBAC roles layered on top of its relationship model. Authentication proves <em>who you are</em>, exactly once; everything about <em>what you may do</em> is an authorisation decision made against the relationship graph.</p>
 </div>
 
-<p>The separation matters because dwellm8's permission model is inherently relational, not hierarchical. "This manager may approve spend on this unit because the owner granted a mandate scoped to it, which is still in force" is a relationship question, and expressing it as a role string in a token is how permission models rot.</p>
+<p>The separation matters because Dwellm8's permission model is inherently relational, not hierarchical. "This manager may approve spend on this unit because the owner granted a mandate scoped to it, which is still in force" is a relationship question, and expressing it as a role string in a token is how permission models rot.</p>
 
 <h4>What this gives us</h4>
 <ul>
@@ -1108,11 +1108,11 @@ SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─
 
 <table>
   <tr><th style="width:17%">Tier</th><th style="width:16%">Who</th><th style="width:34%">Can see and do</th><th>Cannot, under any circumstance</th></tr>
-  <tr><td><strong>Anonymous</strong></td><td>Prospective tenant, hostel seeker, commercial occupier, curious owner — no account</td><td>Browse and search published listings; open a listing with photos, amenities and the full cost breakdown; see approximate location; view the public product pages that explain how dwellm8 works; <strong>run a full product demo in a private sandbox (M19)</strong>; shortlist locally on the device; share a listing</td><td>See exact addresses, occupant details, owner or manager phone numbers, any unpublished unit, any financial record, or any authenticated screen</td></tr>
+  <tr><td><strong>Anonymous</strong></td><td>Prospective tenant, hostel seeker, commercial occupier, curious owner — no account</td><td>Browse and search published listings; open a listing with photos, amenities and the full cost breakdown; see approximate location; view the public product pages that explain how Dwellm8 works; <strong>run a full product demo in a private sandbox (M19)</strong>; shortlist locally on the device; share a listing</td><td>See exact addresses, occupant details, owner or manager phone numbers, any unpublished unit, any financial record, or any authenticated screen</td></tr>
   <tr><td><strong>Verified prospect</strong></td><td>Someone who has verified a phone number to act</td><td>Enquire, message the manager through masking, book an inspection, save a search, persist a shortlist, apply for a tenancy</td><td>See anything about a property beyond what its listing publishes, or contact anyone outside the enquiry they created</td></tr>
   <tr><td><strong>Customer</strong></td><td>Tenant, resident, guardian, owner</td><td>Everything scoped to their own occupancy, property or portfolio</td><td>Reach another organisation's data by any route</td></tr>
   <tr><td><strong>Operator</strong></td><td>Manager, field agent, warden, technician, agent</td><td>What their assignment or mandate grants, and only for its validity period</td><td>Act beyond the mandate's scope, spend authority or dates</td></tr>
-  <tr><td><strong>Administrator</strong></td><td>dwellm8 platform staff</td><td>Explicitly modelled administrative relations, on web and the Admin app</td><td><strong>Exist anonymously at all</strong> — see below</td></tr>
+  <tr><td><strong>Administrator</strong></td><td>Dwellm8 platform staff</td><td>Explicitly modelled administrative relations, on web and the Admin app</td><td><strong>Exist anonymously at all</strong> — see below</td></tr>
 </table>
 
 <div class="callout warn">
@@ -1256,7 +1256,7 @@ type listing
 <table>
   <tr><th style="width:22%">Area</th><th>Constraint on the product</th></tr>
   <tr><td><strong>UPI &amp; autopay</strong></td><td>UPI intent and collect for one-off payment; UPI Autopay mandates for recurring, subject to a per-mandate cap with a mandatory pre-debit notification; NACH for higher values. A missed pre-debit notification is a compliance failure, not a missed message.</td></tr>
-  <tr><td><strong>Aggregator posture</strong></td><td>RBI payment-aggregator directions bind how funds may be held and routed. dwellm8 holds no client funds; any vendor advance model is reviewed before build.</td></tr>
+  <tr><td><strong>Aggregator posture</strong></td><td>RBI payment-aggregator directions bind how funds may be held and routed. Dwellm8 holds no client funds; any vendor advance model is reviewed before build.</td></tr>
   <tr><td><strong>Agreements</strong></td><td>The 11-month convention exists because 12 months or more attracts compulsory registration. Stamp duty is a state subject with different bases, several of which include a deposit component. E-stamping channels differ by state.</td></tr>
   <tr><td><strong>E-signature</strong></td><td>Aadhaar-based eSign through a licensed provider produces a signed artefact and completion certificate. The Aadhaar number passes through the provider flow and is never retained by dwellm8. A non-Aadhaar path must exist, with its weaker evidentiary weight recorded.</td></tr>
   <tr><td><strong>Model Tenancy Act 2021</strong></td><td>Adopted state by state. Where adopted it caps residential deposits, requires written agreements filed with a Rent Authority, and defines notice and eviction process. Modelled as a per-state flag with the cap enforced at agreement time.</td></tr>
@@ -1265,7 +1265,7 @@ type listing
   <tr><td><strong>TDS on rent</strong></td><td>§194-I for business deductors, §194-IB for individuals above the monthly threshold with Form 26QC and 16C, §195 for any tenant of a non-resident landlord with no small-value exemption. The path follows from deductor class and landlord residency, both captured at tenancy creation.</td></tr>
   <tr><td><strong>TDS on services</strong></td><td>§194-C applies to vendor payments above threshold; vendor GST registration status determines invoice treatment. Both are handled in the payout engine, not left to the manager.</td></tr>
   <tr><td><strong>DPDP Act 2023</strong></td><td>Purpose-limited collection with notice in English and at minimum Hindi, consent as a recorded artefact, implemented rights endpoints, a retention matrix that reconciles erasure with statutory retention, and a breach notification runbook.</td></tr>
-  <tr><td><strong>RERA</strong></td><td>Binds listings, agent conduct and advertising claims. Where dwellm8 or its agents originate leases or sales, agent registration and claim substantiation apply.</td></tr>
+  <tr><td><strong>RERA</strong></td><td>Binds listings, agent conduct and advertising claims. Where Dwellm8 or its agents originate leases or sales, agent registration and claim substantiation apply.</td></tr>
   <tr><td><strong>Society bye-laws &amp; Co-op Acts</strong></td><td>Govern maintenance dues, interest on arrears, non-occupancy charges, NOC for sale and transfer. Per-society configuration, never platform constants.</td></tr>
   <tr><td><strong>Sale &amp; registration</strong></td><td>Stamp duty and registration fee by state, TDS under §194-IA on consideration above the threshold, and higher rates for non-resident sellers. Society NOC and dues clearance gate a resale.</td></tr>
 </table>
@@ -1301,9 +1301,9 @@ type listing
   <li><strong>There are no subscriptions.</strong> The entire product is free and monetised by a flat 2.99% fee on payments transacted through the app; the premium AI tier at ₹499 per organisation per month is the only paid plan and arrives later.</li>
   <li>Aggregator cost is netted from the 2.99%, so margin varies by payment instrument and must be monitored per instrument from launch.</li>
   <li>AI is never load-bearing: a non-paying organisation can operate a property end to end with no blocked action.</li>
-  <li>dwellm8 never holds client funds. Every design here assumes settlement through a regulated aggregator.</li>
+  <li>Dwellm8 never holds client funds. Every design here assumes settlement through a regulated aggregator.</li>
   <li>Residential is the beachhead. Hostel and commercial reuse the same core and are sequenced after the manager platform exists.</li>
-  <li>Sales is an extension of an operating relationship, not a standalone portal business. dwellm8 will not win a listings-portal fight and does not attempt one.</li>
+  <li>Sales is an extension of an operating relationship, not a standalone portal business. Dwellm8 will not win a listings-portal fight and does not attempt one.</li>
   <li>Technicians are partner-employed. The platform must not drift into a de facto employment relationship.</li>
   <li>WhatsApp remains an available and economically viable primary channel; SMS fallback is proven before launch.</li>
 </ol>
@@ -1325,7 +1325,7 @@ type listing
   <tr><td>GST treatment of the platform fee</td><td>The fee is a taxable service; whether it is charged on top of or within 2.99% affects both pricing and every invoice</td><td>P0</td></tr>
   <tr><td>AI tier scope and cost ceiling</td><td>Which capabilities sit behind ₹499 and what per-organisation inference cost is sustainable at that price</td><td>P8</td></tr>
   <tr><td>Marketplace fee application</td><td>Whether the 2.99% on a job is taken from the vendor, added for the customer, or absorbed in the job price</td><td>P4</td></tr>
-  <tr><td>Brokerage and RERA posture</td><td>Whether dwellm8 acts as an agent or only as a facilitator determines registration obligations</td><td>P7</td></tr>
+  <tr><td>Brokerage and RERA posture</td><td>Whether Dwellm8 acts as an agent or only as a facilitator determines registration obligations</td><td>P7</td></tr>
   <tr><td>Insurance and liability</td><td>Who is liable when a dispatched technician causes damage in a customer's home</td><td>P4</td></tr>
 </table>
 
@@ -1347,14 +1347,14 @@ type listing
 
 <h2><span class="num">14.</span> Appendix — competitive parity check</h2>
 
-<p class="lede">dwellm8 was compared against PropertyMe, Australia's largest property-management platform and the most mature example of the manager-in-the-middle model, in July 2026. The purpose was to find capability gaps, not to copy a pricing or regulatory model that does not apply in India.</p>
+<p class="lede">Dwellm8 was compared against PropertyMe, Australia's largest property-management platform and the most mature example of the manager-in-the-middle model, in July 2026. The purpose was to find capability gaps, not to copy a pricing or regulatory model that does not apply in India.</p>
 
 <h3>14.1 What their model tells us</h3>
 <table>
-  <tr><th style="width:24%">Dimension</th><th style="width:36%">PropertyMe (Australia)</th><th>dwellm8 (India)</th></tr>
+  <tr><th style="width:24%">Dimension</th><th style="width:36%">PropertyMe (Australia)</th><th>Dwellm8 (India)</th></tr>
   <tr><td>Charging model</td><td>Per-property subscription to the agency, roughly A$1.50–2.15 per property per month by plan, payments an add-on at about A$1.10 per property. No percentage of rent.</td><td>No subscription. 2.99% platform fee deducted once, by the manager, at payout.</td></tr>
   <tr><td>Effective share of rent</td><td>On the order of 0.1%</td><td>2.99% — about 30–37% of a manager's own 8–10% fee</td></tr>
-  <tr><td>Why the difference is defensible</td><td colspan="2">Australian management is performed by licensed agencies operating statutory trust accounts; the software is a regulated ledger sold as infrastructure, and the percentage economics sit with the agency. India has no equivalent regime, managers are far smaller, subscription willingness-to-pay is low, and dwellm8 bundles collections, maintenance, a vendor marketplace, documents and compliance rather than selling a ledger. A transaction model can be right here where a subscription is not — provided rate, base and cap remain rule-table values.</td></tr>
+  <tr><td>Why the difference is defensible</td><td colspan="2">Australian management is performed by licensed agencies operating statutory trust accounts; the software is a regulated ledger sold as infrastructure, and the percentage economics sit with the agency. India has no equivalent regime, managers are far smaller, subscription willingness-to-pay is low, and Dwellm8 bundles collections, maintenance, a vendor marketplace, documents and compliance rather than selling a ledger. A transaction model can be right here where a subscription is not — provided rate, base and cap remain rule-table values.</td></tr>
   <tr><td>Tenant-side charging</td><td>None — tenants pay by BPAY, direct debit or EFT at no cost. Card surcharging is being banned outright from 1 October 2026 following the RBA's retail payments review.</td><td>None. The tenant pays exactly the rent; instrument costs are passed through separately and UPI carries none.</td></tr>
   <tr><td>Where the fee appears</td><td>Agency's technology and admin cost, passed to the owner as a statement line</td><td>Platform fee, itemised on the owner statement beside the management fee</td></tr>
 </table>
@@ -1389,7 +1389,7 @@ type listing
   <tr><td>In-context compliance guidance (AI)</td><td>Partial</td><td>AIX-16</td></tr>
 </table>
 
-<h3>14.3 Where dwellm8 goes further</h3>
+<h3>14.3 Where Dwellm8 goes further</h3>
 <ul>
   <li><strong>Three verticals on one core</strong> — hostel and PG with bed-level inventory and a guardian payer, and commercial with CAM and metered utilities, alongside residential. PropertyMe is residential and commercial only, with no bed-level model.</li>
   <li><strong>An embedded service marketplace</strong> — verified vendors, OTP-gated jobs, quotes, warranty and settlement — rather than integrating with a third-party job service.</li>
@@ -1401,7 +1401,7 @@ type listing
 
 <div class="callout warn" style="margin-top:22px">
   <span class="h">Document control</span>
-  <p>Version 2.0 sets the fee at 2.99%, fixes the backend as one modular monolith API serving every client, adds 25 capabilities found by benchmarking against PropertyMe, and adds module M20 workflow automation. Version 1.9 charged the platform fee once, deducted by the manager at payout, with instrument costs passed through separately. Version 1.7 settled the fee bearer, specifies the authorisation model and makes dwellm8 Ops a full web console as well as an app. Version 1.6 added module M19 — a no-sign-up sandbox anyone can use before creating an account, and a training and release-preview sandbox for existing customers and their staff. Version 1.5 defined the five access tiers, the no-anonymous rule for administrative surfaces, and the demonstration-data workspace. Version 1.4 settled identity and authorisation — Google Identity Platform for every user, OpenFGA plus RBAC for permissions. Version 1.3 added public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 2.99% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
+  <p>Version 2.0 sets the fee at 2.99%, fixes the backend as one modular monolith API serving every client, adds 25 capabilities found by benchmarking against PropertyMe, and adds module M20 workflow automation. Version 1.9 charged the platform fee once, deducted by the manager at payout, with instrument costs passed through separately. Version 1.7 settled the fee bearer, specifies the authorisation model and makes Dwellm8 Ops a full web console as well as an app. Version 1.6 added module M19 — a no-sign-up sandbox anyone can use before creating an account, and a training and release-preview sandbox for existing customers and their staff. Version 1.5 defined the five access tiers, the no-anonymous rule for administrative surfaces, and the demonstration-data workspace. Version 1.4 settled identity and authorisation — Google Identity Platform for every user, OpenFGA plus RBAC for permissions. Version 1.3 added public discovery, listings and inspection scheduling, and settles the technology stack. Version 1.2 made the Admin surface web and mobile together. Version 1.1 replaced the subscription model with a flat 2.99% transaction fee and adds the premium AI tier, the Admin web console, the end-to-end workflows and the integration framework. This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
 </div>
 
 </body>

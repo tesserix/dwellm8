@@ -1,4 +1,4 @@
-# dwellm8 Live
+# Dwellm8 Live
 
 The tenant, resident and guardian app — the highest-volume surface in the
 product. Everything here is built around three jobs: **pay in seconds**,

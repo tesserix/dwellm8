@@ -1,6 +1,6 @@
 # India — payments, documents, tax and regulatory model
 
-What dwellm8 must implement because of where it operates. Every rule below is
+What Dwellm8 must implement because of where it operates. Every rule below is
 **state- and date-scoped in code**: rates, thresholds and slabs live in versioned rule
 tables with an owner and a review date, never as constants in a service.
 
@@ -38,8 +38,8 @@ without a standing mandate.
 - Razorpay is the primary PA/PG. The adapter is written so a second provider can be added
   without domain changes, mirroring the email-provider registry pattern used elsewhere in
   this org.
-- dwellm8 is **not** an escrow or a custodian of client funds. Money settles owner-side
-  through the regulated aggregator. Any design that has dwellm8 holding rent overnight in
+- Dwellm8 is **not** an escrow or a custodian of client funds. Money settles owner-side
+  through the regulated aggregator. Any design that has Dwellm8 holding rent overnight in
   a platform-owned account is out of scope and must be escalated, not implemented.
 - Payouts to owners use the provider's payout rails with the platform's fee, GST and TDS
   deducted as ledger postings, and a statement that reconciles to the paisa.
@@ -83,7 +83,7 @@ unregistered lease. Renewal, not extension, is the default motion.
 - Aadhaar-based eSign through a licensed ESP (via an authorised gateway), producing a
   digitally signed PDF with a completion certificate and an audit trail (signer, time,
   IP, consent artefact). The audit trail is part of the record, not a by-product.
-- Aadhaar-based eSign uses the number transiently in the ESP flow; **dwellm8 never stores
+- Aadhaar-based eSign uses the number transiently in the ESP flow; **Dwellm8 never stores
   the Aadhaar number** — only the ESP's transaction reference and the signed artefact.
 - A non-Aadhaar eSign path (OTP/email-verified electronic signature) must exist for
   signers who decline Aadhaar, with its weaker evidentiary weight recorded on the lease.
@@ -121,7 +121,7 @@ deposit cap enforced in the lease builder, not as a warning banner.
   runs through authorised flows and only the outcome persists.
 - Every check requires an explicit, recorded consent artefact from the data principal
   naming the purpose.
-- Screening outputs are advisory to the owner. dwellm8 does not publish a tenant score,
+- Screening outputs are advisory to the owner. Dwellm8 does not publish a tenant score,
   does not maintain a cross-owner blacklist, and does not let one owner's dispute follow a
   tenant across the platform. This is both a DPDP exposure and a product-integrity line.
 - Police verification is an owner obligation in several states; the platform tracks it as
@@ -177,7 +177,7 @@ Product requirements:
   in the owner statement so the payout reconciles.
 - The platform generates reminders and the required forms/references, tracks challan and
   certificate receipt, and never files on the user's behalf without explicit authority.
-- The obligation stays with the deductor. dwellm8's role is documented as facilitation,
+- The obligation stays with the deductor. Dwellm8's role is documented as facilitation,
   in the terms of service and in the UI.
 
 ---
@@ -204,9 +204,9 @@ Product requirements:
 
 | Regime | Relevance |
 |---|---|
-| **RERA** | Applies to listings and promoter/agent conduct. If dwellm8 lists or brokers, agent registration and advertising rules bind it. Claims in listings are a compliance surface. |
+| **RERA** | Applies to listings and promoter/agent conduct. If Dwellm8 lists or brokers, agent registration and advertising rules bind it. Claims in listings are a compliance surface. |
 | **State Rent Control Acts** | Legacy tenancy protections still bind older tenancies in several states; the lease builder must not assume Model Tenancy Act rules everywhere. |
-| **RBI PA/PG directions** | Bind the payment aggregator, and by extension how dwellm8 may hold or route funds. The "no escrow, no custody" rule above exists because of this. |
+| **RBI PA/PG directions** | Bind the payment aggregator, and by extension how Dwellm8 may hold or route funds. The "no escrow, no custody" rule above exists because of this. |
 | **Shops & Establishments, municipal rules** | Commercial leases carry local obligations; commercial property is deliberately deferred to MVP 6. |
 | **Society bye-laws & state Co-op Acts** | Govern dues, interest on arrears, elections and audit for RWAs; these are per-society configuration, not platform constants. |
 

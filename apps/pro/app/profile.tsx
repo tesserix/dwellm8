@@ -52,7 +52,7 @@ export default function Profile() {
           <ListRow left={<ShieldIcon size={20} />} title="Safety and escalation" subtitle="What to do if a site is unsafe" onPress={() => {}} last />
         </Card>
 
-        <Text style={s.version}>dwellm8 Pro {tech.version} · demonstration data</Text>
+        <Text style={s.version}>Dwellm8 Pro {tech.version} · demonstration data</Text>
       </ScrollView>
     </View>
   );

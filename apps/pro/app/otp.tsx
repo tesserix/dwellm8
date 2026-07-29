@@ -71,7 +71,7 @@ export default function Otp() {
       <Screen scroll={false}>
         <View style={{ flex: 1, paddingTop: space(6) }}>
           <Text style={s.ask}>Ask {j.contact.split(' ')[0]} for the four-digit code</Text>
-          <Text style={s.askSub}>It is in their dwellm8 app under this job</Text>
+          <Text style={s.askSub}>It is in their Dwellm8 app under this job</Text>
 
           <View style={s.dots}>
             {[0, 1, 2, 3].map((i) => (

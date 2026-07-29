@@ -2,7 +2,7 @@
  * @dwellm8/mobile-shared
  *
  * One implementation of the design system, the icon set, the app shell and the
- * money formatters, consumed by every dwellm8 app. A fix lands once.
+ * money formatters, consumed by every Dwellm8 app. A fix lands once.
  *
  * The rule that keeps it honest: an app may not reimplement anything exported
  * here, and nothing here may import from an app.

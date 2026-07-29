@@ -41,7 +41,7 @@ export default function Earnings() {
           <KeyValue k="To" v="Sahyadri Facility Services · HDFC ••8821" />
           <KeyValue k="TDS" v="1% under section 194C, deducted at source" last />
           <Text style={s.note}>
-            dwellm8 settles to your firm, not to you directly. A job is only settled once the tenant
+            Dwellm8 settles to your firm, not to you directly. A job is only settled once the tenant
             or manager has signed it off, so complete the sign-off on site.
           </Text>
         </Card>

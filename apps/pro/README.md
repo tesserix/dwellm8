@@ -1,4 +1,4 @@
-# dwellm8 Pro
+# Dwellm8 Pro
 
 The technician and service-provider app. A day of jobs, proof that each one
 happened, and a clear answer to "when am I paid".
