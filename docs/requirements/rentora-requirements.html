@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rentora — High-Level Product Requirements</title>
+<style>
+  :root{
+    --ink:#14202B;
+    --ink-soft:#42566B;
+    --primary:#16324F;
+    --accent:#B4531F;
+    --rule:#D8DFE6;
+    --tint:#F3F6F9;
+    --tint2:#FBF6F2;
+  }
+  @page { size: A4; margin: 17mm 15mm 16mm 15mm; }
+  *{ box-sizing:border-box; }
+  body{
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+    color:var(--ink); font-size:9.4pt; line-height:1.5; margin:0;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  h1,h2,h3,h4{ color:var(--primary); font-weight:700; line-height:1.22; margin:0 0 .4em; }
+  h2{ font-size:16pt; padding-bottom:5px; border-bottom:2.5px solid var(--primary); margin-top:0; page-break-before:always; }
+  h2 .num{ color:var(--accent); }
+  h3{ font-size:11.6pt; margin-top:1.5em; }
+  h4{ font-size:9.9pt; margin-top:1.25em; color:var(--ink); text-transform:uppercase; letter-spacing:.06em; }
+  p{ margin:0 0 .65em; }
+  ul,ol{ margin:0 0 .7em; padding-left:1.1em; }
+  li{ margin-bottom:.22em; }
+  strong{ color:var(--primary); }
+  em{ color:var(--ink-soft); }
+  code{ font-family:"SF Mono",Menlo,Consolas,monospace; font-size:8.4pt; background:var(--tint); padding:1px 3px; border-radius:2px; }
+  a{ color:var(--primary); text-decoration:none; }
+
+  table{ width:100%; border-collapse:collapse; margin:.5em 0 1em; font-size:8.5pt; }
+  th{ background:var(--primary); color:#fff; text-align:left; font-weight:600; padding:5px 7px; border:.5pt solid var(--primary); }
+  td{ padding:4.5px 7px; border:.5pt solid var(--rule); vertical-align:top; }
+  tr:nth-child(even) td{ background:var(--tint); }
+  tr{ page-break-inside:avoid; }
+  table.stories td:first-child{ font-family:"SF Mono",Menlo,monospace; font-size:7.6pt; white-space:nowrap; color:var(--accent); font-weight:600; }
+  table.stories td:last-child{ text-align:center; white-space:nowrap; font-weight:600; font-size:7.8pt; }
+
+  .cover{ height:250mm; display:flex; flex-direction:column; justify-content:center; page-break-after:always; }
+  .cover .mark{ font-size:40pt; font-weight:800; letter-spacing:-.03em; color:var(--primary); line-height:1; }
+  .cover .mark span{ color:var(--accent); }
+  .cover .tag{ font-size:12pt; color:var(--accent); font-weight:600; margin-top:6px; letter-spacing:.01em; }
+  .cover .title{ font-size:23pt; font-weight:700; color:var(--ink); margin-top:44px; line-height:1.2; }
+  .cover .sub{ font-size:11pt; color:var(--ink-soft); margin-top:10px; max-width:135mm; line-height:1.55; }
+  .cover .meta{ margin-top:46px; border-top:2.5px solid var(--primary); padding-top:14px; font-size:9pt; color:var(--ink-soft); }
+  .cover .meta b{ color:var(--primary); }
+  .cover .meta div{ margin-bottom:3px; }
+
+  .lede{ font-size:10.4pt; color:var(--ink-soft); line-height:1.6; border-left:3px solid var(--accent); padding-left:12px; margin:0 0 1.1em; }
+  .callout{ background:var(--tint); border-left:3px solid var(--primary); padding:9px 12px; margin:.8em 0 1.1em; page-break-inside:avoid; }
+  .callout.warn{ background:var(--tint2); border-left-color:var(--accent); }
+  .callout p:last-child{ margin-bottom:0; }
+  .callout .h{ font-weight:700; color:var(--primary); display:block; margin-bottom:3px; font-size:9pt; text-transform:uppercase; letter-spacing:.05em; }
+  .callout.warn .h{ color:var(--accent); }
+
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:.6em 0 1em; }
+  .card{ border:.7pt solid var(--rule); border-top:2.5px solid var(--primary); padding:9px 11px; page-break-inside:avoid; }
+  .card h5{ margin:0 0 4px; font-size:9.4pt; color:var(--primary); }
+  .card p{ margin:0; font-size:8.6pt; color:var(--ink-soft); line-height:1.45; }
+
+  .pill{ display:inline-block; font-size:7.4pt; font-weight:700; padding:1.5px 6px; border-radius:9px; letter-spacing:.03em; }
+  .p0{ background:#FADCD4; color:#8C2F0B; }
+  .p1{ background:#FCECD6; color:#8A5209; }
+  .p2{ background:#E1EAF2; color:#1B3F60; }
+  .p3{ background:#E8EAEC; color:#4B5763; }
+
+  .toc{ page-break-after:always; }
+  .toc ol{ list-style:none; padding:0; counter-reset:s; }
+  .toc li{ counter-increment:s; padding:5px 0; border-bottom:.5pt dotted var(--rule); font-size:9.6pt; }
+  .toc li::before{ content:counter(s) "."; color:var(--accent); font-weight:700; display:inline-block; width:22px; }
+  .toc li span{ color:var(--ink-soft); font-size:8.6pt; }
+  .toc li b{ font-weight:600; }
+  .flow{ font-family:"SF Mono",Menlo,monospace; font-size:8pt; background:var(--tint); border:.7pt solid var(--rule); padding:10px 12px; white-space:pre; overflow:hidden; margin:.6em 0 1em; line-height:1.65; page-break-inside:avoid; }
+  .nb{ font-size:8.4pt; color:var(--ink-soft); font-style:italic; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="mark">Rent<span>ora</span></div>
+  <div class="tag">Rent · Manage · Maintain · Sell</div>
+  <div class="title">High-Level Product Requirements<br>&amp; User Story Catalogue</div>
+  <div class="sub">A mobile-first, one-stop property operating system for India — covering residential rentals, hostels and PG accommodation, and commercial premises, with the property manager as the operating middle layer between owners, tenants and service providers.</div>
+  <div class="meta">
+    <div><b>Document</b> &nbsp; Product Requirements — High Level (v1.0)</div>
+    <div><b>Product</b> &nbsp; Rentora · <code>tesserix/rentora</code></div>
+    <div><b>Date</b> &nbsp; 29 July 2026</div>
+    <div><b>Status</b> &nbsp; Draft for review — supersedes the vertical scope in <code>docs/product-brief.md</code></div>
+    <div><b>Audience</b> &nbsp; Product, engineering, design, compliance and commercial stakeholders</div>
+  </div>
+</section>
+
+<section class="toc">
+  <h2 style="page-break-before:avoid;"><span class="num">§</span> Contents</h2>
+  <ol>
+    <li><b>Executive summary</b> <span>— the one-stop thesis, and what is deliberately not in it</span></li>
+    <li><b>Scope at a glance</b> <span>— verticals × personas × modules</span></li>
+    <li><b>Personas and roles</b> <span>— nine actors, what each is accountable for</span></li>
+    <li><b>The three verticals</b> <span>— residential, hostel/PG/co-living, commercial</span></li>
+    <li><b>The operating model</b> <span>— money flows, cost sharing, the manager's mandate</span></li>
+    <li><b>Module requirements and user stories</b> <span>— M1–M17, 202 stories</span></li>
+    <li><b>Mobile-first experience requirements</b> <span>— four apps, one system</span></li>
+    <li><b>Non-functional requirements</b> <span>— reliability, security, performance, scale</span></li>
+    <li><b>India regulatory summary</b> <span>— payments, documents, tax, privacy</span></li>
+    <li><b>Phased delivery plan</b> <span>— what ships when, and why in that order</span></li>
+    <li><b>Assumptions and open decisions</b> <span>— what must be answered before build</span></li>
+  </ol>
+</section>
+
+<h2 style="page-break-before:avoid;"><span class="num">1.</span> Executive summary</h2>
+
+<p class="lede">Rentora is the system of record for a property in India — one property, one unit, one occupancy, one ledger, one document set — with a front door for each party who touches it: the owner, the property manager, the occupant, the service provider and the platform operator. It runs three verticals on one core, and it extends from renting a property to maintaining it and ultimately to selling it.</p>
+
+<h3>1.1 The problem</h3>
+<p>Indian property is operated on WhatsApp threads, Excel files and cash. An owner does not know what was collected, what was spent, or what is owed. A manager runs a book of hundreds of units across a dozen spreadsheets and a personal phone. A tenant has no record of anything, and finds an electrician through a neighbour. A hostel operator tracks beds on a whiteboard. A commercial landlord reconciles CAM once a year and loses the argument. Every one of these parties knows exactly what they are owed and can prove none of it.</p>
+
+<h3>1.2 The thesis</h3>
+<p>Three products are usually built separately and sold separately: <strong>rent collection software</strong>, <strong>facilities and maintenance software</strong>, and <strong>a services marketplace</strong>. Each on its own is a thin, low-retention business. Together, with the property manager as the operating layer between them, they compound:</p>
+<ul>
+  <li>Collections give the platform <strong>the money rail and the ledger</strong>, so any cost can be recovered from the party who owes it without anyone chasing a transfer.</li>
+  <li>Maintenance gives the platform <strong>the recurring reason to open the app</strong> between rent cycles, which collections alone never produce.</li>
+  <li>The service marketplace turns maintenance from a cost centre into <strong>transaction revenue</strong>, and gives the manager a supply base they do not have to build.</li>
+  <li>The manager is the party who <strong>brings units at scale</strong> — a single firm onboards three hundred units and, with them, three hundred tenants and ninety owners.</li>
+</ul>
+
+<h3>1.3 What "one-stop shop" means concretely</h3>
+<div class="grid2">
+  <div class="card"><h5>Collect</h5><p>Rent, hostel fees, society dues and CAM billed automatically and collected over UPI, autopay mandates, NACH, cards or recorded offline. Receipts, reminders and reconciliation are part of it.</p></div>
+  <div class="card"><h5>Maintain</h5><p>A ticket becomes a quote, an approval, a dispatched technician, a completed job with photographic evidence, an invoice, a ledger posting against whoever is liable, and a warranty.</p></div>
+  <div class="card"><h5>Comply</h5><p>Agreements drafted, stamped, e-signed and stored. KYC, police verification, GST, TDS and statutory notices tracked as workflow rather than advice.</p></div>
+  <div class="card"><h5>Operate</h5><p>Bed allocation for hostels, CAM and meter billing for commercial, visitor and gate management for buildings, staff and vendor management for managers.</p></div>
+  <div class="card"><h5>Settle</h5><p>Owner payouts net of fee, GST, TDS and shared costs, with a statement in which every line traces to a ledger posting to the paisa.</p></div>
+  <div class="card"><h5>Sell</h5><p>The same unit, tenant history and document vault becomes a verified listing, a lead pipeline, a site-visit log, a token advance and a registered sale.</p></div>
+</div>
+
+<h3>1.4 What makes it defensible</h3>
+<ol>
+  <li><strong>Money is a double-entry ledger, not a status column.</strong> Rent, fees, deposits, shared costs, vendor bills, payouts and refunds are postings. A balance is always derived. This is what lets four parties look at the same job and agree on who owes what.</li>
+  <li><strong>Cost-sharing is a rule engine, not a conversation.</strong> Who pays for a repair is decided by the agreement before the technician is called, not argued after the invoice arrives. This single mechanism is the reason the manager, the owner and the tenant can all trust the same system.</li>
+  <li><strong>Compliance artefacts are first-class objects.</strong> An agreement knows its stamp duty, its e-sign audit trail and its expiry. A vendor invoice knows its GST and its TDS. A PDF in a folder is not a record.</li>
+  <li><strong>One core, three verticals.</strong> A hostel bed, a 2BHK and a 4,000 sq ft office are the same unit object with different billing bases and operating modules. Competitors build three products; the third one never ships.</li>
+</ol>
+
+<h3>1.5 Deliberate non-goals</h3>
+<div class="callout warn">
+  <span class="h">Out of scope — permanently or until explicitly revisited</span>
+  <p><strong>Not a lender.</strong> Rent-now-pay-later, deposit financing and home loans are partner-referred, never balance-sheet products.<br>
+  <strong>Not an escrow or fund custodian.</strong> Money settles owner-side through a regulated aggregator. Any design in which Rentora holds rent overnight in a platform account must be escalated, not implemented.<br>
+  <strong>Not an employer of technicians.</strong> Service providers are onboarded partners with their own compliance obligations; the platform must not drift into a de facto employment relationship.<br>
+  <strong>Not a tenant credit bureau.</strong> Screening output is advisory to the requesting owner. There is no portable tenant score and no cross-owner blacklist.<br>
+  <strong>Not a developer sales channel at launch.</strong> New-project primary sales is a later, separate motion from resale and rental.</p>
+</div>
+
+<h2><span class="num">2.</span> Scope at a glance</h2>
+
+<h3>2.1 The scope cube</h3>
+<p>Every requirement in this document sits at the intersection of a <strong>vertical</strong> (what kind of property), a <strong>persona</strong> (who is acting) and a <strong>module</strong> (what capability). The matrix below is the map of the product.</p>
+
+<table>
+  <tr><th style="width:26%">Module</th><th style="width:12%">Residential</th><th style="width:12%">Hostel / PG</th><th style="width:12%">Commercial</th><th>Primary personas</th></tr>
+  <tr><td>M1 Identity &amp; organisations</td><td>Core</td><td>Core</td><td>Core</td><td>All</td></tr>
+  <tr><td>M2 Property &amp; unit inventory</td><td>Unit</td><td>Room + bed</td><td>Floor / suite</td><td>Owner, Manager</td></tr>
+  <tr><td>M3 Leasing &amp; agreements</td><td>Lease</td><td>Licence</td><td>Registered lease</td><td>Owner, Manager, Tenant</td></tr>
+  <tr><td>M4 Occupant onboarding &amp; KYC</td><td>Core</td><td>+ guardian, college</td><td>+ entity KYC</td><td>Tenant, Manager</td></tr>
+  <tr><td>M5 Billing &amp; collections</td><td>Rent</td><td>Fee + mess</td><td>Rent + CAM + meters</td><td>Tenant, Manager</td></tr>
+  <tr><td>M6 Deposits &amp; settlement</td><td>Core</td><td>Caution deposit</td><td>6–12 month deposit</td><td>Tenant, Owner</td></tr>
+  <tr><td>M7 Maintenance &amp; ticketing</td><td>Core</td><td>Core</td><td>+ AMC, PPM</td><td>Tenant, Manager</td></tr>
+  <tr><td>M8 Service provider marketplace</td><td>Core</td><td>Core</td><td>Core</td><td>Vendor, Manager</td></tr>
+  <tr><td>M9 Cost sharing &amp; approvals</td><td>Core</td><td>Core</td><td>Core</td><td>Owner, Manager, Tenant</td></tr>
+  <tr><td>M10 Accounting, payouts &amp; tax</td><td>Core</td><td>Core</td><td>+ RCM, 194-I</td><td>Owner, Manager, Admin</td></tr>
+  <tr><td>M11 Hostel operations</td><td>—</td><td>Core</td><td>—</td><td>Warden, Resident, Guardian</td></tr>
+  <tr><td>M12 Commercial operations</td><td>—</td><td>—</td><td>Core</td><td>Manager, Tenant entity</td></tr>
+  <tr><td>M13 Communication &amp; notifications</td><td>Core</td><td>Core</td><td>Core</td><td>All</td></tr>
+  <tr><td>M14 Document vault &amp; compliance</td><td>Core</td><td>Core</td><td>Core</td><td>All</td></tr>
+  <tr><td>M15 Sales &amp; brokerage</td><td>Core</td><td>Asset sale</td><td>Core</td><td>Owner, Agent, Buyer</td></tr>
+  <tr><td>M16 Platform administration</td><td colspan="3" style="text-align:center">Cross-cutting</td><td>Platform Admin</td></tr>
+  <tr><td>M17 Analytics &amp; reporting</td><td colspan="3" style="text-align:center">Cross-cutting</td><td>Owner, Manager, Admin</td></tr>
+</table>
+
+<h3>2.2 Story priority convention</h3>
+<p>Every story in section 6 carries a priority. <span class="pill p0">P0</span> platform-critical — nothing works correctly without it. <span class="pill p1">P1</span> launch core — required for the first paying customer in that vertical. <span class="pill p2">P2</span> expansion — needed to scale beyond the first cohort. <span class="pill p3">P3</span> later — ecosystem, enterprise or opportunistic.</p>
+
+<h2><span class="num">3.</span> Personas and roles</h2>
+
+<p class="lede">Nine actors touch the platform. Four of them are paying or potentially paying parties, three are operational, and two are platform-side. Every screen, permission and notification in this document belongs to one of them.</p>
+
+<table>
+  <tr><th style="width:16%">Persona</th><th style="width:30%">Who they are</th><th style="width:30%">What they are accountable for</th><th>Primary surface</th></tr>
+  <tr><td><strong>Owner</strong></td><td>Individual landlord (1–20 units), HNI portfolio holder, or NRI owner managing remotely</td><td>Owns the asset, sets the commercial terms, approves spend above the manager's mandate, receives the payout</td><td>Owner app (mobile-first) + web for portfolio and tax</td></tr>
+  <tr><td><strong>Property Manager</strong></td><td>Firm or individual managing units they do not own, across residential, hostel and commercial</td><td>Day-to-day operations, collections, tenant relations, maintenance dispatch, owner reporting — the middle layer</td><td>Manager console (web primary) + field app</td></tr>
+  <tr><td><strong>Field agent</strong></td><td>The manager's staff — collections, inspections, move-in/move-out, vendor supervision</td><td>Executing tasks on the ground with scoped access to only their assigned properties</td><td>Field app (mobile only, offline-tolerant)</td></tr>
+  <tr><td><strong>Tenant / Resident</strong></td><td>Family renting a flat, student or working professional in a hostel/PG, or a business occupying commercial space</td><td>Paying on time, raising and verifying maintenance, honouring the agreement, move-out condition</td><td>Tenant app (mobile-first, the highest-volume surface)</td></tr>
+  <tr><td><strong>Guardian</strong></td><td>Parent or sponsor of a hostel resident, frequently the actual payer</td><td>Paying fees, receiving attendance and leave visibility, emergency contact</td><td>Guardian view inside the tenant app</td></tr>
+  <tr><td><strong>Warden / Hostel operator</strong></td><td>Runs the hostel property day to day — beds, mess, attendance, discipline</td><td>Occupancy, resident welfare and safety, mess operations, in–out register</td><td>Warden console + gate app</td></tr>
+  <tr><td><strong>Service provider</strong></td><td>Vendor firm and its individual technicians — plumber, electrician, carpenter, painter, pest control, AC, cleaning</td><td>Accepting jobs, quoting honestly, completing to SLA with evidence, honouring warranty</td><td>Vendor app (technician) + vendor web (firm)</td></tr>
+  <tr><td><strong>Agent / Broker</strong></td><td>Rentora-side or partner agent handling lease origination and property sales</td><td>Listing quality, lead conversion, site visits, negotiation, closing and handover</td><td>Agent app + CRM in the manager console</td></tr>
+  <tr><td><strong>Platform Admin</strong></td><td>Rentora's own operations, support, finance and compliance staff</td><td>Onboarding approval, statutory rule tables, dispute desk, reconciliation, platform health</td><td>Admin console (web only)</td></tr>
+</table>
+
+<div class="callout">
+  <span class="h">The identity rule that everything depends on</span>
+  <p>A person is <strong>one identity holding many scoped roles</strong>. The same phone number is an owner of two flats in Pune, a tenant in Bengaluru, a guardian of a hostel resident in Manipal and a committee member of a society in Noida. Roles are always scoped to <code>(organisation, property, unit)</code> and never global. Permissions are never merged across organisations, and the app switches context explicitly rather than blending it.</p>
+</div>
+
+<h2><span class="num">4.</span> The three verticals</h2>
+
+<p class="lede">One core model — organisation, property, unit, occupancy, ledger — carries all three verticals. What differs is the inventory granularity, the billing basis, the agreement instrument and the operating module bolted on top. Building this as three products is the mistake this section exists to prevent.</p>
+
+<h3>4.1 What is identical across all three</h3>
+<ul>
+  <li>Organisation, property and unit hierarchy, with effective-dated ownership</li>
+  <li>Occupancy as a contract with parties, a schedule, a deposit and documents</li>
+  <li>The double-entry ledger, invoicing, collections, reminders and reconciliation</li>
+  <li>Maintenance tickets, cost-sharing rules, vendor dispatch and job costing</li>
+  <li>Owner payouts, manager fees, GST and TDS treatment, statements</li>
+  <li>Document vault, KYC, notifications and the audit trail</li>
+</ul>
+
+<h3>4.2 What differs</h3>
+<table>
+  <tr><th style="width:19%">Dimension</th><th style="width:27%">Residential</th><th style="width:27%">Hostel / PG / Co-living</th><th>Commercial</th></tr>
+  <tr><td><strong>Inventory unit</strong></td><td>Flat or house</td><td><strong>Bed</strong> within a room within a block; sharing type drives price</td><td>Floor, suite or shop, priced on chargeable area</td></tr>
+  <tr><td><strong>Instrument</strong></td><td>11-month leave &amp; licence agreement</td><td>Licence / admission agreement, often with house rules annexure</td><td>Registered lease deed; long tenure normal</td></tr>
+  <tr><td><strong>Billing basis</strong></td><td>Monthly rent, fixed</td><td>Monthly fee bundling stay + mess + utilities + laundry; admission fee one-time</td><td>Rent per sq ft + CAM per sq ft + metered utilities + DG + parking</td></tr>
+  <tr><td><strong>Deposit</strong></td><td>2–3 months (state caps where the Model Tenancy Act is adopted)</td><td>Small refundable caution deposit; often one month</td><td>6–12 months, sometimes bank guarantee</td></tr>
+  <tr><td><strong>Payer</strong></td><td>Tenant, occasionally employer</td><td><strong>Frequently the guardian, not the occupant</strong></td><td>A company, with a procurement and PO process</td></tr>
+  <tr><td><strong>Term mechanics</strong></td><td>11 months, renewal with escalation</td><td>Term-linked (academic year), high churn, mid-term joining and vacating</td><td>Lock-in, rent-free fit-out, escalation every 3 years, exit dilapidation</td></tr>
+  <tr><td><strong>Tax</strong></td><td>Largely exempt residential; §194-IB TDS by individuals</td><td>Composite supply questions; GST where services dominate</td><td>GST on rent, reverse charge cases, §194-I TDS monthly</td></tr>
+  <tr><td><strong>Operating module</strong></td><td>Maintenance and community</td><td>Beds, mess, attendance, leave, curfew, guardian visibility</td><td>CAM reconciliation, AMC, planned preventive maintenance, fit-out approvals</td></tr>
+  <tr><td><strong>Churn</strong></td><td>~11–24 months</td><td><strong>3–12 months</strong> — onboarding and exit must be near-instant</td><td>3–9 years</td></tr>
+  <tr><td><strong>Volume shape</strong></td><td>Many owners, few units each</td><td>Few operators, hundreds of beds each</td><td>Few tenants, very high value each</td></tr>
+</table>
+
+<div class="callout warn">
+  <span class="h">The hostel constraint that shapes the data model</span>
+  <p>A hostel resident occupies a <strong>bed</strong>, not a unit, and moves between beds mid-term. A bed must therefore be a first-class inventory object with its own availability calendar, price and occupancy history — not a text field on a room. Retrofitting bed-level inventory onto a flat-level model is the single most expensive mistake available in this product, and it must be designed in from M2.</p>
+</div>
+
+<div class="callout warn">
+  <span class="h">The commercial constraint that shapes the money model</span>
+  <p>Commercial occupancy generates <strong>several concurrent recurring charges on different bases</strong> — rent on chargeable area, CAM on a budget that is reconciled to actuals annually, electricity on a meter reading, DG on units consumed, parking per bay. The charge engine must support multiple heads with different bases, different escalation rules and an annual true-up, or commercial cannot be billed at all.</p>
+</div>
+<h2><span class="num">5.</span> The operating model — money, mandate and cost sharing</h2>
+
+<p class="lede">This section is the commercial heart of the product. It defines who pays whom, who may commit whose money, and how a single repair bill is divided between an owner, a tenant and a manager without anybody arguing. Every module in section 6 assumes these rules.</p>
+
+<h3>5.1 The four money flows</h3>
+<div class="flow">FLOW A — COLLECTION        Tenant / Guardian ──► Aggregator ──► Owner settlement account
+                           (rent, fee, CAM, mess, utilities, late fee, recovered costs)
+
+FLOW B — PAYOUT            Collections ─► [ − manager fee − GST − TDS − shared costs ] ─► Owner
+
+FLOW C — SERVICE JOB       Liable party ──► Vendor  (direct)   or
+                           Platform pays vendor ──► recovers from liable party in the next cycle
+
+FLOW D — PLATFORM REVENUE  Subscription + collection take rate + job commission
+                           + lease origination fee + sale brokerage share</div>
+
+<div class="callout warn">
+  <span class="h">Custody posture — non-negotiable</span>
+  <p>Rentora is <strong>not an escrow and not a custodian of client funds</strong>. Collections settle to the owner or the manager's regulated account through the payment aggregator. Where the platform advances a vendor payment before recovering it, that advance must be structured, capped, and reviewed against RBI payment-aggregator directions before it is built. A design in which rent accumulates in a Rentora-controlled account is escalated, never implemented.</p>
+</div>
+
+<h3>5.2 The manager's mandate — how the middle layer is authorised</h3>
+<p>The manager acts on the owner's behalf, so the extent of that authority must be an explicit, revocable, effective-dated object rather than an assumption. The <strong>management mandate</strong> is agreed once per owner (or per property) and governs everything the manager may do without asking again.</p>
+
+<table>
+  <tr><th style="width:26%">Mandate term</th><th style="width:40%">What it authorises</th><th>Typical setting</th></tr>
+  <tr><td>Scope</td><td>Which properties and units the manager may act on</td><td>Named units, effective-dated</td></tr>
+  <tr><td>Fee model</td><td>How the manager is paid</td><td>% of collections, flat per unit, or per bed; plus origination fee</td></tr>
+  <tr><td><strong>Spend authority</strong></td><td>Maximum a manager may approve on the owner's behalf per job, without owner approval</td><td>₹2,000–₹10,000 per job; a monthly cap as well</td></tr>
+  <tr><td><strong>Emergency authority</strong></td><td>Higher ceiling for safety, water, electrical or lift emergencies, with mandatory notification</td><td>2–3× the standard ceiling, notify within 1 hour</td></tr>
+  <tr><td>Maintenance float</td><td>Owner-funded working balance the manager may draw on, with a replenishment trigger</td><td>₹10,000–₹25,000 per property</td></tr>
+  <tr><td>Collection authority</td><td>Whether the manager may collect into their own account or only into the owner's</td><td>Owner account by default</td></tr>
+  <tr><td>Leasing authority</td><td>Whether the manager may sign a lease, and within what rent band</td><td>Recommend only, or sign within ±5% of a floor rent</td></tr>
+  <tr><td>Vendor choice</td><td>Whether the manager may use their own vendors or must use platform-verified ones</td><td>Platform-verified by default</td></tr>
+  <tr><td>Revocation</td><td>Owner may revoke instantly; access ends immediately, history is retained</td><td>Immediate, with in-flight work rules</td></tr>
+</table>
+
+<h3>5.3 The cost-sharing rule engine</h3>
+<p>Most maintenance disputes are not about the repair; they are about who pays. Rentora settles that <strong>before the technician is dispatched</strong> by evaluating a liability matrix carried on the occupancy agreement.</p>
+
+<table>
+  <tr><th style="width:22%">Input</th><th>Detail</th></tr>
+  <tr><td>Category</td><td>Plumbing, electrical, carpentry, appliance, structural, pest, painting, common-area, safety</td></tr>
+  <tr><td>Cause</td><td>Fair wear and tear · tenant negligence or misuse · age or defect of asset · external or force majeure</td></tr>
+  <tr><td>Value band</td><td>Threshold rules — for example, tenant bears up to ₹1,000 per event, owner above it</td></tr>
+  <tr><td>Asset ownership</td><td>Owner-provided fixture vs tenant's own appliance</td></tr>
+  <tr><td>Occupancy age</td><td>First 30 days of occupancy commonly owner-borne as a snagging period</td></tr>
+  <tr><td>Vertical override</td><td>Hostel — operator bears almost everything; commercial — tenant bears interiors, owner bears structure and core services</td></tr>
+</table>
+
+<h4>Outputs of an evaluation</h4>
+<ul>
+  <li>A <strong>split</strong> — 100% owner, 100% tenant, 100% society/operator, or a percentage or threshold split across two parties</li>
+  <li>The <strong>approver</strong> — determined by the split and the manager's spend authority</li>
+  <li>The <strong>recovery route</strong> — netted from the owner payout, added to the tenant's next invoice, drawn from the maintenance float, or settled against the deposit at exit</li>
+  <li>A <strong>disclosure</strong> shown to both parties, citing the rule, before any spend is committed</li>
+</ul>
+
+<div class="callout">
+  <span class="h">Worked example — the flow the whole product exists to make boring</span>
+  <p>A tenant reports a leaking geyser at 21:40. The matrix reads: category <em>plumbing</em>, cause <em>asset defect</em>, asset <em>owner-provided</em>, value band <em>above ₹1,000</em> → <strong>owner-borne</strong>. The manager's mandate allows ₹5,000 per job, so no owner approval is needed. A verified plumber is dispatched for 08:00. The quote comes in at ₹3,200 (₹2,400 labour, ₹800 parts) — within mandate, auto-approved, both parties notified with the rule cited. The job completes with before/after photos and a tenant OTP sign-off. The vendor invoices ₹3,200 + GST; TDS under §194-C is deducted; the platform takes its commission. The cost posts against the <em>owner</em>, appears on the owner's monthly statement as a single traceable line, and is netted from the payout. The tenant pays nothing and is never asked to. Total human decisions required: zero.</p>
+</div>
+
+<h3>5.4 Approval ladder</h3>
+<table>
+  <tr><th style="width:20%">Value</th><th style="width:26%">Approver</th><th>Behaviour</th></tr>
+  <tr><td>Below float threshold</td><td>Manager, auto-approved</td><td>Notify owner, draw on float, no interruption</td></tr>
+  <tr><td>Within spend authority</td><td>Manager</td><td>Notify owner with the quote and the liability rule applied</td></tr>
+  <tr><td>Above spend authority</td><td>Owner</td><td>Push and WhatsApp with quote, photos and a one-tap approve/decline; escalates on no response</td></tr>
+  <tr><td>Above owner's own threshold</td><td>Owner, with a second quote required</td><td>Platform requests comparative quotes before presenting</td></tr>
+  <tr><td>Tenant-borne, any value</td><td>Tenant</td><td>Tenant approves and pays, or defers it to deposit settlement with acknowledgement</td></tr>
+  <tr><td>Emergency</td><td>Manager under emergency authority</td><td>Proceed immediately, notify within the mandated window, full evidence pack afterwards</td></tr>
+</table>
+
+<h3>5.5 Revenue model</h3>
+<table>
+  <tr><th style="width:24%">Stream</th><th style="width:30%">Basis</th><th>Notes</th></tr>
+  <tr><td>Manager subscription</td><td>Per unit or per bed per month, tiered</td><td>The primary predictable revenue; the manager is the platform's paying customer</td></tr>
+  <tr><td>Owner self-serve plan</td><td>Free tier for 1–2 units, paid above</td><td>Free tier is a supply-acquisition cost, not a business</td></tr>
+  <tr><td>Collection fee</td><td>Take rate or flat fee per transaction</td><td>Must be disclosed; margin is thin on UPI and negative if mispriced</td></tr>
+  <tr><td>Service job commission</td><td>Percentage of job value from the vendor</td><td>The highest-margin stream; requires marketplace liquidity first</td></tr>
+  <tr><td>Lease origination</td><td>Share of the brokerage, typically part of one month's rent</td><td>Only where Rentora or its agent originates the tenant</td></tr>
+  <tr><td>Sale brokerage</td><td>Percentage of transaction value, shared with the agent</td><td>Highest absolute value, lowest frequency; MVP 6+</td></tr>
+  <tr><td>Value-added</td><td>Insurance, deposit alternatives, utility connections, packers and movers, home loans</td><td>All partner-referred; Rentora carries no risk</td></tr>
+</table>
+
+<h2><span class="num">6.</span> Module requirements and user stories</h2>
+
+<p class="lede">Seventeen modules, each with its scope, its rules and its high-level stories. Stories are epic-level: each will decompose into several engineering stories on the delivery board using the standard template. Priorities are as defined in §2.2.</p>
+
+<h3>M1 · Identity, organisations and access</h3>
+<p><strong>Purpose.</strong> Establish who a person is, which organisation they are acting for, and what they may do — on a phone, with a phone number, on a shared low-end device.</p>
+<p><strong>Key rules.</strong> Phone-number-first authentication with OTP; email optional. Roles scoped to <code>(organisation, property, unit)</code>. A manager acting for an owner always traverses an explicit mandate. Authorisation is fail-closed at the service boundary. Context switching between organisations is explicit and visible.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>IDN-01</td><td>Any user</td><td>to sign up and sign in with my phone number and an OTP</td><td>I can start using the app without an email address or a password I will forget</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>IDN-02</td><td>Owner</td><td>my workspace created automatically on first sign-in</td><td>I can add my first property in under two minutes with no onboarding call</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>IDN-03</td><td>Any user</td><td>to hold several roles across different organisations under one login</td><td>I do not need three accounts to be an owner, a tenant and a guardian</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>IDN-04</td><td>Any user</td><td>an explicit, visible context switch between my roles</td><td>I always know which hat I am wearing and never act in the wrong one</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>IDN-05</td><td>Manager</td><td>to invite staff and assign them scoped roles over named properties</td><td>my team sees exactly what their job requires and nothing more</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>IDN-06</td><td>Owner</td><td>to grant a manager authority over specific units and revoke it instantly</td><td>I stay in control of my asset and can end the relationship the day I choose</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>IDN-07</td><td>Owner</td><td>to add a co-owner or family member with defined rights</td><td>my spouse can act when I am travelling without sharing my login</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>IDN-08</td><td>Manager</td><td>an audit trail of every action taken by my staff and by the platform</td><td>I can answer an owner's question about who did what, when</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>IDN-09</td><td>Platform Admin</td><td>time-bound, justified and audited impersonation for support</td><td>support can resolve issues without unrestricted access to customer data</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>IDN-10</td><td>Enterprise manager</td><td>single sign-on against my corporate identity provider</td><td>Rentora passes my organisation's security review</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>IDN-11</td><td>Any user</td><td>my account to survive a change of phone number without losing history</td><td>changing my SIM does not erase my tenancy record</td><td><span class="pill p2">P2</span></td></tr>
+</table>
+
+<h3>M2 · Property, unit and inventory</h3>
+<p><strong>Purpose.</strong> Represent a standalone house, a four-flat building, a 240-bed hostel and an office floor in one hierarchy, with the right granularity for each.</p>
+<p><strong>Key rules.</strong> <code>Property → Block → Unit</code>, extended to <code>Unit → Room → Bed</code> for hostels. Every inventory object carries its own availability, price basis and occupancy history. Ownership is effective-dated. Assets and fixtures are tracked because they drive maintenance liability.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>INV-01</td><td>Owner</td><td>to add a property with Indian address fields and its units</td><td>I have somewhere to attach tenancies, rent and repairs</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>INV-02</td><td>Manager</td><td>to bulk-import hundreds of units or beds from a spreadsheet with an error report</td><td>onboarding a large building takes minutes, not a week</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>INV-03</td><td>Hostel operator</td><td>rooms and individual beds as bookable inventory with a sharing type and price</td><td>I can sell and track occupancy at the level I actually operate</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>INV-04</td><td>Hostel operator</td><td>a live bed availability calendar with holds and confirmed allocations</td><td>I never double-allocate a bed or lose one to a stale hold</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>INV-05</td><td>Commercial manager</td><td>to record carpet, built-up and chargeable area per suite</td><td>rent and CAM bill on the correct area basis</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>INV-06</td><td>Owner</td><td>to record fixtures and appliances with age, warranty and serial number</td><td>maintenance liability and warranty claims resolve themselves</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>INV-07</td><td>Manager</td><td>to attach utility identifiers — electricity consumer number, water, gas, property tax ID</td><td>bills and transfers do not require a hunt through old paperwork</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>INV-08</td><td>Owner</td><td>parking bays, storage and terraces as allottable sub-inventory</td><td>they can be charged, allotted and disputed properly</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>INV-09</td><td>Owner</td><td>my ownership share and any co-owners recorded with effective dates</td><td>payouts, TDS and statements split correctly between us</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>INV-10</td><td>Manager</td><td>a single occupancy view across every unit and bed I manage</td><td>I can see vacancy and revenue at risk in one screen</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>INV-11</td><td>Manager</td><td>photographic condition records per unit at move-in and move-out</td><td>deposit deductions are evidenced rather than argued</td><td><span class="pill p1">P1</span></td></tr>
+</table>
+
+<h3>M3 · Leasing, licensing and agreements</h3>
+<p><strong>Purpose.</strong> Turn an agreed occupancy into a valid, stamped, signed and stored instrument — a lease for residential, a licence for hostel, a registered deed for commercial.</p>
+<p><strong>Key rules.</strong> Templates versioned per state and instrument type. Stamp duty computed from state slabs and revalidated before stamping. Any term of 12 months or more routes to the registration path and is never quietly produced as an unregistered long lease. Renewal creates a linked successor, never a mutated record.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>LSE-01</td><td>Owner / Manager</td><td>to create a tenancy with parties, rent, cycle, due day, deposit and notice period</td><td>billing, reminders and settlement all follow automatically</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>LSE-02</td><td>Owner</td><td>an agreement generated from a reviewed template for my state and property type</td><td>the paperwork is correct without a lawyer for every tenancy</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>LSE-03</td><td>Owner</td><td>stamp duty computed and the agreement e-stamped digitally</td><td>the agreement is enforceable without a trip to a stamp vendor</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>LSE-04</td><td>Tenant &amp; Owner</td><td>to sign remotely with a legally recognised electronic signature and audit trail</td><td>we can complete a tenancy from two different cities</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>LSE-05</td><td>Tenant</td><td>an alternative to Aadhaar-based signing</td><td>I can complete the tenancy without using Aadhaar if I choose not to</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>LSE-06</td><td>System</td><td>to block any term of 12 months or more from the unregistered path</td><td>the platform never produces a defective long-term agreement</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>LSE-07</td><td>Owner</td><td>an escalation clause that revises rent automatically on its effective date</td><td>I never under-bill for months because I forgot the anniversary</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>LSE-08</td><td>Owner / Tenant</td><td>expiry and renewal reminders at 60, 30 and 7 days with a one-tap renewal</td><td>a tenancy never lapses quietly with the tenant still in place</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>LSE-09</td><td>Hostel operator</td><td>a licence agreement with a house-rules annexure and guardian counter-signature</td><td>a minor or student resident is properly and lawfully documented</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>LSE-10</td><td>Commercial manager</td><td>lock-in, rent-free fit-out, escalation schedule and exit terms as structured fields</td><td>the billing engine honours the commercial deal rather than a PDF nobody reads</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>LSE-11</td><td>Commercial owner</td><td>the registration path with duty, fee, appointment and the registered instrument stored</td><td>a long commercial lease is completed properly through the platform</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>LSE-12</td><td>Tenant</td><td>to open my signed agreement in the app at any time</td><td>I never have to ask my landlord for a copy of my own contract</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>LSE-13</td><td>Owner</td><td>to record a tenancy that was signed outside the platform</td><td>I can onboard my existing tenants without re-papering them</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>LSE-14</td><td>Manager</td><td>early termination handled with notice, lock-in and penalty rules applied</td><td>an early exit is settled by the agreement, not by negotiation</td><td><span class="pill p2">P2</span></td></tr>
+</table>
+
+<h3>M4 · Occupant onboarding, KYC and verification</h3>
+<p><strong>Purpose.</strong> Know who is moving in, satisfy the owner's need for assurance and the state's need for verification, without building an identity honeypot.</p>
+<p><strong>Key rules.</strong> Aadhaar numbers are never stored, logged or sent to analytics — verification runs through authorised flows and only the result persists. Every check requires a recorded consent artefact. Screening is advisory to the requesting owner only; there is no portable score and no cross-owner blacklist.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>KYC-01</td><td>Owner / Manager</td><td>to verify a prospective occupant's identity through an authorised flow</td><td>I know who I am renting to without holding their documents</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>KYC-02</td><td>Tenant</td><td>to complete my verification from my phone in one sitting</td><td>moving in is not delayed by a week of paperwork</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>KYC-03</td><td>Tenant</td><td>to see and consent to exactly what is being collected and why</td><td>I know what the platform holds about me and can withdraw consent</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>KYC-04</td><td>Owner</td><td>police tenant verification tracked with the correct form or portal for my state</td><td>I meet an obligation I would otherwise forget until it is a problem</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>KYC-05</td><td>Owner</td><td>employment or income evidence and a previous-landlord reference, with consent</td><td>I can decide on evidence rather than instinct</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>KYC-06</td><td>Hostel operator</td><td>guardian details, college or employer verification and an emergency contact</td><td>I can discharge my duty of care for a resident in my building</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>KYC-07</td><td>Commercial manager</td><td>entity KYC — GSTIN, CIN, PAN, authorised signatory and board resolution</td><td>I am contracting with a verified business, not an individual claiming to be one</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>KYC-08</td><td>Manager</td><td>a digital move-in checklist with condition photos, meter readings and key handover</td><td>the starting condition is recorded and cannot be disputed later</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>KYC-09</td><td>Tenant</td><td>to onboard additional occupants and dependants on my tenancy</td><td>my family is recorded correctly for gate access and society records</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>KYC-10</td><td>Platform Admin</td><td>a review queue for failed or inconclusive verifications</td><td>edge cases are resolved by a human rather than blocking a move-in</td><td><span class="pill p2">P2</span></td></tr>
+</table>
+<h3>M5 · Billing and collections</h3>
+<p><strong>Purpose.</strong> Turn every occupancy into correctly computed charges and then actually collect them — over UPI, autopay, NACH, cards or recorded offline.</p>
+<p><strong>Key rules.</strong> Multiple charge heads with different bases per vertical. Invoices are immutable once issued, gaplessly numbered, corrected only by credit note. Currency is stored in minor units; floats never touch money. Offline cash and bank transfers are first-class, because most Indian rent still moves that way. Webhooks are advisory — money is confirmed against the provider and the settlement file.</p>
+
+<h4>Charge heads by vertical</h4>
+<table>
+  <tr><th style="width:20%">Vertical</th><th>Recurring heads</th><th style="width:28%">One-time heads</th></tr>
+  <tr><td>Residential</td><td>Rent · society maintenance pass-through · parking</td><td>Deposit · brokerage · move-in charges</td></tr>
+  <tr><td>Hostel / PG</td><td>Stay fee (by sharing type) · mess plan · laundry · utilities · Wi-Fi</td><td>Admission fee · caution deposit · room-change fee</td></tr>
+  <tr><td>Commercial</td><td>Rent per sq ft · CAM · electricity (metered) · DG units · water · parking bays · signage</td><td>Deposit · fit-out charges · CAM annual true-up</td></tr>
+</table>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>BIL-01</td><td>System</td><td>invoices generated automatically ahead of the due date, prorated on join and exit</td><td>every occupant knows what is owed before it is due</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>BIL-02</td><td>Manager</td><td>multiple charge heads on one invoice with different bases and tax treatment</td><td>hostel and commercial billing works without a workaround</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>BIL-03</td><td>Tenant</td><td>to pay by tapping a link that opens my UPI app with the amount filled in</td><td>paying rent takes seconds, not a bank transfer and a screenshot</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>BIL-04</td><td>Tenant</td><td>to set up autopay once so rent is collected automatically each month</td><td>I never think about rent again or pay a late fee by accident</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>BIL-05</td><td>Guardian</td><td>to pay my child's hostel fee from my own phone and receive the receipt</td><td>the payer and the occupant can be different people, as they usually are</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>BIL-06</td><td>Owner / Manager</td><td>to record a cash or bank-transfer payment with evidence</td><td>my ledger reflects reality rather than only gateway money</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>BIL-07</td><td>Tenant</td><td>a receipt automatically on every payment, retrievable years later</td><td>I have proof for HRA and for any dispute</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>BIL-08</td><td>Manager</td><td>an automatic reminder ladder over WhatsApp and SMS before and after the due date</td><td>I stop having the same awkward conversation every month</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>BIL-09</td><td>Tenant</td><td>reminders to stop the instant my payment is recorded</td><td>I am never chased for money I have already paid</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>BIL-10</td><td>Owner</td><td>rule-driven late fees with a grace period and a cap</td><td>arrears carry a consistent charge I never have to calculate or justify</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>BIL-11</td><td>Commercial manager</td><td>metered utility billing from readings with photo evidence</td><td>electricity and DG are billed on consumption, not estimated and disputed</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>BIL-12</td><td>Commercial manager</td><td>CAM billed on budget and reconciled to actuals annually</td><td>the true-up is a report, not a three-month argument</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>BIL-13</td><td>Tenant</td><td>to pay part now and the rest later, with the balance tracked</td><td>a hard month does not become a default</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>BIL-14</td><td>Manager</td><td>bulk collection actions and a daily collection worklist</td><td>chasing 300 units is a queue, not a memory exercise</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>BIL-15</td><td>Operations</td><td>nightly reconciliation against the aggregator settlement with drift alerts</td><td>unmatched money is found in a day, not when a landlord complains</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>BIL-16</td><td>Tenant</td><td>a clear breakdown of every charge on my invoice</td><td>I understand what I am paying for and dispute less</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>BIL-17</td><td>Hostel operator</td><td>mess and service charges adjusted for declared leave</td><td>residents are billed for what they consumed, which is the top fee complaint</td><td><span class="pill p2">P2</span></td></tr>
+</table>
+
+<h3>M6 · Deposits and exit settlement</h3>
+<p><strong>Purpose.</strong> Hold the largest single sum in an Indian tenancy as a visible liability, and return it on an evidenced basis rather than an argument.</p>
+<p><strong>Key rules.</strong> A deposit is a liability, never income. Deductions are itemised, evidenced and acknowledged. Settlement is a workflow with a tenant response window, not an owner-only screen. Where the Model Tenancy Act is adopted, the state deposit cap is enforced at agreement time.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>DEP-01</td><td>Tenant &amp; Owner</td><td>the deposit recorded with its terms and visible identically to both of us</td><td>there is one agreed record from day one</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DEP-02</td><td>Manager</td><td>a move-out inspection with a checklist, photos and meter readings</td><td>the exit condition is evidenced against the move-in record</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DEP-03</td><td>Owner</td><td>itemised deductions each with a reason, amount and evidence</td><td>a deduction is defensible rather than a round number</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DEP-04</td><td>Tenant</td><td>to review, accept or dispute each deduction within a defined window</td><td>I am not simply told what I am getting back</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DEP-05</td><td>Tenant</td><td>the undisputed portion refunded immediately while a dispute is resolved</td><td>a disagreement over ₹4,000 does not hold up ₹1.6 lakh</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DEP-06</td><td>System</td><td>outstanding dues, utilities and prorated rent netted in from the ledger</td><td>the settlement is complete and reconciles to the paisa</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DEP-07</td><td>Owner</td><td>deposit interest accrued where the state or society requires it</td><td>a statutory obligation is met without manual computation</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>DEP-08</td><td>Tenant</td><td>a partner-provided alternative to a large cash deposit</td><td>I can move without blocking several months of income</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>DEP-09</td><td>Commercial manager</td><td>a bank guarantee recorded as a deposit instrument with its expiry tracked</td><td>an expiring guarantee is renewed before it lapses</td><td><span class="pill p3">P3</span></td></tr>
+</table>
+
+<h3>M7 · Maintenance and ticketing</h3>
+<p><strong>Purpose.</strong> Take a problem from "the geyser is leaking" to a completed, evidenced, paid-for repair — with the liability settled before anyone is dispatched.</p>
+<p><strong>Key rules.</strong> Every ticket evaluates the cost-sharing matrix at creation and shows the outcome to both parties. Every completed job produces a ledger posting against the liable party. SLAs are per category and priority, with automatic escalation. Photographic evidence at raise, before, after and sign-off.</p>
+
+<div class="flow">TICKET LIFECYCLE
+
+raise ─► triage &amp; categorise ─► liability evaluated &amp; disclosed ─► quote (if vendor)
+      ─► approval (auto / manager / owner / tenant) ─► schedule ─► technician on site
+      ─► execute ─► evidence &amp; OTP sign-off ─► invoice ─► ledger posting ─► rating
+      ─► warranty window ─► (rework, free, if within warranty)</div>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>MNT-01</td><td>Tenant</td><td>to raise a request in under 30 seconds with photos and a category</td><td>reporting a problem is easier than sending a WhatsApp message</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>MNT-02</td><td>Tenant &amp; Owner</td><td>to be told who pays, and why, before any work is approved</td><td>the argument happens once, at the rule level, not per repair</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>MNT-03</td><td>Tenant</td><td>to track my request through every stage with expected timings</td><td>I know something is happening without having to chase</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>MNT-04</td><td>Manager</td><td>a single queue of every open ticket across my portfolio with SLA status</td><td>nothing is forgotten and breaches are visible before they happen</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>MNT-05</td><td>Manager</td><td>automatic escalation when an SLA is breached</td><td>a silent ticket becomes someone's problem automatically</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>MNT-06</td><td>Tenant</td><td>to choose a convenient visit slot and be told when the technician is on the way</td><td>I do not lose a day waiting at home</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>MNT-07</td><td>Tenant</td><td>to sign off on completion with an OTP and rate the work</td><td>a job is not closed just because the vendor says so</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>MNT-08</td><td>Owner</td><td>a maintenance history per unit with costs, vendors and recurrence</td><td>I can see that the same tap has been fixed three times and replace it</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>MNT-09</td><td>Commercial manager</td><td>planned preventive maintenance schedules and AMC contract tracking</td><td>lifts, DG, fire systems and HVAC are serviced before they fail an inspection</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>MNT-10</td><td>Hostel warden</td><td>bulk and recurring tasks — housekeeping rounds, pest control, water tank cleaning</td><td>routine operations are scheduled rather than remembered</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>MNT-11</td><td>Tenant</td><td>an emergency path for water, electrical, gas, lift or safety issues</td><td>a genuine emergency is not queued behind a squeaking door</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>MNT-12</td><td>Manager</td><td>rework tracked against the original job under warranty at no extra cost</td><td>a badly done repair is the vendor's problem, not the owner's</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>MNT-13</td><td>Owner</td><td>to approve or decline a quote from a push notification in one tap</td><td>a ₹3,000 decision does not need me to open a laptop</td><td><span class="pill p1">P1</span></td></tr>
+</table>
+
+<h3>M8 · Service provider marketplace</h3>
+<p><strong>Purpose.</strong> Give every property access to verified plumbers, electricians, carpenters, painters, pest controllers, AC and appliance technicians and cleaners — and give those providers a steady, paid, rated stream of work.</p>
+<p><strong>Key rules.</strong> Providers are onboarded partners, never platform employees. Technicians are individually verified. Pricing comes from a published schedule of rates, with variance justified. Payment is released on evidenced completion. GST and §194-C TDS apply to vendor invoices. Ratings drive dispatch, and persistent poor performance de-lists.</p>
+
+<h4>Category coverage at launch</h4>
+<table>
+  <tr><th style="width:25%">Tier</th><th>Categories</th></tr>
+  <tr><td><strong>Core (launch)</strong></td><td>Plumbing · Electrical · Carpentry · Appliance repair (AC, geyser, washing machine) · General handyman</td></tr>
+  <tr><td><strong>Scheduled</strong></td><td>Painting · Deep cleaning · Pest control · Water tank cleaning · Housekeeping</td></tr>
+  <tr><td><strong>Specialist</strong></td><td>Masonry &amp; waterproofing · False ceiling · Locksmith · CCTV &amp; intercom · RO &amp; chimney · Lift and DG AMC</td></tr>
+  <tr><td><strong>Move-related</strong></td><td>Packers &amp; movers · Utility connection and transfer · Home sanitisation</td></tr>
+</table>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>VND-01</td><td>Service provider</td><td>to onboard with my firm details, categories, service area and rate card</td><td>I can start receiving jobs without a sales relationship</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>VND-02</td><td>Platform Admin</td><td>to verify a provider — KYC, GST, bank, skill evidence and technician background checks</td><td>only verified people enter customers' homes</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>VND-03</td><td>Manager</td><td>a job auto-dispatched to the best-matched available provider</td><td>I do not personally know a plumber in every locality I manage</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>VND-04</td><td>Technician</td><td>a mobile job list with address, contact, problem, photos and navigation</td><td>I arrive prepared and on time</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>VND-05</td><td>Technician</td><td>to start and complete a job with an OTP from the occupant</td><td>attendance and completion are proven, not claimed</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>VND-06</td><td>Provider</td><td>to quote from a published schedule of rates, splitting labour and materials</td><td>pricing is consistent and disputes about the bill disappear</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>VND-07</td><td>Owner / Tenant</td><td>a second comparative quote above a threshold value</td><td>a large spend is tested against the market before I approve it</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>VND-08</td><td>Technician</td><td>to capture before and after photos and any parts replaced</td><td>the work is evidenced and warranty claims are straightforward</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>VND-09</td><td>Provider</td><td>to be paid on a predictable cycle with GST and TDS handled correctly</td><td>working through the platform is better than working for cash</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>VND-10</td><td>Tenant</td><td>to rate the technician and the outcome separately</td><td>a good technician from a mediocre firm is still recognised</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>VND-11</td><td>Platform Admin</td><td>performance monitoring with automatic suspension on repeated failures</td><td>quality is enforced by the system, not by complaints</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>VND-12</td><td>Manager</td><td>to bring my own trusted vendors onto the platform alongside marketplace ones</td><td>I do not have to abandon relationships I have built over years</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>VND-13</td><td>Owner</td><td>a warranty period on every job with free rework inside it</td><td>I pay once for a repair that should have worked the first time</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>VND-14</td><td>Tenant</td><td>to book a service directly for something I am paying for myself</td><td>the app is useful to me even when my landlord is not involved</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>VND-15</td><td>Manager</td><td>AMC packages sold per property with scheduled visits</td><td>maintenance becomes predictable revenue rather than reactive cost</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>VND-16</td><td>Provider</td><td>an earnings dashboard with jobs, ratings and settlement history</td><td>I can run my business from the app I take jobs on</td><td><span class="pill p2">P2</span></td></tr>
+</table>
+
+<h3>M9 · Cost sharing, mandate and approvals</h3>
+<p><strong>Purpose.</strong> Encode the middle-man economics: who may commit whose money, how a cost is split, and how it is recovered — without any party having to trust another party's spreadsheet.</p>
+<p><strong>Key rules.</strong> The liability matrix is set on the agreement, evaluated at ticket creation, and disclosed before spend. The manager's authority is a mandate object with a per-job and monthly ceiling. Every recovery is a ledger posting, visible identically to everyone entitled to see it.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>CST-01</td><td>Owner</td><td>to set a liability matrix by category, cause and value on the agreement</td><td>who pays is decided once, in advance, for every future repair</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>CST-02</td><td>Owner</td><td>to give my manager a spend authority per job and per month</td><td>small things get fixed without me, and large things never happen without me</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>CST-03</td><td>Manager</td><td>a higher emergency ceiling with mandatory notification</td><td>a burst pipe at midnight is fixed, not debated</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>CST-04</td><td>Owner</td><td>to fund a maintenance float that auto-replenishes at a trigger</td><td>my manager is never blocked for want of ₹3,000</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>CST-05</td><td>System</td><td>to split a single cost across owner, tenant and operator by percentage or threshold</td><td>a shared cost is settled by arithmetic rather than negotiation</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>CST-06</td><td>Tenant</td><td>a tenant-borne cost added transparently to my next invoice with the evidence attached</td><td>I can see what I am being charged for and why</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>CST-07</td><td>Owner</td><td>owner-borne costs netted from my payout with each line traceable</td><td>my statement explains itself without a phone call</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>CST-08</td><td>Owner</td><td>a one-tap approval or decline with the quote, photos and rule shown</td><td>approving spend takes ten seconds from anywhere in the world</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>CST-09</td><td>Manager</td><td>escalation when an owner does not respond to an approval within a window</td><td>a repair is not blocked indefinitely by an unreachable owner</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>CST-10</td><td>Tenant</td><td>to dispute a cost allocated to me, with the manager as first arbiter</td><td>a wrong allocation has a route to correction</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>CST-11</td><td>Owner</td><td>my manager's fee, markup and commission disclosed in full</td><td>I know exactly what the middle layer costs me</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>CST-12</td><td>Manager</td><td>to configure fee models per owner, including per-bed pricing for hostels</td><td>my commercial terms differ by client and the system supports that</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>CST-13</td><td>Owner</td><td>a deferred tenant-borne cost carried to deposit settlement</td><td>a small recovery at exit does not need a separate collection now</td><td><span class="pill p2">P2</span></td></tr>
+</table>
+
+<h3>M10 · Accounting, payouts and tax</h3>
+<p><strong>Purpose.</strong> Make every rupee explainable years later, settle owners accurately, and meet GST and TDS obligations as workflow rather than advice.</p>
+<p><strong>Key rules.</strong> Double-entry ledger, immutable postings, reversing entries with reason codes, balances always derived. Statutory rates and thresholds live in versioned, state- and date-scoped rule tables. Payouts run as durable workflows with compensations — the failure "tenant debited, owner not credited" must be structurally impossible.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>FIN-01</td><td>System</td><td>every money event posted to a double-entry ledger with derived balances</td><td>no service can invent, store or drift a balance</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>FIN-02</td><td>Accountant</td><td>corrections made only as reversing entries with a reason code and an author</td><td>the ledger remains evidence rather than a working document</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>FIN-03</td><td>Owner</td><td>a scheduled payout net of fee, GST, TDS and shared costs</td><td>I receive my money on a predictable date without asking</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>FIN-04</td><td>Owner</td><td>a statement in which every line traces to a posting</td><td>I trust the numbers without keeping my own spreadsheet</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>FIN-05</td><td>Manager</td><td>my management fee computed, invoiced with GST and netted automatically</td><td>my own revenue is billed correctly without manual invoicing</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>FIN-06</td><td>System</td><td>GST determined by place of supply, registration status and reverse-charge rules</td><td>invoices are compliant from the first one, across all three verticals</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>FIN-07</td><td>Tenant (business)</td><td>§194-I TDS computed, posted and evidenced monthly</td><td>my company meets its deduction obligation without a spreadsheet</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>FIN-08</td><td>Tenant (individual)</td><td>§194-IB deduction, Form 26QC and Form 16C tracked to completion</td><td>I meet an obligation I did not know I had, before it becomes a penalty</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>FIN-09</td><td>Tenant of an NRI owner</td><td>the §195 obligation surfaced prominently before the tenancy starts</td><td>I am not exposed to a liability nobody told me about</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>FIN-10</td><td>Owner</td><td>an annual income statement and a tenant rent-paid statement for HRA</td><td>tax time is a download rather than a reconstruction</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>FIN-11</td><td>Provider</td><td>vendor payouts with GST and §194-C TDS handled and certificates tracked</td><td>working through the platform is tax-clean for me too</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>FIN-12</td><td>Manager</td><td>an export in the format my chartered accountant actually uses</td><td>year end does not require re-keying twelve months of data</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>FIN-13</td><td>Operations</td><td>payouts executed as compensating workflows with verified settlement</td><td>a partial failure can never leave money and the ledger out of step</td><td><span class="pill p0">P0</span></td></tr>
+  <tr><td>FIN-14</td><td>Owner</td><td>refunds and adjustments handled with correct postings and evidence</td><td>money returned is as traceable as money collected</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>FIN-15</td><td>Hostel operator</td><td>revenue reporting per bed, per room type and per occupancy month</td><td>I can see yield rather than just total collections</td><td><span class="pill p2">P2</span></td></tr>
+</table>
+<h3>M11 · Hostel, PG and co-living operations</h3>
+<p><strong>Purpose.</strong> Run a bed-based property day to day — allocation, mess, attendance, leave, discipline and guardian visibility — on top of the same core.</p>
+<p><strong>Key rules.</strong> The bed is the inventory object. The payer is frequently the guardian, not the occupant. Churn is high, so joining and vacating must be near-instant. Duty of care obligations mean attendance and emergency contact are operational requirements, not features.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>HST-01</td><td>Warden</td><td>to allocate a resident to a specific bed with a joining date</td><td>occupancy is accurate at the level I actually operate</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>HST-02</td><td>Warden</td><td>to move a resident between beds or rooms mid-term with the history preserved</td><td>a room change does not corrupt billing or occupancy records</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>HST-03</td><td>Resident</td><td>to join mid-month and be billed proportionately</td><td>I pay for the days I actually stay</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>HST-04</td><td>Resident</td><td>to give notice and vacate with dues and caution deposit settled in the app</td><td>leaving is as easy as joining and I get my deposit back</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>HST-05</td><td>Warden</td><td>a mess plan with a published menu and meal opt-outs</td><td>food is planned and wastage is reduced</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>HST-06</td><td>Resident</td><td>to declare leave and have mess charges adjusted</td><td>I am not billed for meals I did not eat</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>HST-07</td><td>Warden</td><td>an in–out register with entry, exit and late-return flags</td><td>I know who is in the building, which is my legal duty of care</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>HST-08</td><td>Guardian</td><td>visibility of my child's attendance, leave and fee status</td><td>I have peace of mind without calling the warden</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>HST-09</td><td>Guardian</td><td>to approve a leave or night-out request from my phone</td><td>permissions are recorded rather than claimed over a phone call</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>HST-10</td><td>Resident</td><td>to raise complaints about my room, mess, Wi-Fi or housekeeping</td><td>day-to-day problems have a route that is not a corridor conversation</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>HST-11</td><td>Warden</td><td>housekeeping and laundry schedules with completion tracking</td><td>routine service is delivered and verifiable</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>HST-12</td><td>Operator</td><td>occupancy, yield and vacancy analytics per room type and per property</td><td>I can price and fill beds with data rather than instinct</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>HST-13</td><td>Prospective resident</td><td>to enquire, book a visit and reserve a bed with a token payment</td><td>I can secure a place before I arrive in a new city</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>HST-14</td><td>Warden</td><td>an asset register per bed — mattress, cupboard, key, chair</td><td>missing items at vacating are recoverable and evidenced</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>HST-15</td><td>Warden</td><td>emergency contact, medical note and an SOS from the resident app</td><td>a night-time emergency has a defined, fast path</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>HST-16</td><td>Operator</td><td>staff attendance and shift rosters for wardens, cooks and housekeeping</td><td>the property is always staffed and payroll inputs are accurate</td><td><span class="pill p3">P3</span></td></tr>
+</table>
+
+<h3>M12 · Commercial operations</h3>
+<p><strong>Purpose.</strong> Handle the mechanics that only commercial has — CAM, meters, fit-out, escalation schedules, compliance and high-value obligations.</p>
+<p><strong>Key rules.</strong> Several concurrent charge heads on different bases. CAM is budgeted and trued up. Escalations are scheduled years in advance. Registration is mandatory for long terms. GST and reverse charge apply, and the tenant is a business with procurement expectations.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>COM-01</td><td>Manager</td><td>rent billed on chargeable area with a scheduled escalation ladder</td><td>a nine-year deal bills itself correctly without annual intervention</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>COM-02</td><td>Manager</td><td>CAM billed monthly on budget and reconciled annually to actuals</td><td>the true-up is evidenced and the tenant accepts it</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>COM-03</td><td>Manager</td><td>meter readings captured with photos and billed at published tariffs</td><td>electricity, DG and water are billed on consumption</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>COM-04</td><td>Tenant entity</td><td>a GST-compliant invoice with PO reference and my entity details</td><td>my finance team can process it without a query</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>COM-05</td><td>Manager</td><td>a fit-out approval workflow with drawings, contractor details and a deposit</td><td>tenant works do not damage the building or breach compliance</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>COM-06</td><td>Manager</td><td>lock-in, notice and exit dilapidation terms enforced by the system</td><td>an early exit is settled by the deed rather than by argument</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>COM-07</td><td>Manager</td><td>building compliance tracking — fire NOC, lift certificates, AMC renewals</td><td>an expiring certificate is renewed before an inspection finds it</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>COM-08</td><td>Owner</td><td>parking bays, signage rights and common-area usage allotted and charged</td><td>ancillary revenue is billed rather than given away</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>COM-09</td><td>Tenant entity</td><td>multi-site visibility across every premises I lease from this landlord</td><td>a national tenant manages a portfolio, not individual sites</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>COM-10</td><td>Manager</td><td>tenant insurance and indemnity certificates tracked with expiry alerts</td><td>a lapsed policy is caught before an incident, not after</td><td><span class="pill p3">P3</span></td></tr>
+</table>
+
+<h3>M13 · Communication and notifications</h3>
+<p><strong>Purpose.</strong> Reach every party on the channel they actually read, without becoming noise.</p>
+<p><strong>Key rules.</strong> WhatsApp is the primary channel in India; SMS is the fallback; push serves app users; the in-app inbox is the durable record. Every notification is idempotent, suppressible and rate-limited per recipient. Statutory and transactional messages are distinguished from promotional ones.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>NTF-01</td><td>Tenant</td><td>rent, receipt and ticket updates on WhatsApp</td><td>I see them where I already live, not in an unread email</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>NTF-02</td><td>Any user</td><td>an in-app inbox holding every notice ever sent to me</td><td>nothing important disappears into a chat history</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>NTF-03</td><td>Manager</td><td>to broadcast a notice to a building, a floor or a whole portfolio</td><td>water shutdowns and lift outages reach everyone affected</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>NTF-04</td><td>Manager</td><td>delivery and read reporting on important notices</td><td>I can prove a notice reached the people it had to reach</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>NTF-05</td><td>Any user</td><td>quiet hours and per-category notification preferences</td><td>I am not woken by a reminder for a bill due next week</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>NTF-06</td><td>Tenant &amp; Manager</td><td>an in-app conversation thread attached to a ticket or a tenancy</td><td>the conversation and its context live in the same place</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>NTF-07</td><td>Any user</td><td>the interface and messages in English or Hindi at minimum</td><td>the product works for the people who actually use it</td><td><span class="pill p2">P2</span></td></tr>
+</table>
+
+<h3>M14 · Document vault and compliance</h3>
+<p><strong>Purpose.</strong> Hold every document a property generates over its life, retrievable years later by the parties entitled to see it.</p>
+<p><strong>Key rules.</strong> Documents are stored with per-organisation isolation and short-lived signed access. Retention follows a matrix that reconciles erasure rights with statutory retention of financial and executed records. Sensitive identifiers are excluded, encrypted or never stored at all.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>DOC-01</td><td>Owner</td><td>one vault per property holding agreements, receipts, bills, certificates and photos</td><td>everything about my asset is in one place I can hand over</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DOC-02</td><td>Tenant</td><td>permanent access to my own agreements, receipts and statements</td><td>I keep my record even after I move out</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DOC-03</td><td>Manager</td><td>expiry tracking on every dated document with reminders</td><td>nothing lapses unnoticed — NOCs, AMCs, insurance, guarantees</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>DOC-04</td><td>Owner</td><td>title, tax receipts and approval documents stored for a future sale</td><td>due diligence at sale time is a folder, not an archaeology project</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>DOC-05</td><td>Data principal</td><td>working access, correction, erasure and grievance paths</td><td>my privacy rights are exercisable rather than theoretical</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>DOC-06</td><td>Platform Admin</td><td>a retention matrix enforced automatically</td><td>we neither hoard data nor delete records we are obliged to keep</td><td><span class="pill p2">P2</span></td></tr>
+</table>
+
+<h3>M15 · Sales, listings and brokerage</h3>
+<p><strong>Purpose.</strong> Extend the platform from operating a property to transacting it — filling a vacancy, and ultimately selling the asset — using the tenancy, maintenance and document history the platform already holds.</p>
+<p><strong>Key rules.</strong> RERA and advertising rules constrain what a listing may claim. A listing is generated from real inventory, so it cannot describe a unit that does not exist or is already occupied. Rentora does not take custody of transaction money; token and consideration flow between the parties through regulated rails. The document vault is the platform's structural advantage at sale time.</p>
+
+<div class="flow">RENTAL FUNNEL   vacancy ─► listing ─► enquiry ─► qualification ─► site visit ─► offer
+                ─► agreement ─► move-in checklist ─► ACTIVE TENANCY (M3)
+
+SALE FUNNEL     intent to sell ─► valuation &amp; pricing ─► listing ─► lead ─► site visit
+                ─► negotiation ─► token advance &amp; agreement to sell ─► due diligence
+                ─► loan (partner) ─► registration &amp; stamp duty ─► handover
+                ─► post-sale transfers (utilities, tax, society NOC) ─► brokerage settled</div>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>SAL-01</td><td>Owner / Manager</td><td>to publish a rental listing from an existing unit in a few taps</td><td>filling a vacancy does not mean re-entering the property elsewhere</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-02</td><td>Prospective tenant</td><td>to browse verified listings with real photos, rent and availability</td><td>I am not wasting my time on listings that do not exist</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-03</td><td>Agent</td><td>a lead pipeline with assignment, qualification and follow-up reminders</td><td>enquiries convert instead of decaying in a phone</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-04</td><td>Prospect</td><td>to book a site visit for a slot that suits me and get directions</td><td>viewing a property does not need six phone calls</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-05</td><td>Agent</td><td>to record site-visit feedback and interest level</td><td>the owner learns why the property is not renting</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-06</td><td>Prospect</td><td>to make an offer and negotiate terms in the app</td><td>the deal is documented from the first number quoted</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-07</td><td>Owner</td><td>a vacancy converted straight into a tenancy with data carried over</td><td>the funnel ends in the operating product, not in a re-key</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-08</td><td>Owner</td><td>to list my property for sale with a price benchmark from local data</td><td>I price on evidence rather than a broker's opinion</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>SAL-09</td><td>Buyer</td><td>a verified property pack — title, approvals, tax receipts, maintenance history</td><td>I can assess a property properly before committing</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>SAL-10</td><td>Owner</td><td>maintenance and tenancy history presented as proof of how the asset was kept</td><td>a well-run property commands its premium at sale</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>SAL-11</td><td>Buyer &amp; Seller</td><td>token advance and agreement to sell handled with a documented milestone plan</td><td>the transaction has a spine both sides can see</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>SAL-12</td><td>Buyer</td><td>a due-diligence checklist with partner legal and technical verification</td><td>nothing critical is missed before I commit my savings</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>SAL-13</td><td>Buyer</td><td>a home-loan referral to partner lenders with document pre-fill</td><td>financing runs in parallel with the transaction, not after it</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>SAL-14</td><td>Both parties</td><td>registration, stamp duty and the appointment tracked to completion</td><td>the legal step is managed rather than left to a runner</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>SAL-15</td><td>Buyer</td><td>post-sale transfers — society NOC, utilities, property tax — as a checklist</td><td>the loose ends that take months are closed in weeks</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>SAL-16</td><td>Agent</td><td>brokerage computed, invoiced and split with the platform automatically</td><td>I get paid correctly without an argument at the end</td><td><span class="pill p3">P3</span></td></tr>
+  <tr><td>SAL-17</td><td>Platform Admin</td><td>listing moderation and compliance guardrails on claims</td><td>the platform is not liable for what an agent wrote at midnight</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>SAL-18</td><td>Seller</td><td>outstanding society dues and tenancy encumbrances flagged before listing</td><td>a sale does not collapse at the NOC stage</td><td><span class="pill p3">P3</span></td></tr>
+</table>
+
+<h3>M16 · Platform administration</h3>
+<p><strong>Purpose.</strong> Let Rentora's own team operate the platform — onboard, configure, support, reconcile and intervene — without engineers running queries in production.</p>
+
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>ADM-01</td><td>Platform Admin</td><td>organisation, user, tenancy, invoice and payment lookup with full audit</td><td>support resolves issues without engineering or database access</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>ADM-02</td><td>Platform Admin</td><td>approval queues for manager, vendor and agent onboarding</td><td>only verified operators reach customers</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>ADM-03</td><td>Platform Admin</td><td>to maintain statutory rule tables — GST, TDS, stamp duty, deposit caps, rates</td><td>a Budget change is a data update, not a release</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>ADM-04</td><td>Platform Admin</td><td>plan, pricing, subscription and feature-flag management per organisation</td><td>commercial packaging changes without an engineering ticket</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>ADM-05</td><td>Platform Admin</td><td>a reconciliation and dispute desk with ageing and ownership</td><td>unmatched money and open disputes have a queue and an owner</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>ADM-06</td><td>Platform Admin</td><td>in-flight workflow inspection and safe operator actions on stuck operations</td><td>a stuck payout is resolved without a database edit</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>ADM-07</td><td>Platform Admin</td><td>redaction rules so support never sees KYC identifiers or bank details</td><td>supporting a customer does not mean seeing everything about them</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>ADM-08</td><td>Platform Admin</td><td>platform health — collections, dispatch, delivery, drift — in one dashboard</td><td>we know something is broken before a customer tells us</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>ADM-09</td><td>Platform Admin</td><td>content moderation and takedown for listings and uploaded media</td><td>the marketplace stays lawful and usable</td><td><span class="pill p2">P2</span></td></tr>
+</table>
+
+<h3>M17 · Analytics and reporting</h3>
+<table class="stories">
+  <tr><th style="width:11%">ID</th><th style="width:13%">As a</th><th style="width:38%">I want</th><th style="width:31%">So that</th><th style="width:7%">Pri</th></tr>
+  <tr><td>RPT-01</td><td>Owner</td><td>a home screen answering "did I get paid this month" in five seconds</td><td>the most common question needs no navigation</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>RPT-02</td><td>Manager</td><td>collection efficiency, arrears ageing, occupancy and SLA breach across the book</td><td>I manage by exception rather than by memory</td><td><span class="pill p1">P1</span></td></tr>
+  <tr><td>RPT-03</td><td>Owner</td><td>yield, cost and vacancy per unit over time</td><td>I can see which property is actually worth keeping</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>RPT-04</td><td>Manager</td><td>a maintenance spend analysis by category, vendor and property</td><td>I can renegotiate rates and spot a recurring failure</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>RPT-05</td><td>Operator</td><td>hostel occupancy and revenue per bed by room type and season</td><td>pricing and capacity decisions are evidence-based</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>RPT-06</td><td>Manager</td><td>scheduled reports delivered to owners automatically</td><td>reporting is not a monthly manual ritual</td><td><span class="pill p2">P2</span></td></tr>
+  <tr><td>RPT-07</td><td>Platform Admin</td><td>anonymised market benchmarks above a minimum aggregation threshold</td><td>customers get insight without any organisation being identifiable</td><td><span class="pill p3">P3</span></td></tr>
+</table>
+
+<h2><span class="num">7.</span> Mobile-first experience requirements</h2>
+
+<p class="lede">Rentora is used standing in a corridor, at a gate, on a scooter and on a ₹9,000 Android phone with two bars of signal. Mobile is not a companion to the web product; for tenants, residents, guardians, technicians and field agents it is the <em>only</em> product.</p>
+
+<h3>7.1 Four apps, one system</h3>
+<table>
+  <tr><th style="width:18%">App</th><th style="width:24%">Primary users</th><th>Core jobs</th></tr>
+  <tr><td><strong>Rentora Live</strong></td><td>Tenant, resident, guardian</td><td>Pay, receipts, raise and track a repair, agreement, deposit, notices, book a service</td></tr>
+  <tr><td><strong>Rentora Own</strong></td><td>Owner</td><td>Portfolio and collections at a glance, approve spend, payouts and statements, documents, vacancy</td></tr>
+  <tr><td><strong>Rentora Ops</strong></td><td>Manager, field agent, warden</td><td>Collection worklist, ticket queue, inspections, bed allocation, gate, offline capture</td></tr>
+  <tr><td><strong>Rentora Pro</strong></td><td>Technician, service provider</td><td>Job list, navigation, OTP start and finish, photo evidence, quotes, earnings</td></tr>
+</table>
+<p class="nb">Manager back-office depth (accounting, configuration, reporting, bulk operations) and every Platform Admin function remain web-first. The apps are for what happens away from a desk.</p>
+
+<h3>7.2 Non-negotiable mobile principles</h3>
+<div class="grid2">
+  <div class="card"><h5>Three taps to money</h5><p>From opening the app to completing a payment must be three taps or fewer. From a reminder link, one tap.</p></div>
+  <div class="card"><h5>Works at one bar</h5><p>Critical reads — dues, receipts, agreement, job list — are cached and viewable offline. Writes queue and sync, and never falsely report success.</p></div>
+  <div class="card"><h5>Low-end first</h5><p>Performance budget set against an entry-level Android, not a flagship. App size, cold start and list scrolling are measured on the target device.</p></div>
+  <div class="card"><h5>WhatsApp is the front door</h5><p>Most sessions start from a WhatsApp message. Deep links must land exactly on the right screen, authenticated, without a home-screen detour.</p></div>
+  <div class="card"><h5>Evidence by camera</h5><p>Photos are a primary input — condition, meters, jobs, receipts. Capture must be fast, compressed and resumable on a bad connection.</p></div>
+  <div class="card"><h5>One-tap decisions</h5><p>Approvals, sign-offs and confirmations are answerable from a notification without opening a laptop or reading a PDF.</p></div>
+  <div class="card"><h5>Money is unambiguous</h5><p>Amounts in the Indian numbering convention, dates in Indian format, and no screen that shows a number a user cannot trace.</p></div>
+  <div class="card"><h5>Language and literacy</h5><p>English and Hindi at minimum, with plain wording, iconography and no jargon in any tenant-facing string.</p></div>
+</div>
+
+<h3>7.3 Journeys that must be exemplary</h3>
+<ol>
+  <li><strong>Pay rent</strong> — WhatsApp reminder → tap → UPI app → back → receipt. Under 30 seconds, no login friction.</li>
+  <li><strong>Report a leak</strong> — open → photo → category → submit → immediate confirmation of who pays and what happens next.</li>
+  <li><strong>Approve a repair</strong> — push notification with quote and photos → approve → done. No app navigation required.</li>
+  <li><strong>Move a resident into a hostel bed</strong> — allocate → agreement → guardian signs → first invoice → all within one visit.</li>
+  <li><strong>Complete a job</strong> — technician arrives → OTP start → work → photos → OTP finish → invoice raised automatically.</li>
+  <li><strong>Settle a deposit</strong> — inspection photos → itemised deductions → tenant reviews and accepts → refund initiated same day.</li>
+</ol>
+<h2><span class="num">8.</span> Non-functional requirements</h2>
+
+<table>
+  <tr><th style="width:20%">Area</th><th>Requirement</th></tr>
+  <tr><td><strong>Money correctness</strong></td><td>Currency stored as integer minor units with an explicit currency; floats prohibited in every layer including API payloads, exports and analytics. Balances always derived from immutable postings. A reconciliation job proves the ledger balances daily.</td></tr>
+  <tr><td><strong>Reliability</strong></td><td>The collection chain — invoice, reminder, collect, reconcile — is resumable at every step. Every multi-system operation is a durable workflow with compensations. Defined degraded mode: with the aggregator down, offline payments are still recorded and balances remain correct.</td></tr>
+  <tr><td><strong>Idempotency</strong></td><td>Every collection, payout, refund, dispatch and notification is idempotent. Every webhook is deduplicated on provider event id and is replay-safe. A retried operation can never double-charge, double-pay or double-notify.</td></tr>
+  <tr><td><strong>Isolation</strong></td><td><code>tenant_id</code> on every table with database-enforced row-level security. Cross-organisation access always traverses an explicit, revocable grant. An automated isolation test suite runs on every pull request and blocks merge on failure.</td></tr>
+  <tr><td><strong>Security</strong></td><td>Fail-closed authorisation at the service boundary. Sensitive-action audit logging. Dependency, container and secret scanning in CI. Threat model maintained, with a security review gate for any story touching money, identity or documents.</td></tr>
+  <tr><td><strong>Privacy</strong></td><td>Aadhaar numbers never stored, logged or sent to analytics. PAN, bank and payout details encrypted or held in a secret manager. Telemetry excludes identifiers, document contents and full phone numbers. Retention matrix enforced automatically.</td></tr>
+  <tr><td><strong>Performance</strong></td><td>Budgets set against an entry-level Android on a 3G-equivalent connection: app cold start, payment screen interactive, ticket submit, and list scrolling. Reporting reads never touch the transactional primary.</td></tr>
+  <tr><td><strong>Availability</strong></td><td>Collection and payment paths carry the highest availability target. Rent due dates cluster at month start, so capacity is planned for a peak that is 8–10× the daily average, not for the average.</td></tr>
+  <tr><td><strong>Recoverability</strong></td><td>Stated RPO and RTO for the financial record, with a scheduled and evidenced restore drill. Point-in-time recovery must cover the window any financial dispute would need.</td></tr>
+  <tr><td><strong>Observability</strong></td><td>End-to-end tracing across the money path. Metrics on collection success, mandate health, reconciliation drift, dispatch time, SLA breach and notification delivery. Per-organisation support view. No PII in any span or log.</td></tr>
+  <tr><td><strong>Auditability</strong></td><td>Every state change attributable to an actor, with impersonation distinguishable from a user's own action. Financial history reconstructable as of any past date.</td></tr>
+  <tr><td><strong>Accessibility</strong></td><td>Stated WCAG level, keyboard and screen-reader support on web, adequate contrast and touch targets on mobile, and no critical action available only through colour or gesture.</td></tr>
+  <tr><td><strong>Configurability</strong></td><td>Statutory rates, deposit caps, fee models, SLA targets, liability matrices, reminder ladders and schedules of rates are configuration with an owner and a review date — never constants in code.</td></tr>
+  <tr><td><strong>Scale assumptions</strong></td><td>Design target: 500,000 units and beds, 1,000,000 monthly invoices, 250,000 monthly service jobs, with 60% of collections landing within a 72-hour window each month.</td></tr>
+</table>
+
+<h2><span class="num">9.</span> India regulatory summary</h2>
+
+<p class="lede">Each item below is a design constraint, not background reading. Every figure must be confirmed with counsel or a practising chartered accountant before the dependent feature ships — rates, slabs and thresholds change with every Budget and Council meeting, which is precisely why they live in versioned rule tables.</p>
+
+<table>
+  <tr><th style="width:22%">Area</th><th>Constraint on the product</th></tr>
+  <tr><td><strong>UPI &amp; autopay</strong></td><td>UPI intent and collect for one-off payment; UPI Autopay mandates for recurring, subject to a per-mandate cap with a mandatory pre-debit notification; NACH for higher values. A missed pre-debit notification is a compliance failure, not a missed message.</td></tr>
+  <tr><td><strong>Aggregator posture</strong></td><td>RBI payment-aggregator directions bind how funds may be held and routed. Rentora holds no client funds; any vendor advance model is reviewed before build.</td></tr>
+  <tr><td><strong>Agreements</strong></td><td>The 11-month convention exists because 12 months or more attracts compulsory registration. Stamp duty is a state subject with different bases, several of which include a deposit component. E-stamping channels differ by state.</td></tr>
+  <tr><td><strong>E-signature</strong></td><td>Aadhaar-based eSign through a licensed provider produces a signed artefact and completion certificate. The Aadhaar number passes through the provider flow and is never retained by Rentora. A non-Aadhaar path must exist, with its weaker evidentiary weight recorded.</td></tr>
+  <tr><td><strong>Model Tenancy Act 2021</strong></td><td>Adopted state by state. Where adopted it caps residential deposits, requires written agreements filed with a Rent Authority, and defines notice and eviction process. Modelled as a per-state flag with the cap enforced at agreement time.</td></tr>
+  <tr><td><strong>Tenant verification</strong></td><td>Police tenant verification is an owner obligation in several states, with the channel differing by state. Tracked as a compliance task with evidence; the platform states plainly whose duty it is.</td></tr>
+  <tr><td><strong>GST</strong></td><td>Residential rent to an unregistered individual is exempt; renting a residential dwelling to a registered person attracts reverse charge in defined cases; commercial rent is taxable; management fees and platform subscription are taxable services; RWA maintenance is exempt up to a per-member monthly threshold evaluated <em>per member</em>, not per unit. Hostel and PG supply raises composite-supply questions that must be settled with advice.</td></tr>
+  <tr><td><strong>TDS on rent</strong></td><td>§194-I for business deductors, §194-IB for individuals above the monthly threshold with Form 26QC and 16C, §195 for any tenant of a non-resident landlord with no small-value exemption. The path follows from deductor class and landlord residency, both captured at tenancy creation.</td></tr>
+  <tr><td><strong>TDS on services</strong></td><td>§194-C applies to vendor payments above threshold; vendor GST registration status determines invoice treatment. Both are handled in the payout engine, not left to the manager.</td></tr>
+  <tr><td><strong>DPDP Act 2023</strong></td><td>Purpose-limited collection with notice in English and at minimum Hindi, consent as a recorded artefact, implemented rights endpoints, a retention matrix that reconciles erasure with statutory retention, and a breach notification runbook.</td></tr>
+  <tr><td><strong>RERA</strong></td><td>Binds listings, agent conduct and advertising claims. Where Rentora or its agents originate leases or sales, agent registration and claim substantiation apply.</td></tr>
+  <tr><td><strong>Society bye-laws &amp; Co-op Acts</strong></td><td>Govern maintenance dues, interest on arrears, non-occupancy charges, NOC for sale and transfer. Per-society configuration, never platform constants.</td></tr>
+  <tr><td><strong>Sale &amp; registration</strong></td><td>Stamp duty and registration fee by state, TDS under §194-IA on consideration above the threshold, and higher rates for non-resident sellers. Society NOC and dues clearance gate a resale.</td></tr>
+</table>
+
+<h2><span class="num">10.</span> Phased delivery plan</h2>
+
+<p class="lede">The order below is chosen so that each phase is independently sellable, and so that the pieces that cannot be retrofitted — the ledger, the unit model with beds, multi-tenancy and the cost-sharing engine — are built before anything depends on them.</p>
+
+<table>
+  <tr><th style="width:9%">Phase</th><th style="width:13%">Window</th><th style="width:30%">Ships</th><th style="width:22%">Sellable to</th><th>Proves</th></tr>
+  <tr><td><strong>P0</strong></td><td>W0–W6</td><td>Foundations — tenancy model, ledger design, unit/room/bed model, auth, cost-sharing rule design, CI/CD, threat model, privacy posture</td><td>Nobody (internal)</td><td>That the irreversible decisions are made deliberately</td></tr>
+  <tr><td><strong>P1</strong></td><td>M1–M3</td><td>Residential core — properties, tenancies, invoicing, UPI collection, offline payments, receipts, reminder ladder, ledger, reconciliation, basic tickets, owner dashboard</td><td>Individual landlords</td><td>That collection actually works and reconciles</td></tr>
+  <tr><td><strong>P2</strong></td><td>M3–M6</td><td>Tenant app, agreements with stamping and eSign, KYC, deposits and move-out settlement, autopay mandates, maintenance with liability matrix</td><td>Landlords + their tenants</td><td>That the tenant becomes a user, not just a payer</td></tr>
+  <tr><td><strong>P3</strong></td><td>M6–M9</td><td>Manager platform — portfolios, staff, mandates and spend authority, owner payouts, statements, fees, GST and TDS, manager console</td><td><strong>Property management firms</strong></td><td>That the middle layer is the scale channel</td></tr>
+  <tr><td><strong>P4</strong></td><td>M9–M12</td><td>Service marketplace — vendor onboarding and verification, dispatch, technician app, quotes and approvals, job costing, vendor payouts, ratings</td><td>All three, plus vendors</td><td>That maintenance becomes revenue, not cost</td></tr>
+  <tr><td><strong>P5</strong></td><td>M12–M15</td><td>Hostel vertical — bed inventory and allocation, guardian payer and visibility, mess and leave, attendance and in–out, warden console, hostel analytics</td><td><strong>Hostel and PG operators</strong></td><td>That one core carries a second vertical cheaply</td></tr>
+  <tr><td><strong>P6</strong></td><td>M15–M18</td><td>Commercial vertical — area-based rent, CAM with true-up, metered utilities, escalation ladders, registration path, fit-out and compliance tracking</td><td>Commercial landlords and managers</td><td>That high-value tenancies are billable correctly</td></tr>
+  <tr><td><strong>P7</strong></td><td>M18–M24</td><td>Transact — rental listings and lead pipeline, site visits, lease origination; then property sale, due-diligence pack, registration and brokerage</td><td>Owners, buyers, agents</td><td>That operating history converts into transaction value</td></tr>
+  <tr><td><strong>P8</strong></td><td>M24+</td><td>Scale — whitelabel, enterprise SSO, analytics and benchmarks, AMC subscriptions, partner ecosystem</td><td>Enterprise</td><td>That the platform becomes infrastructure</td></tr>
+</table>
+
+<div class="callout">
+  <span class="h">Why the manager comes before the marketplace</span>
+  <p>The service marketplace is the highest-margin part of this product, and it is tempting to build it early. It should not be. A marketplace with no job volume cannot attract good vendors, and good vendors are the only thing that makes it work. The property manager brings hundreds of units — and therefore hundreds of monthly tickets — in a single onboarding. Building the manager platform first (P3) creates the demand density that makes P4 viable on day one. Reversing the two produces an empty marketplace and a churned vendor base that is very hard to win back.</p>
+</div>
+
+<h2><span class="num">11.</span> Assumptions and open decisions</h2>
+
+<h3>11.1 Assumptions this document makes</h3>
+<ol>
+  <li>Launch is India-only, in a small number of states chosen by e-stamping and verification coverage rather than by market size.</li>
+  <li>The property manager is the primary paying customer; the owner free tier is a supply-acquisition cost.</li>
+  <li>Rentora never holds client funds. Every design here assumes settlement through a regulated aggregator.</li>
+  <li>Residential is the beachhead. Hostel and commercial reuse the same core and are sequenced after the manager platform exists.</li>
+  <li>Sales is an extension of an operating relationship, not a standalone portal business. Rentora will not win a listings-portal fight and does not attempt one.</li>
+  <li>Technicians are partner-employed. The platform must not drift into a de facto employment relationship.</li>
+  <li>WhatsApp remains an available and economically viable primary channel; SMS fallback is proven before launch.</li>
+</ol>
+
+<h3>11.2 Decisions required before build</h3>
+<table>
+  <tr><th style="width:26%">Decision</th><th style="width:44%">Why it blocks</th><th>Needed by</th></tr>
+  <tr><td>Launch states</td><td>Determines e-stamping channel, stamp duty rules, police verification flow, Model Tenancy Act applicability</td><td>P0</td></tr>
+  <tr><td>Mobile framework</td><td>Four apps depend on it; reversing the choice later is a rebuild</td><td>P0</td></tr>
+  <tr><td>Payment aggregator and payout rails</td><td>Mandate caps, payout timing, settlement format and the vendor-payment model all follow from it</td><td>P0</td></tr>
+  <tr><td>Whether the manager may collect into their own account</td><td>Changes the entire money-flow, custody and reconciliation design</td><td>P0</td></tr>
+  <tr><td>Vendor payment model</td><td>Platform-advanced-then-recovered versus direct-to-vendor has regulatory and working-capital consequences</td><td>P3</td></tr>
+  <tr><td>Hostel GST treatment</td><td>Composite supply of stay plus food materially changes billing; requires professional advice</td><td>P5</td></tr>
+  <tr><td>Pricing and packaging</td><td>Per-unit versus per-bed versus percentage-of-collection shapes the fee engine</td><td>P3</td></tr>
+  <tr><td>Marketplace commission model</td><td>Vendor-side commission versus customer-side markup changes disclosure obligations and vendor economics</td><td>P4</td></tr>
+  <tr><td>Brokerage and RERA posture</td><td>Whether Rentora acts as an agent or only as a facilitator determines registration obligations</td><td>P7</td></tr>
+  <tr><td>Insurance and liability</td><td>Who is liable when a dispatched technician causes damage in a customer's home</td><td>P4</td></tr>
+</table>
+
+<h3>11.3 Principal risks</h3>
+<table>
+  <tr><th style="width:30%">Risk</th><th>Mitigation the backlog must carry</th></tr>
+  <tr><td>Rent stays in cash and never enters the platform</td><td>Offline recording is first-class; the value proposition is the ledger, documents and maintenance, not only the gateway</td></tr>
+  <tr><td>Owners churn after one collection failure</td><td>Reconciliation, alerting and a degraded mode that still shows correct balances</td></tr>
+  <tr><td>Marketplace launches without vendor density</td><td>Sequence the manager platform first so job volume exists on day one; launch category-by-category and city-by-city</td></tr>
+  <tr><td>A dispatched technician causes damage or harm</td><td>Verification of every technician, defined liability and insurance posture, OTP-gated entry and completion, evidence capture</td></tr>
+  <tr><td>Deposit and cost-split disputes become support load</td><td>Rules decided in advance, itemised evidence, tenant acknowledgement steps, and a defined arbitration route</td></tr>
+  <tr><td>Compliance drift across states</td><td>State-scoped rule tables with an owner and a review date; never a hardcoded constant</td></tr>
+  <tr><td>Hostel operators refuse to migrate from whiteboards</td><td>Import tooling, a parallel-run mode, and a bed-allocation flow faster than the whiteboard it replaces</td></tr>
+  <tr><td>KYC data becomes a liability</td><td>Never store Aadhaar; result-only retention; encryption, access audit and a retention matrix</td></tr>
+  <tr><td>The product becomes three products</td><td>One core enforced architecturally — verticals add modules and billing bases, never a parallel data model</td></tr>
+</table>
+
+<div class="callout warn" style="margin-top:22px">
+  <span class="h">Document control</span>
+  <p>This document defines <strong>scope and intent at the epic level</strong>. It does not replace the engineering backlog: every story here decomposes into engineering stories on the delivery board using the standard template, each with testable acceptance criteria, a mandatory failure scenario and the platform guardrails. Where this document and the repository's existing product brief differ on vertical scope, <strong>this document supersedes it</strong> and the brief will be updated to match.</p>
+</div>
+
+</body>
+</html>
