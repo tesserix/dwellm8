@@ -1,8 +1,8 @@
-# Rentora
+# Dwellm8
 
 **Rent, maintenance and compliance for Indian property — in one ledger.**
 
-Rentora is a property management platform built for how Indian rental property actually
+Dwellm8 is a property management platform built for how Indian rental property actually
 works: an 11-month agreement, a cash-or-UPI rent cycle, a security deposit nobody has
 reconciled, a WhatsApp thread that is the only record of a repair, and a plumber the
 owner found through a neighbour. Landlords, management firms, housing societies and
@@ -45,18 +45,18 @@ Three rules the architecture enforces everywhere:
 
 | Surface | Purpose |
 |---|---|
-| Rentora Owner | Landlord portal — properties, leases, rent, deposits, documents |
-| Rentora Manage | Management-firm control plane — portfolios, staff, owners, payouts |
-| Rentora Society | RWA module — dues, notices, amenities, complaints, society accounts |
-| Rentora Tenant | Tenant app — pay, receipts, tickets, agreement, move-out |
-| Rentora Gate | Guard app — visitor entry, delivery, staff attendance, gate passes |
-| Rentora Pay | Collections, UPI autopay & mandates, payouts, refunds, ledger |
-| Rentora Docs | Agreements, e-stamp, eSign, KYC vault, police verification |
-| Rentora Care | Maintenance, ticketing, SLA, vendor dispatch and job costing |
-| Rentora Books | Accounting, GST, TDS, owner statements, society audit pack |
-| Rentora Lease | Listings, enquiries, screening, lead-to-lease |
-| Rentora Partners | Vendor, broker and society-partner portal |
-| Rentora Admin | Internal control plane — tenants, plans, support, reconciliation |
+| Dwellm8 Owner | Landlord portal — properties, leases, rent, deposits, documents |
+| Dwellm8 Manage | Management-firm control plane — portfolios, staff, owners, payouts |
+| Dwellm8 Society | RWA module — dues, notices, amenities, complaints, society accounts |
+| Dwellm8 Tenant | Tenant app — pay, receipts, tickets, agreement, move-out |
+| Dwellm8 Gate | Guard app — visitor entry, delivery, staff attendance, gate passes |
+| Dwellm8 Pay | Collections, UPI autopay & mandates, payouts, refunds, ledger |
+| Dwellm8 Docs | Agreements, e-stamp, eSign, KYC vault, police verification |
+| Dwellm8 Care | Maintenance, ticketing, SLA, vendor dispatch and job costing |
+| Dwellm8 Books | Accounting, GST, TDS, owner statements, society audit pack |
+| Dwellm8 Lease | Listings, enquiries, screening, lead-to-lease |
+| Dwellm8 Partners | Vendor, broker and society-partner portal |
+| Dwellm8 Admin | Internal control plane — tenants, plans, support, reconciliation |
 
 ## Built for India, not localised for it
 
