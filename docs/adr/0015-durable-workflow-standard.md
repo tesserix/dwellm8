@@ -272,16 +272,23 @@ func GatewayRefundActivity(ctx context.Context, in DeferredRefundInput) (string,
 ```
 
 A worker that forgot to wire the seam returns `("", nil)`, the workflow reads an
-empty refund id, treats it as nothing-to-do and completes successfully. It is a
-misconfiguration that reports success — the worst available outcome, and invisible
-in every log. So Dwellm8's activities take their dependencies through a struct
-registered as an activity struct, and an unwired dependency is a startup panic. A
-worker that cannot do its job must not start; it must not run and quietly agree.
+empty refund id, treats it as nothing-to-do, and **completes successfully** having
+issued no refund. It is a misconfiguration that reports success, and it is invisible
+in every log.
 
-The rest of HomeChef's pattern is adopted unchanged, and one part of it is adopted
-as a *principle*: `DeferredRefundWorkflow` keeps a cron sweeping the same sentinel
-as a backstop, so the refund lands even if the workflow never completes. That
-generalises — see §9.
+To be fair to that code: no money is lost there, because a cron
+(`RetryDeferredCancelRefunds`) sweeps the same sentinel independently and both paths
+present the same idempotency key. The refund lands on the next tick. But that is the
+backstop rescuing a workflow that claimed to have done the job — which makes the
+backstop load-bearing for a reason nobody wrote down, and means the metric that
+would reveal the misconfiguration (workflows failing) stays flat.
+
+So Dwellm8's activities take their dependencies through a struct registered as an
+activity struct, and an unwired dependency is a startup panic. A worker that cannot
+do its job must not start; it must not run and quietly agree.
+
+The rest of HomeChef's pattern is adopted unchanged, and the cron backstop is
+adopted as a *principle* rather than as a rescue — see §9.
 
 ### 8. Observability, and why Temporal is not the record
 
