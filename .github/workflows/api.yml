@@ -376,6 +376,22 @@ jobs:
             echo "::error::a run past the point of no return was recorded as compensated"
             exit 1
           fi
+
+          # The planted test committed the row the constraint forbids, which is the
+          # point — and it means the schema cannot simply be replayed to restore the
+          # constraint, because ADD CONSTRAINT validates existing rows. The file warns
+          # rather than aborting (see its "load-bearing rules" block) and assertion 13
+          # then fails, correctly. So the row this step caused is removed first.
+          #
+          # As the superuser, because both locks that protect these rows are working:
+          # DELETE is revoked from dwellm8_app and a RESTRICTIVE policy refuses it, so
+          # the bootstrap role cannot clear its own test data. That is the right
+          # trade for a production table and it makes a CI fixture need a bigger hammer.
+          PGPASSWORD=bootstrap psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            ALTER TABLE workflow_runs NO FORCE ROW LEVEL SECURITY;
+            DELETE FROM workflow_steps;
+            DELETE FROM workflow_runs;
+            ALTER TABLE workflow_runs FORCE ROW LEVEL SECURITY;" >/dev/null
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
 
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
