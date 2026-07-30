@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -58,12 +59,37 @@ const (
 	ReasonProviderChargeback ReversalReason = "provider_chargeback"
 	ReasonOperatorError      ReversalReason = "operator_error"
 	ReasonSettlementMismatch ReversalReason = "settlement_mismatch"
+	// ReasonWorkflowCompensated is a durable operation undoing its own earlier
+	// step. ADR-0015 §4.
+	//
+	// It is its own reason rather than operator_error because nobody made an error:
+	// the entry was correct when it was posted and a later step of the same
+	// operation failed. Recording it as an operator's mistake would put a name
+	// against a decision no person made, on a row that is immutable and will be
+	// read during a dispute.
+	ReasonWorkflowCompensated ReversalReason = "workflow_compensated"
 )
 
 var reversalReasons = map[ReversalReason]bool{
 	ReasonDuplicate: true, ReasonWrongAmount: true, ReasonWrongAccount: true,
 	ReasonWrongParty: true, ReasonWrongPeriod: true, ReasonProviderChargeback: true,
 	ReasonOperatorError: true, ReasonSettlementMismatch: true,
+	ReasonWorkflowCompensated: true,
+}
+
+// ReversalReasons returns every reason, ordered.
+//
+// It exists because the store contract test used to carry its own hand-written
+// copy of this list, so a reason added here and not there was compared against
+// nothing — the schema could refuse it and no build would notice. Same failure as
+// a guard that only covers the tables its author had in mind.
+func ReversalReasons() []ReversalReason {
+	out := make([]ReversalReason, 0, len(reversalReasons))
+	for r := range reversalReasons {
+		out = append(out, r)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
 }
 
 // Party is whose balance a posting moves.

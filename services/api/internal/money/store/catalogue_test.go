@@ -189,12 +189,12 @@ func TestTheGoVocabulariesAreAcceptedByTheSchema(t *testing.T) {
 		}
 	}
 
+	// Iterating domain.ReversalReasons() rather than a copy of the list. The copy
+	// was here first, and it is the same decay as a guard that only covers the
+	// tables its author had in mind: a reason added in Go and not added here was
+	// compared against nothing, so the schema could refuse it and no build noticed.
 	reasons := def("journal_entries_reversal_reason_check")
-	for _, r := range []domain.ReversalReason{
-		domain.ReasonDuplicate, domain.ReasonWrongAmount, domain.ReasonWrongAccount,
-		domain.ReasonWrongParty, domain.ReasonWrongPeriod, domain.ReasonProviderChargeback,
-		domain.ReasonOperatorError, domain.ReasonSettlementMismatch,
-	} {
+	for _, r := range domain.ReversalReasons() {
 		if !strings.Contains(reasons, "'"+string(r)+"'") {
 			t.Errorf("reversal reason %q is producible in Go and refused by the schema", r)
 		}

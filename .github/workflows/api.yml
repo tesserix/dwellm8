@@ -327,7 +327,104 @@ jobs:
             exit 1
           fi
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
-          echo "the assertions caught all nine, as they should"
+
+          # Assertion 13, ADR-0015. This one exists because of the trap the file's
+          # migrations section is three entries long for: a CHECK written inside
+          # CREATE TABLE IF NOT EXISTS is skipped on a database that already has the
+          # table, so the file replays green with the constraint absent. Every
+          # database CI builds is fresh, which is exactly why CI never saw it.
+          #
+          # Two plants, because the assertion covers both kinds: a CHECK and a
+          # trigger.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "ALTER TABLE workflow_runs DROP CONSTRAINT workflow_runs_compensated_means_reversible" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 13 accepted a schema missing the constraint that stops a payout being recorded as compensated after the money left"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "DROP TRIGGER payments_forward_only ON payments" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 13 accepted a schema with no forward-only trigger on payments"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the assertions caught all eleven, as they should"
+
+      # ADR-0015 §4. The rule this whole standard turns on: a run that passed the
+      # point of no return cannot have been compensated, because nothing after an
+      # irreversible step can be undone. Recording it as compensated says the world
+      # was put back after money left, and every report downstream believes it.
+      #
+      # Two plants. Dropping the constraint is the obvious one. Neutering the
+      # monotonic flag is the subtle one — it leaves the constraint in place and
+      # lets it be satisfied by editing the evidence rather than by the world being
+      # reversible, which is the version that would pass review.
+      - name: Prove a compensation cannot be claimed after the money left
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "ALTER TABLE workflow_runs DROP CONSTRAINT workflow_runs_compensated_means_reversible"
+          if go test -count=1 -run TestARunPastThePointOfNoReturnCannotBeRecordedAsCompensated \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::a run past the point of no return was recorded as compensated"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION workflow_runs_forward_only() RETURNS trigger
+              LANGUAGE plpgsql AS \$\$
+              BEGIN
+                IF NOT workflow_transition_allowed(OLD.state, NEW.state) THEN
+                  RAISE EXCEPTION 'no' USING ERRCODE = 'check_violation';
+                END IF;
+                NEW.updated_at := now(); RETURN NEW;
+              END \$\$"
+          if go test -count=1 -run TestThePointOfNoReturnCannotBeUnpassed \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::the point of no return was cleared, so the compensation constraint can be satisfied by editing the evidence"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the rule caught both, as it should"
+
+      # ADR-0015 §1 and §3. Two guards that prevent different failures, and neither
+      # has an error in it when it is violated: an SDK import that drags a cluster
+      # into a domain test, and a wall-clock read that makes a replayed workflow
+      # take a branch it did not take the first time.
+      - name: Prove the workflow determinism guards still bite
+        run: |
+          set -uo pipefail
+          trap 'rm -f internal/money/domain/planted_sdk.go internal/platform/workflow/planted_clock.go' EXIT
+
+          printf 'package domain\n\nimport _ "go.temporal.io/sdk/workflow"\n' \
+            > internal/money/domain/planted_sdk.go
+          if go test -count=1 -run TestTheTemporalSDKIsConfinedToOneAdapter ./internal/platform/arch/; then
+            echo "::error::the Temporal SDK was imported into internal/money/domain and the guard passed"
+            exit 1
+          fi
+          rm -f internal/money/domain/planted_sdk.go
+
+          cat > internal/platform/workflow/planted_clock.go <<'GO'
+          package workflow
+
+          import "time"
+
+          func plantedDeadline() time.Time { return time.Now().Add(time.Hour) }
+          GO
+          if go test -count=1 -run TestNothingInAWorkflowReadsAClockOrRollsADie ./internal/platform/arch/; then
+            echo "::error::a wall-clock read in the workflow package passed the determinism guard"
+            exit 1
+          fi
+          rm -f internal/platform/workflow/planted_clock.go
+          echo "both guards caught it, as they should"
 
       # ADR-0012 §8, and the one guard in this file that plants a defect nobody
       # would call a defect. The trigger only recomputes two counters and refuses
