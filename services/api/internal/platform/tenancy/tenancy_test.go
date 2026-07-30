@@ -39,6 +39,33 @@ func TestFromRoundTrips(t *testing.T) {
 	}
 }
 
+func TestGrantRoundTrips(t *testing.T) {
+	ctx := WithGrant(With(context.Background(), ID("11111111-1111-1111-1111-111111111111")),
+		GrantID("22222222-2222-2222-2222-222222222222"))
+
+	// The tenant is unchanged by acting under a grant. A firm managing an
+	// owner's units is still the firm; ADR-0005 is a window, not a costume.
+	if got, _ := From(ctx); got != "11111111-1111-1111-1111-111111111111" {
+		t.Fatalf("tenant = %q, want the acting organisation unchanged", got)
+	}
+	got, ok := GrantFrom(ctx)
+	if !ok || got != "22222222-2222-2222-2222-222222222222" {
+		t.Fatalf("GrantFrom() = %q, %v", got, ok)
+	}
+}
+
+func TestNoGrantByDefault(t *testing.T) {
+	ctx := With(context.Background(), ID("11111111-1111-1111-1111-111111111111"))
+	if _, ok := GrantFrom(ctx); ok {
+		t.Fatal("GrantFrom() found a grant in a context that was never given one")
+	}
+	// An empty grant is no grant: it reaches PostgreSQL as '', which
+	// current_grant_id() coerces to NULL rather than failing the cast.
+	if _, ok := GrantFrom(WithGrant(ctx, GrantID(""))); ok {
+		t.Fatal("GrantFrom() accepted an empty grant")
+	}
+}
+
 func TestPlatformRequiresAReason(t *testing.T) {
 	// An exemption that leaves no trace is a back door, so the reason is
 	// required by the signature rather than by convention.

@@ -7,6 +7,12 @@ stays readable.
 | ADR | Decision | Status |
 |---|---|---|
 | [0001](0001-modular-monolith-api.md) | Modular monolith API: eight modules, one deployable, one repository | Accepted |
+| [0002](0002-event-backbone-and-outbox.md) | Event backbone: transactional outbox, JetStream, idempotent consumers | Accepted |
+| [0003](0003-tenancy-and-row-level-security.md) | Organisation tenancy and the row-level security standard | Accepted |
+| [0005](0005-owner-delegation-grants.md) | Owner delegation: effective-dated, scoped, revocable grants | Accepted |
+
+0004 is missing on purpose: the identity and authorisation decision it was
+reserved for was closed as not planned, and the numbers are not reused.
 
 ## Writing one
 

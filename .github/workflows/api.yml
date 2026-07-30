@@ -98,6 +98,30 @@ jobs:
           psql -h localhost -U dwellm8 -d dwellm8 -c "ALTER TABLE audit_events FORCE ROW LEVEL SECURITY"
           echo "the harness caught it, as it should"
 
+      # The same treatment for ADR-0005. A grant that stops checking who its
+      # grantee is turns every firm's grant into every other firm's, which is
+      # precisely the failure nobody would notice from the outside.
+      - name: Prove the delegation contract still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION is_delegated(row_tenant uuid, row_property uuid, required_permission text)
+              RETURNS boolean LANGUAGE sql STABLE PARALLEL SAFE AS \$\$
+              SELECT EXISTS (SELECT 1 FROM delegation_grants g
+                              WHERE g.id = current_grant_id()
+                                AND g.tenant_id = row_tenant
+                                AND g.revoked_at IS NULL) \$\$"
+          if go test -count=1 -run TestGrantModel ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::the delegation contract passed with the grantee and scope checks removed"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the contract caught it, as it should"
+
       - name: Build
         run: go build ./...
 
