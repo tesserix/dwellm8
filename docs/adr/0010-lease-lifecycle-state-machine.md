@@ -61,7 +61,7 @@ it needs no mechanism of its own.
 Charge generation is the rent schedule intersected with `leases.validity`. Terminating
 sets `ended_on`, which shortens `validity`, so the generator stops producing periods —
 there is no flag for anything to check and no code path that has to remember. And
-"exactly once" is ADR-0006 §6's invoice idempotency key on `(lease, period)`: the same
+"exactly once" is ADR-0002 §6's idempotency key on `(tenant, key)`: the same
 period cannot be billed twice because the second insert loses a race against a unique
 index.
 

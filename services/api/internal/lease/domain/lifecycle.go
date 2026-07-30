@@ -26,8 +26,8 @@
 // parties had signed up for less than they did.
 //
 // "A terminated lease stops billing exactly once" is then a consequence rather than a
-// discipline: there is no flag to check, and the invoice's idempotency key (ADR-0006
-// §6) is what stops a period being billed twice.
+// discipline: there is no flag to check, and the entry's idempotency key (ADR-0002 §6)
+// is what stops a period being billed twice.
 package domain
 
 import (

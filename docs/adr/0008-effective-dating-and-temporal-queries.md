@@ -70,7 +70,7 @@ do: file a 00:30 IST payment under the previous day.
 **`delegation_grants` stays `timestamptz` and is correctly not part of this**, which
 is a distinction rather than a fudge. An authorisation window is not an effective
 date: a firm's access begins at a moment, you grant it at 9am and it is live at 9am,
-and no legal document is dated by it. ADR-0005 §3 already evaluates it with
+and no legal document is dated by it. ADR-0005 §1 already evaluates it with
 `now() >= valid_from`, which is the right predicate for a permission and the wrong
 one for a rent.
 
