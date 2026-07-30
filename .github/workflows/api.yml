@@ -71,7 +71,8 @@ jobs:
           PGPASSWORD=ci psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql
           PGPASSWORD=ci psql -h localhost -U dwellm8 -d dwellm8 \
             -c "ALTER ROLE dwellm8_api WITH PASSWORD 'ci'" \
-            -c "ALTER ROLE dwellm8_platform WITH PASSWORD 'ci'"
+            -c "ALTER ROLE dwellm8_platform WITH PASSWORD 'ci'" \
+            -c "ALTER ROLE dwellm8_purge WITH PASSWORD 'ci'"
 
       # Includes internal/platform/arch — the ADR-0001 boundary tests — and the
       # ADR-0003 isolation harness, which needs both DSNs to run rather than skip.
@@ -79,6 +80,7 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
           TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
         run: go test -race -count=1 ./...
 
       # The harness is only worth having if it fails. This plants a real
@@ -88,6 +90,7 @@ jobs:
           PGPASSWORD: ci
           TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
           TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
         run: |
           set -uo pipefail
           psql -h localhost -U dwellm8 -d dwellm8 -c "ALTER TABLE audit_events NO FORCE ROW LEVEL SECURITY"
@@ -106,6 +109,7 @@ jobs:
           PGPASSWORD: ci
           TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
           TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
         run: |
           set -uo pipefail
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
@@ -133,6 +137,7 @@ jobs:
           PGPASSWORD: ci
           TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
           TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
         run: |
           set -uo pipefail
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
@@ -160,6 +165,7 @@ jobs:
           PGPASSWORD: ci
           TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
           TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
         run: |
           set -uo pipefail
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
@@ -183,6 +189,7 @@ jobs:
           PGPASSWORD: ci
           TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
           TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
         run: |
           set -uo pipefail
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
@@ -417,6 +424,7 @@ jobs:
           PGPASSWORD: ci
           TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
           TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
         run: |
           set -uo pipefail
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
@@ -477,6 +485,7 @@ jobs:
           PGPASSWORD: ci
           TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
           TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
         run: |
           set -uo pipefail
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
@@ -514,6 +523,7 @@ jobs:
           PGPASSWORD: ci
           TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
           TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
         run: |
           set -uo pipefail
           # Deleting the harness's leases now means deleting what references them.
@@ -587,6 +597,68 @@ jobs:
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
           echo "the lifecycle caught all four, as it should"
 
+      # ADR-0021. The two halves hold each other up, so both are planted: a demo that can
+      # reach a real provider would hold real money, and a sandbox that cannot be purged
+      # grows forever. Neither failure announces itself.
+      - name: Prove the sandbox rules still bite
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION payments_sandbox_has_no_real_provider() RETURNS trigger
+              LANGUAGE plpgsql AS \$\$ BEGIN RETURN NEW; END \$\$"
+          if go test -count=1 -run TestASandboxCannotReachARealProvider \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::a demo created a payment against a real provider, so the sandbox is no longer safe to delete"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          # The purge widened to a real organisation. This is the dangerous direction: it
+          # reads as a simplification and it makes the cleanup job able to delete a
+          # financial record.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION sandbox_purge_permitted(row_tenant uuid) RETURNS boolean
+              LANGUAGE sql STABLE PARALLEL SAFE AS
+              \$\$ SELECT row_tenant IS NOT NULL AND is_purge_session() \$\$"
+          if go test -count=1 -run TestOnlyThePurgeJobCanDeleteAndOnlyFromASandbox \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::the purge deleted a real organisation's data — the sandbox exception is not scoped to sandboxes"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "DROP TRIGGER demo_sessions_sandbox_only ON demo_sessions"
+          if go test -count=1 -run TestADemoSessionCannotPointAtARealOrganisation \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::a demo session pointed at a real organisation, so an unauthenticated token reaches real data"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the sandbox rules caught all three, as they should"
+
+      # Assertion 16, ADR-0021 §4. The failure is invisible from the table that causes it:
+      # it shows up months later as a sandbox that cannot be cleaned up.
+      - name: Prove the sandbox purge stays possible
+        env:
+          PGPASSWORD: ci
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            DROP POLICY properties_no_delete ON properties;
+            CREATE POLICY properties_no_delete ON properties AS RESTRICTIVE FOR DELETE USING (false)"
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 16 accepted a table an expired sandbox could never be purged from"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the assertion caught it, as it should"
+
       # ADR-0001's dependency direction, which nothing enforced until ADR-0008 wanted
       # money.Minor for a rent amount in a platform package. That reads as harmless
       # and inverts the arrow.
@@ -616,6 +688,7 @@ jobs:
           PGPASSWORD: ci
           TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
           TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
         run: |
           set -uo pipefail
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
@@ -702,6 +775,7 @@ jobs:
           PGPASSWORD: ci
           TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
           TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
         run: |
           set -uo pipefail
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
