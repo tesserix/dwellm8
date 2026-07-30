@@ -259,13 +259,13 @@ jobs:
           # switches tenant isolation off for every session that connects as it
           # while every policy still reads correctly. ADR-0006 §7 — this was a
           # live defect, not a hypothetical one.
-          psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 \
+          PGPASSWORD=bootstrap psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 \
             -c "GRANT dwellm8_platform TO dwellm8 WITH INHERIT TRUE" >/dev/null
           if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
             echo "::error::assertion 11 accepted a table owner that inherits dwellm8_platform"
             exit 1
           fi
-          psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 \
+          PGPASSWORD=bootstrap psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 \
             -c "GRANT dwellm8_platform TO dwellm8 WITH INHERIT FALSE, ADMIN TRUE, SET FALSE" >/dev/null
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
           echo "the assertions caught all five, as they should"
