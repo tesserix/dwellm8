@@ -3,3 +3,10 @@ node_modules/
 dist/
 *.log
 .DS_Store
+
+# CI plants deliberate violations to prove each guard still fails, and each step removes
+# its own file. A `planted_*` file that reaches a commit is one that escaped — which
+# happened once, because the simulation ran every step in one shell and each step's
+# `trap ... EXIT` replaced the previous one, so only the last cleanup fired. Ignoring the
+# pattern means the mistake cannot reach a commit again.
+services/api/**/planted_*.go
