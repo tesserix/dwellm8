@@ -52,6 +52,8 @@ const (
 	GSTOutput             = "gst_output"
 	TDSReceivable         = "tds_receivable"
 	GatewayClearing       = "gateway_clearing"
+	GatewayFee            = "gateway_fee"
+	GSTInput              = "gst_input"
 	Bank                  = "bank"
 	SocietyDuesReceivable = "society_dues_receivable"
 	SinkingFund           = "sinking_fund"
@@ -87,6 +89,8 @@ var accounts = map[string]Account{
 	GSTOutput:             {GSTOutput, "GST payable", Liability, Statutory},
 	TDSReceivable:         {TDSReceivable, "TDS receivable", Asset, Statutory},
 	GatewayClearing:       {GatewayClearing, "Gateway clearing", Asset, Platform},
+	GatewayFee:            {GatewayFee, "Gateway fee", Expense, Platform},
+	GSTInput:              {GSTInput, "GST input credit", Asset, Statutory},
 	Bank:                  {Bank, "Bank", Asset, Platform},
 	SocietyDuesReceivable: {SocietyDuesReceivable, "Society dues receivable", Asset, Tenant},
 	SinkingFund:           {SinkingFund, "Sinking fund", Liability, NoParty},

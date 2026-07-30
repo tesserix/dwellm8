@@ -285,8 +285,121 @@ jobs:
             echo "::error::assertion 6 accepted a payments policy judged at property granularity"
             exit 1
           fi
+          # Assertion 12, ADR-0012. The nullable-tenant table is no longer an
+          # exception — it is a pattern with four members — so the guard is a
+          # generalisation of ADR-0011 §5's paragraph. The defect is the plausible
+          # one: give the table the ordinary ADR-0003 policy shape, which on a
+          # table where tenant_id may be NULL constrains nothing at all.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            DROP POLICY settlement_lines_tenant_isolation ON settlement_lines;
+            CREATE POLICY settlement_lines_tenant_isolation ON settlement_lines
+              USING (is_platform_session() OR tenant_id = current_tenant_id())
+              WITH CHECK (is_platform_session() OR tenant_id = current_tenant_id());" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 12 accepted a nullable-tenant table that an organisation may write"
+            exit 1
+          fi
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
-          echo "the assertions caught all six, as they should"
+
+          # And the same assertion against ADR-0011's inbox, which was written
+          # before assertion 12 existed. Measured: it names payment_events. The
+          # mirror image of assertion 6 catching the payments table, and the reason
+          # both are worth planting — a guard is only general if something proves it.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            DROP POLICY payment_events_tenant_isolation ON payment_events;
+            CREATE POLICY payment_events_tenant_isolation ON payment_events
+              USING (is_platform_session() OR tenant_id = current_tenant_id())
+              WITH CHECK (is_platform_session() OR tenant_id = current_tenant_id());" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 12 did not cover payment_events — the guard only polices the tables its author had in mind"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          # Assertion 10, now catalogue-driven rather than naming ledger_balances.
+          # The ageing view under-reporting instead of leaking is the same failure
+          # ADR-0006 §5 described, on a report whose whole job is to say what is
+          # missing.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "ALTER VIEW settlement_drift_ageing SET (security_invoker = false)" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 10 accepted an ageing view that is not security_invoker — it was still named after ledger_balances"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the assertions caught all nine, as they should"
+
+      # ADR-0012 §8, and the one guard in this file that plants a defect nobody
+      # would call a defect. The trigger only recomputes two counters and refuses
+      # one state; removing it leaves every test that writes a run passing, every
+      # log line clean, and a day with three missing payments recorded as
+      # reconciled — because the job that reconciles the day is the job that
+      # reports on it, and its own report was never evidence.
+      - name: Prove a day cannot be called reconciled while money is missing
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION reconciliation_run_counters() RETURNS trigger
+              LANGUAGE plpgsql AS \$\$ BEGIN RETURN NEW; END \$\$"
+          if go test -count=1 -run TestADayCannotBeCalledReconciledWhileDriftIsOpen \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::a day with three open drift rows was called reconciled with the trigger removed"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the trigger caught it, as it should"
+
+      # ADR-0012 §7. The other direction of the same lesson ADR-0011 §3 taught:
+      # two copies of a rule will differ once. Here the rule is the ageing
+      # boundary, and the version that differs quietly is a report that buckets a
+      # four-day-old item differently from the alert that fired on it.
+      #
+      # Two defects, because they fail differently. The first moves a boundary in
+      # the function both copies are compared through. The second leaves the
+      # function alone and gives the view its own inline CASE — which is what
+      # somebody "simplifying away a one-line function" would do, and which no
+      # comparison of the function against Go can catch.
+      - name: Prove the ageing boundary drift check still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION settlement_age_bucket(age interval)
+              RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE AS \$\$
+              SELECT CASE
+                         WHEN age <  interval '1 day'   THEN 'same_day'
+                         WHEN age <= interval '2 days'  THEN '1_3_days'
+                         WHEN age <= interval '7 days'  THEN '4_7_days'
+                         WHEN age <= interval '30 days' THEN '8_30_days'
+                         ELSE 'over_30_days'
+                     END \$\$"
+          if go test -count=1 -run TestTheAgeingBucketsMatchTheDatabase ./internal/money/store/; then
+            echo "::error::the ageing contract passed with the 3-day boundary moved to 2 days"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE VIEW settlement_drift_ageing WITH (security_invoker = true) AS
+              SELECT d.provider, d.tenant_id, d.drift_kind, d.state,
+                     CASE WHEN now() - d.since < interval '1 day' THEN 'same_day'
+                          ELSE 'over_30_days' END AS age_bucket,
+                     count(*) AS item_count, sum(d.amount_minor) AS amount_minor,
+                     min(d.since) AS oldest_since
+                FROM settlement_drift d
+               GROUP BY d.provider, d.tenant_id, d.drift_kind, d.state, 5"
+          if go test -count=1 -run TestTheAgeingBucketsMatchTheDatabase ./internal/money/store/; then
+            echo "::error::the ageing contract passed with the view carrying its own inline boundaries"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the drift check caught both, as it should"
 
       # ADR-0011 §3. The payment state machine exists in Go and in PostgreSQL,
       # and the dangerous direction of drift is the quiet one: the schema

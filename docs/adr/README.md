@@ -14,6 +14,7 @@ stays readable.
 | [0007](0007-money-representation-and-rounding.md) | Money as int64 minor units: one rounding rule, largest-remainder allocation, no floats | Accepted |
 | [0009](0009-property-block-unit-model.md) | Property, block and unit: one tree, and grant scope enforced at unit granularity | Accepted |
 | [0011](0011-payment-provider-adapter.md) | Payment provider adapter: idempotency by index, advisory webhooks, forward-only states | Accepted |
+| [0012](0012-settlement-reconciliation-and-drift.md) | Settlement reconciliation: two directions, drift by which pair disagreed, `reconciled` earned not claimed | Accepted |
 
 0004 is missing on purpose: the identity and authorisation decision it was
 reserved for was closed as not planned, and the numbers are not reused.

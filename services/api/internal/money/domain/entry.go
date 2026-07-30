@@ -19,11 +19,21 @@ import (
 type EventKind string
 
 const (
-	KindInvoice           EventKind = "invoice"
-	KindLateFee           EventKind = "late_fee"
-	KindPayment           EventKind = "payment"
-	KindPaymentWithTDS    EventKind = "payment_with_tds"
-	KindSettlement        EventKind = "settlement"
+	KindInvoice        EventKind = "invoice"
+	KindLateFee        EventKind = "late_fee"
+	KindPayment        EventKind = "payment"
+	KindPaymentWithTDS EventKind = "payment_with_tds"
+	KindSettlement     EventKind = "settlement"
+	// KindSettlementWithFee is a settlement the provider netted its charge out
+	// of. Separate from KindSettlement for the same reason
+	// KindPaymentWithTDS is separate from KindPayment: the event is the same and
+	// the deduction is not, and a rule with an optional deduction in it is a rule
+	// nobody can read. ADR-0012 §4.
+	KindSettlementWithFee EventKind = "settlement_with_fee"
+	// KindClearingWriteOff abandons a clearing balance reconciliation could never
+	// account for. Without it the clearing account grows a permanent residue and
+	// the ageing report never empties. ADR-0012 §7.
+	KindClearingWriteOff  EventKind = "clearing_write_off"
 	KindDepositCollection EventKind = "deposit_collection"
 	KindDepositRefund     EventKind = "deposit_refund"
 	KindPayout            EventKind = "payout"

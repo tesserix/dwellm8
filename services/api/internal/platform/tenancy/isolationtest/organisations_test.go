@@ -95,13 +95,26 @@ func TestAuditEventsIsolation(t *testing.T) {
 func TestSchemaAudit(t *testing.T) {
 	// Catches the table nobody thought to write an isolation test for.
 	//
-	// The three exemptions are the chart of accounts and the posting templates
-	// (ADR-0006 §2). They hold no customer data and are deliberately not
+	// The first three exemptions are the chart of accounts and the posting
+	// templates (ADR-0006 §2). They hold no customer data and are deliberately not
 	// tenant-scoped: a landlord with a private idea of what "deposit_liability"
 	// means is a landlord whose statements cannot be compared or audited. The
 	// application cannot write them either — INSERT, UPDATE and DELETE are
 	// revoked from dwellm8_app, so the schema file is their only author.
+	//
+	// The last two are ADR-0012's, and they are exempt for the opposite reason:
+	// they hold nothing but money data and it belongs to no organisation. A
+	// settlement batch is one payout from one aggregator account, spanning every
+	// organisation that collected that day; a reconciliation run is a statement
+	// about a provider-day. Neither has a tenant_id because neither has a tenant,
+	// and both carry row-level security that admits only a platform session —
+	// asserted from both sides in settlement_test.go, and required of every table
+	// of this shape by the schema's assertion 12.
+	//
+	// This guard is why that pair had to be argued for rather than added: it fired
+	// on both tables the moment they existed.
 	p := pool(t)
 	isolationtest.SchemaAudit(t, p,
-		"ledger_accounts", "posting_templates", "posting_template_lines")
+		"ledger_accounts", "posting_templates", "posting_template_lines",
+		"settlement_batches", "reconciliation_runs")
 }

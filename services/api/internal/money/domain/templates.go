@@ -31,6 +31,11 @@ const (
 	RoleTax Role = "tax"
 	// RoleTDS is tax the payer deducted at source and paid on the payee's behalf.
 	RoleTDS Role = "tds"
+	// RoleFee is what a provider kept out of a settlement. An expense, not a
+	// smaller collection: the payer paid the gross and the receivable was settled
+	// in full, and a fee netted silently against income is a fee no owner can be
+	// shown. ADR-0012 §4.
+	RoleFee Role = "fee"
 	// RolePrincipal is the part of a payment that settles an existing debt.
 	RolePrincipal Role = "principal"
 	// RoleAdvance is the part that does not, because there is nothing to settle.
@@ -76,6 +81,24 @@ var templates = map[EventKind][]Line{
 	},
 	KindSettlement: {
 		{Bank, Debit, RoleGross, false},
+		{GatewayClearing, Credit, RoleGross, false},
+	},
+	// The same event when the provider kept its charge out of the payout. The
+	// clearing credit is the gross, because the gross is what the clearing
+	// account was debited when the payment was captured — netting the fee against
+	// it instead would leave a permanent residue that reconciliation can never
+	// close, which is the defect ADR-0012 exists to prevent.
+	KindSettlementWithFee: {
+		{Bank, Debit, RoleNet, false},
+		{GatewayFee, Debit, RoleFee, false},
+		{GSTInput, Debit, RoleTax, true},
+		{GatewayClearing, Credit, RoleGross, false},
+	},
+	// A clearing balance nobody could account for, abandoned by a decision. The
+	// same shape as a receivable write-off and for the same reason: the money was
+	// real, the loss is an expense, and the entry says who decided.
+	KindClearingWriteOff: {
+		{WriteOffExpense, Debit, RoleGross, false},
 		{GatewayClearing, Credit, RoleGross, false},
 	},
 	// A deposit is the tenant's money held by the owner. It is a liability from
@@ -288,6 +311,46 @@ func PaymentWithTDS(gross, tds Minor, place Place, tenant string, src Source) (E
 // a settlement reconciliation (issue #14) compares against.
 func Settlement(amount Minor, place Place, src Source) (Entry, error) {
 	return apply(KindSettlement, map[Role]Minor{RoleGross: amount},
+		place, Parties{Platform: platformParty}, src)
+}
+
+// SettlementWithFee is the same event when the provider deducted its charge on
+// the way. ADR-0012 §4.
+//
+// gross is what the clearing account holds for these payments — not what landed
+// in the bank. The provider's own figure is authoritative for fee and tax, for
+// the plain reason that they took it; comparing it against a contracted rate card
+// is a separate story and is not what stops a reconciliation closing.
+//
+// tax is the GST on the fee, which is an input credit rather than a cost. It is
+// optional because a provider that issues a consolidated monthly invoice settles
+// the fee without tax on the line, and a zero input-credit posting on every
+// settlement in the country would mean nothing.
+func SettlementWithFee(gross, fee, tax Minor, place Place, src Source) (Entry, error) {
+	if fee <= 0 {
+		return Entry{}, fmt.Errorf("money: a settlement with a fee of %s is an ordinary settlement", fee)
+	}
+	if tax < 0 {
+		return Entry{}, fmt.Errorf("money: negative tax %s on a settlement fee", tax)
+	}
+	net := gross - fee - tax
+	if net <= 0 {
+		return Entry{}, fmt.Errorf("money: a settlement of %s with %s of fee and %s of tax on it pays out %s — "+
+			"a provider that keeps the whole batch is a parsing error, not a settlement", gross, fee, tax, net)
+	}
+	return apply(KindSettlementWithFee,
+		map[Role]Minor{RoleGross: gross, RoleNet: net, RoleFee: fee, RoleTax: tax},
+		place, Parties{Platform: platformParty, Statutory: statutoryParty}, src)
+}
+
+// ClearingWriteOff abandons a clearing balance that reconciliation could not
+// account for. ADR-0012 §7.
+//
+// It is the last resort and it is deliberately an expense rather than a
+// correction: the payer's money was real and the receivable it settled stays
+// settled. What is being written off is our claim on the provider.
+func ClearingWriteOff(amount Minor, place Place, src Source) (Entry, error) {
+	return apply(KindClearingWriteOff, map[Role]Minor{RoleGross: amount},
 		place, Parties{Platform: platformParty}, src)
 }
 

@@ -443,6 +443,12 @@ func buildOneOfEach(t *testing.T) []domain.Entry {
 		{domain.KindPayment, func() (domain.Entry, error) { return domain.Payment(2500000, 2000000, p, tn, src("c")) }},
 		{domain.KindPaymentWithTDS, func() (domain.Entry, error) { return domain.PaymentWithTDS(2500000, 250000, p, tn, src("d")) }},
 		{domain.KindSettlement, func() (domain.Entry, error) { return domain.Settlement(2500000, p, src("e")) }},
+		{domain.KindSettlementWithFee, func() (domain.Entry, error) {
+			return domain.SettlementWithFee(2500000, 50000, 9000, p, src("e2"))
+		}},
+		{domain.KindClearingWriteOff, func() (domain.Entry, error) {
+			return domain.ClearingWriteOff(12500, p, src("e3"))
+		}},
 		{domain.KindDepositCollection, func() (domain.Entry, error) { return domain.DepositCollection(5000000, p, tn, src("f")) }},
 		{domain.KindDepositRefund, func() (domain.Entry, error) { return domain.DepositRefund(5000000, p, tn, src("g")) }},
 		{domain.KindPayout, func() (domain.Entry, error) { return domain.Payout(2000000, p, ow, src("h")) }},
@@ -464,6 +470,75 @@ func buildOneOfEach(t *testing.T) []domain.Entry {
 		out = append(out, e)
 	}
 	return out
+}
+
+// The one thing a settlement with a fee in it must get right. ADR-0012 §4.
+//
+// Clearing was debited the gross when the payment was captured, so a settlement
+// has to credit clearing the gross — never the net that reached the bank. Netting
+// the fee against the clearing credit balances just as well and leaves a permanent
+// residue in the account reconciliation is measured against, which is the defect
+// the whole subsystem exists to prevent.
+func TestASettlementFeeDoesNotComeOutOfTheClearingCredit(t *testing.T) {
+	const gross, fee, tax = domain.Minor(2500000), domain.Minor(50000), domain.Minor(9000)
+
+	e, err := domain.SettlementWithFee(gross, fee, tax, place(), src("m"))
+	if err != nil {
+		t.Fatalf("SettlementWithFee: %v", err)
+	}
+	mustBalance(t, e)
+
+	got := map[string]domain.Minor{}
+	for _, p := range e.Postings {
+		got[p.Account] = p.Amount
+		if p.Account == domain.GatewayClearing && p.Side != domain.Credit {
+			t.Errorf("clearing is on the %s side of a settlement", p.Side)
+		}
+	}
+	if got[domain.GatewayClearing] != gross {
+		t.Errorf("clearing is credited %s, want the gross %s — the net is what reached the bank, "+
+			"and crediting it leaves %s in clearing forever",
+			got[domain.GatewayClearing], gross, gross-got[domain.GatewayClearing])
+	}
+	if want := gross - fee - tax; got[domain.Bank] != want {
+		t.Errorf("the bank is debited %s, want %s", got[domain.Bank], want)
+	}
+	if got[domain.GatewayFee] != fee {
+		t.Errorf("the fee posted is %s, want %s", got[domain.GatewayFee], fee)
+	}
+	// The GST on an aggregator's charge is an input credit, not a cost.
+	if got[domain.GSTInput] != tax {
+		t.Errorf("the input credit is %s, want %s", got[domain.GSTInput], tax)
+	}
+	if a, _ := domain.Lookup(domain.GSTInput); a.Type != domain.Asset {
+		t.Errorf("gst_input is a %s — the GST on a fee is recoverable, so it is an asset", a.Type)
+	}
+
+	// A provider that issues a consolidated monthly invoice settles with no tax on
+	// the line, and the entry must not carry a zero input-credit posting.
+	noTax, err := domain.SettlementWithFee(gross, fee, 0, place(), src("n"))
+	if err != nil {
+		t.Fatalf("SettlementWithFee with no tax: %v", err)
+	}
+	for _, p := range noTax.Postings {
+		if p.Account == domain.GSTInput {
+			t.Error("a settlement with no tax on the fee posted an input credit anyway")
+		}
+	}
+
+	// And the shapes that are a parsing error rather than a settlement.
+	for _, tc := range []struct {
+		name            string
+		gross, fee, tax domain.Minor
+	}{
+		{"no fee at all, which is an ordinary settlement", gross, 0, 0},
+		{"a provider that kept the whole batch", gross, gross, 0},
+		{"a negative tax", gross, fee, -1},
+	} {
+		if _, err := domain.SettlementWithFee(tc.gross, tc.fee, tc.tax, place(), src("o")); err == nil {
+			t.Errorf("accepted: %s", tc.name)
+		}
+	}
 }
 
 func TestNormalSideIsDerivedFromTheAccountType(t *testing.T) {
