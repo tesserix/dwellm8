@@ -423,6 +423,75 @@ jobs:
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
           echo "effective dating caught both, as it should"
 
+      # ADR-0010. Four plants, and the interesting one is the second: it does not remove
+      # the no-double-let constraint, it widens its scope to cover drafts. That reads as
+      # a stricter constraint and is a product bug — an owner can no longer prepare a
+      # renewal while the current tenancy runs — which is why the scope is compared
+      # against State.Tenancy() state by state rather than merely asserted to exist.
+      - name: Prove the lease lifecycle still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          clean() {
+            PGPASSWORD=bootstrap psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 -c "
+              ALTER TABLE leases NO FORCE ROW LEVEL SECURITY;
+              DELETE FROM rent_schedule; DELETE FROM lease_parties; DELETE FROM leases;
+              ALTER TABLE leases FORCE ROW LEVEL SECURITY;" >/dev/null
+          }
+
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION lease_transition_allowed(from_state text, to_state text)
+              RETURNS boolean LANGUAGE sql IMMUTABLE PARALLEL SAFE AS \$\$
+              SELECT (from_state, to_state) IN (('draft','active'),('active','terminated')) \$\$"
+          if go test -count=1 -run TestTheGoLeaseStateMachineMatchesTheDatabase ./internal/lease/store/; then
+            echo "::error::the lease state machine drift check passed with the transition table narrowed"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          # The scope widened to cover drafts. Planted on an empty table, because the
+          # existing drafts would conflict and ADD CONSTRAINT would refuse — which is
+          # the constraint doing its job and not what is being tested here.
+          clean
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            ALTER TABLE leases DROP CONSTRAINT leases_no_double_let;
+            ALTER TABLE leases ADD CONSTRAINT leases_no_double_let
+              EXCLUDE USING gist (tenant_id WITH =, unit_id WITH =, validity WITH &&)
+              WHERE (state IN ('draft','pending_signature','active','in_notice','renewed','terminated','settled'))"
+          if go test -count=1 -run TestTheNoDoubleLetScopeMatchesTenancy ./internal/lease/store/; then
+            echo "::error::the double-let scope check passed with drafts inside the constraint, so an owner cannot prepare a renewal"
+            exit 1
+          fi
+          # Dropped first: the schema's ADD CONSTRAINT is guarded by IF NOT EXISTS, so a
+          # constraint that exists with the wrong body is not corrected by a replay.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "ALTER TABLE leases DROP CONSTRAINT leases_no_double_let"
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION leases_retrospective_end_needs_a_decision() RETURNS trigger
+              LANGUAGE plpgsql AS \$\$ BEGIN RETURN NEW; END \$\$"
+          if go test -count=1 -run TestARetrospectiveTerminationIsRefusedByAskingTheLedger \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::a termination leaving an over-billed period was accepted with no decision"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "ALTER TABLE leases DROP CONSTRAINT leases_no_double_let"
+          if go test -count=1 -run TestAFlatCannotBeLetTwiceOverTheSameDays \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::one flat was let to two live tenancies over the same days"
+            exit 1
+          fi
+          clean
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the lifecycle caught all four, as it should"
+
       # ADR-0001's dependency direction, which nothing enforced until ADR-0008 wanted
       # money.Minor for a rent amount in a platform package. That reads as harmless
       # and inverts the arrow.
