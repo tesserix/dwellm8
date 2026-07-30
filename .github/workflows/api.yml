@@ -122,6 +122,73 @@ jobs:
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
           echo "the contract caught it, as it should"
 
+      # And ADR-0009's half of it. This defect is the tempting one: it checks the
+      # grant, the permission and the property, and would pass every assertion
+      # ADR-0005 could write. What it stops checking is which unit — so a mandate
+      # over one flat reads the whole tower, and nothing about the request looks
+      # wrong. Measured locally: visible units [101 102 103 P-1 P-2], want
+      # [101 102 P-1].
+      - name: Prove the unit-scope check still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION is_delegated_unit(
+                    row_tenant uuid, row_property uuid, row_unit uuid, row_parent_unit uuid,
+                    required_permission text)
+              RETURNS boolean LANGUAGE sql STABLE PARALLEL SAFE AS \$\$
+              SELECT EXISTS (SELECT 1 FROM delegation_grant_scopes s
+                              WHERE s.grant_id = current_active_grant(row_tenant, required_permission)
+                                AND (s.scope_kind = 'portfolio'
+                                  OR s.scope_property_id = row_property)) \$\$"
+          if go test -count=1 -run TestPropertyScope ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::the property-scope contract passed with unit granularity removed — a one-unit mandate now reads every unit in the property"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the contract caught it, as it should"
+
+      # The bootstrap assertions cannot be tested by replaying the file: the
+      # replay re-creates the policy it is about to judge, repairing the defect
+      # before the assertion runs. So the assertion block is extracted and run on
+      # its own against a schema that has been broken underneath it.
+      - name: Prove the bootstrap assertions still bite
+        env:
+          PGPASSWORD: ci
+        run: |
+          set -uo pipefail
+          awk '/^-- tenancy assertions/{f=1} f' /tmp/dwellm8.sql > /tmp/assertions.sql
+
+          # Assertion 6: units judged at property granularity rather than unit.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            DROP POLICY units_tenant_isolation ON units;
+            CREATE POLICY units_tenant_isolation ON units
+              USING (tenant_id = current_tenant_id() OR is_platform_session()
+                     OR is_delegated(tenant_id, property_id, 'property.read'))
+              WITH CHECK (tenant_id = current_tenant_id() OR is_platform_session()
+                     OR is_delegated(tenant_id, property_id, 'property.write'));" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 6 accepted a units policy judged at property granularity"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          # Assertion 5: a property-scoped table with no delegated branch at all.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            DROP POLICY blocks_tenant_isolation ON blocks;
+            CREATE POLICY blocks_tenant_isolation ON blocks
+              USING (tenant_id = current_tenant_id() OR is_platform_session())
+              WITH CHECK (tenant_id = current_tenant_id() OR is_platform_session());" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 5 accepted a table with property_id and no delegated branch"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the assertions caught both, as they should"
+
       - name: Build
         run: go build ./...
 

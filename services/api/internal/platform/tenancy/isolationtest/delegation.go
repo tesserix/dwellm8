@@ -34,13 +34,6 @@ const (
 	OrgOutsider = tenancy.ID("55555555-5555-5555-5555-555555555555")
 )
 
-// Property ids the contract uses. Two of the five are granted, which is the
-// scenario in issue #6: a firm manages part of an owner's portfolio.
-var (
-	GrantedProperties   = []string{"66666666-0000-0000-0000-000000000001", "66666666-0000-0000-0000-000000000002"}
-	UngrantedProperties = []string{"66666666-0000-0000-0000-000000000003", "66666666-0000-0000-0000-000000000004", "66666666-0000-0000-0000-000000000005"}
-)
-
 // Grant describes a grant to seed. Seeding is a platform-session act because a
 // test is not a request, and because the grantor's own session is exactly what
 // the contract must not require to be running.
@@ -48,14 +41,22 @@ type Grant struct {
 	Grantor     tenancy.ID
 	Grantee     tenancy.ID
 	Permissions []string
-	// Properties the grant covers. Empty means the whole portfolio.
+	// Properties the grant covers, and Units for the finer mandate ADR-0009
+	// made enforceable. Both empty means the whole portfolio.
 	Properties []string
+	Units      []string
 }
 
 // SeedGrant writes a grant and returns its id.
+//
+// It seeds the fixtures first. Since ADR-0009 a scope row is validated against
+// the grantor's own tree, so a grant cannot be written before the properties and
+// units it names exist — and a test that ran alone used to depend on another
+// test having seeded them.
 func SeedGrant(t *testing.T, p tenancy.PlatformPool, g Grant) tenancy.GrantID {
 	t.Helper()
 	ctx := context.Background()
+	seedDelegationFixtures(t, p)
 
 	var id tenancy.GrantID
 	err := tenancy.Platform(ctx, p, "seeding the delegation contract", func(ctx context.Context, tx pgx.Tx) error {
@@ -65,17 +66,19 @@ func SeedGrant(t *testing.T, p tenancy.PlatformPool, g Grant) tenancy.GrantID {
 			g.Grantor.String(), g.Grantee.String(), g.Permissions).Scan(&id); err != nil {
 			return fmt.Errorf("inserting the grant: %w", err)
 		}
-		if len(g.Properties) == 0 {
+		if len(g.Properties) == 0 && len(g.Units) == 0 {
 			_, err := tx.Exec(ctx, `
 				INSERT INTO delegation_grant_scopes (grant_id, tenant_id, scope_kind, scope_id)
 				VALUES ($1, $2, 'portfolio', NULL)`, id.String(), g.Grantor.String())
 			return err
 		}
-		for _, prop := range g.Properties {
-			if _, err := tx.Exec(ctx, `
-				INSERT INTO delegation_grant_scopes (grant_id, tenant_id, scope_kind, scope_id)
-				VALUES ($1, $2, 'property', $3)`, id.String(), g.Grantor.String(), prop); err != nil {
-				return fmt.Errorf("inserting a scope: %w", err)
+		for kind, ids := range map[string][]string{"property": g.Properties, "unit": g.Units} {
+			for _, target := range ids {
+				if _, err := tx.Exec(ctx, `
+					INSERT INTO delegation_grant_scopes (grant_id, tenant_id, scope_kind, scope_id)
+					VALUES ($1, $2, $3, $4)`, id.String(), g.Grantor.String(), kind, target); err != nil {
+					return fmt.Errorf("inserting a %s scope: %w", kind, err)
+				}
 			}
 		}
 		return nil
@@ -128,7 +131,7 @@ func RunGrantModel(t *testing.T, p tenancy.Pool, plat tenancy.PlatformPool) {
 	t.Helper()
 	ctx := context.Background()
 
-	seedDelegationOrgs(t, plat)
+	seedDelegationFixtures(t, plat)
 	grant := SeedGrant(t, plat, Grant{
 		Grantor:     OrgOwner,
 		Grantee:     OrgFirm,
@@ -280,7 +283,7 @@ func RunDelegated(t *testing.T, p tenancy.Pool, plat tenancy.PlatformPool, tbl D
 	ctx := context.Background()
 	tok := token(t)
 
-	seedDelegationOrgs(t, plat)
+	seedDelegationFixtures(t, plat)
 	grant := SeedGrant(t, plat, Grant{
 		Grantor:     OrgOwner,
 		Grantee:     OrgFirm,
@@ -358,6 +361,16 @@ func countAs(t *testing.T, p tenancy.Pool, tbl DelegatedTable, as context.Contex
 		t.Fatalf("counting %s: %v", tbl.Name, err)
 	}
 	return n
+}
+
+// seedDelegationFixtures is the organisations and the owner's tree. Both are
+// needed before a grant can be written: the organisations because the grant
+// references them, the tree because ADR-0009 validates every scope row against
+// it.
+func seedDelegationFixtures(t *testing.T, p tenancy.PlatformPool) {
+	t.Helper()
+	seedDelegationOrgs(t, p)
+	SeedPropertyTree(t, p)
 }
 
 func seedDelegationOrgs(t *testing.T, p tenancy.PlatformPool) {
