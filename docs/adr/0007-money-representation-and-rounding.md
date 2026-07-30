@@ -4,7 +4,7 @@
 - **Date**: 2026-07-30
 - **Deciders**: Payments
 - **Issue**: [#8](https://github.com/tesserix/dwellm8/issues/8)
-- **Related**: [ADR-0006](0006-chart-of-accounts-and-posting-rules.md) (the ledger this standard feeds, and the `Minor` type it borrowed in advance), [ADR-0009](0009-property-block-unit-model.md) (what a prorated charge is charged against), ADR-0011 (payment provider, later), ADR-0012 (GST and TDS, later — this ADR fixes the arithmetic, not the rates)
+- **Related**: [ADR-0006](0006-chart-of-accounts-and-posting-rules.md) (the ledger this standard feeds, and the `Minor` type it borrowed in advance), [ADR-0009](0009-property-block-unit-model.md) (what a prorated charge is charged against), ADR-0011 (payment provider, next), [#18](https://github.com/tesserix/dwellm8/issues/18) and [#19](https://github.com/tesserix/dwellm8/issues/19) (the GST and TDS rule tables — this ADR fixes the arithmetic, not the rates)
 
 ---
 
@@ -334,7 +334,10 @@ reporting or analytics package that touches an amount is not caught. Widening th
 scope means deciding what "a money path" is outside the module, which is a real
 question and is deliberately not answered here.
 
-**What is not decided.** The GST and TDS rates and when each applies (ADR-0012).
+**What is not decided.** The GST and TDS rates and when each applies — issues
+[#18](https://github.com/tesserix/dwellm8/issues/18) and
+[#19](https://github.com/tesserix/dwellm8/issues/19), which are versioned,
+state-scoped rule tables rather than an ADR.
 Whether statements round display values differently from stored ones — they do
 not today, and `Rupees()` is exact, so the question only arises if a summary view
 ever shows amounts in thousands. And the shape of a money value in the event

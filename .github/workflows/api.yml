@@ -268,7 +268,49 @@ jobs:
           PGPASSWORD=bootstrap psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 \
             -c "GRANT dwellm8_platform TO dwellm8 WITH INHERIT FALSE, ADMIN TRUE, SET FALSE" >/dev/null
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
-          echo "the assertions caught all five, as they should"
+
+          # Assertion 6 again, against ADR-0011's payments table. The assertion
+          # was written for ADR-0009 and this table did not exist then; it is
+          # column-driven, so it polices a table nobody updated it for. Worth
+          # asserting rather than assuming — a guard that only covers the tables
+          # its author had in mind is a guard that decays with every migration.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            DROP POLICY payments_tenant_isolation ON payments;
+            CREATE POLICY payments_tenant_isolation ON payments
+                USING (tenant_id = current_tenant_id() OR is_platform_session()
+                       OR is_delegated(tenant_id, property_id, 'money.read'))
+                WITH CHECK (tenant_id = current_tenant_id() OR is_platform_session()
+                       OR is_delegated(tenant_id, property_id, 'money.collect'))" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 6 accepted a payments policy judged at property granularity"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the assertions caught all six, as they should"
+
+      # ADR-0011 §3. The payment state machine exists in Go and in PostgreSQL,
+      # and the dangerous direction of drift is the quiet one: the schema
+      # refusing a transition Go performs, so a payment stops advancing while
+      # every log line says the webhook was handled. Dropping the self-transition
+      # is the specific mistake somebody tidying the function up would make — it
+      # looks redundant and it is what makes a redelivered webhook a no-op.
+      - name: Prove the payment state machine drift check still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION payment_transition_allowed(from_status text, to_status text)
+              RETURNS boolean LANGUAGE sql IMMUTABLE PARALLEL SAFE AS \$\$
+              SELECT (from_status, to_status) IN
+                (('created','attempted'), ('attempted','captured'), ('captured','settled')) \$\$"
+          if go test -count=1 -run TestTheGoStateMachineMatchesTheDatabase ./internal/money/store/; then
+            echo "::error::the drift check passed with the self-transition removed from the schema"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the drift check caught it, as it should"
 
       # ADR-0007 §6. The float guard is the one check whose whole value is that
       # it fails, and the failure it prevents — a percentage computed in float64
