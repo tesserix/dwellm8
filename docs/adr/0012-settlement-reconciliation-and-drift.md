@@ -124,6 +124,14 @@ same reason `payment_with_tds` is separate from `payment` — with two new accou
 `gateway_fee` (expense) and `gst_input` (asset, because GST on a fee is creditable
 rather than lost).
 
+ADR-0006 §2 is headed "Fourteen accounts" and the chart now has sixteen. That is
+the ADR working as intended rather than a contradiction: an accepted ADR records
+what was decided when it was decided, and it is not edited. Nothing in the code
+asserts a count — the contract test compares the Go chart and `ledger_accounts` as
+sets, in both directions — which is why two accounts could be added without
+touching it, and is the difference between a test of the rule and a test of its
+size.
+
 The load-bearing detail: **clearing is credited the gross, not the net.** Clearing
 was debited the gross when the payment was captured, so it must be credited the
 gross or it keeps a residue forever. Netting the fee against the clearing credit
