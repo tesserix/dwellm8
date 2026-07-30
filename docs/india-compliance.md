@@ -142,13 +142,78 @@ states; the table carries both columns so the lease builder cannot conflate them
 a statute caps the deposit and the parties want more, the excess is not recorded as a
 deposit under another name.
 
-**The deposit is a lump sum.** It is a single payment to the owner at move-in, held
-against the tenancy — it is not financeable into instalments by this platform, and no
-collection flow may present it as one. A third-party deposit-alternative product
-([#109](https://github.com/tesserix/dwellm8/issues/109)) is a different thing entirely:
-a lender pays the owner the full sum and the tenant repays the lender. That repayment is
-a loan servicing arrangement between tenant and lender, and Dwellm8 neither collects it
-nor books it as rent.
+### The platform bound: two months minimum, three months maximum
+
+On top of the statutory ceiling, Dwellm8 sets its own bound on the Advance, everywhere:
+
+```
+min 2 months' rent   ·   max 3 months' rent
+```
+
+The two rules compose, and the statute always wins:
+
+```
+effective_max = min(3, statutory_max)        where the state row is verified
+effective_min = min(2, effective_max)        a floor may never exceed a lawful ceiling
+```
+
+So a Model Tenancy Act state permits exactly two months — the platform maximum of three
+is unreachable there, and the builder must not offer it. Three is reachable only where
+the statute allows three or more, or where no statutory cap applies. The floor collapses
+with the ceiling rather than fighting it: a state verified at one month yields one, not
+an unlawful two.
+
+Two consequences worth stating rather than discovering:
+
+- **The bound is a product decision, not a legal one**, so it lives beside the statutory
+  table with its own owner and review date — not inside it. Nothing should read the
+  platform floor and conclude a statute requires it.
+- **Bengaluru is where it bites.** Ten months is lawful under the 2001 Act and normal in
+  practice; capping at three is a deliberate refusal of the local norm. That is a
+  defensible tenant-side position and it will cost listings, so it belongs to product
+  with eyes open rather than being smuggled in as a validation rule.
+
+### Where the money goes, and what it is called
+
+**The Advance settles to the owner's own account.** Dwellm8 does not hold it, pool it, or
+earn on the float; the owner is the beneficiary of record and the platform's role ends at
+routing and recording. That keeps us clear of holding customer funds we have no licence
+to hold, and it means the owner — not the platform — carries the refund obligation at
+move-out.
+
+Two things follow directly. The owner must be onboarded as a settlement beneficiary
+before an Advance can be collected at all, which makes beneficiary onboarding a
+precondition of the move-in flow rather than a payout-time concern
+([#79](https://github.com/tesserix/dwellm8/issues/79)). And the aggregator's merchant
+rules apply to that beneficiary, which is the same constraint that closed the card rail
+in [`payment-rails.md`](payment-rails.md) §1.
+
+**"Advance" is the label; the ledger decides the substance.** ADR-0006 already has two
+accounts and they are not interchangeable:
+
+| The money is | Account | Tax treatment |
+|---|---|---|
+| Refundable at move-out, net of damages | `deposit_liability` | Not income on receipt; no TDS on receipt |
+| Adjustable against future rent months | `tenant_advance` | Rent in the year of receipt; TDS under 194-I / 194-IB applies |
+
+The Advance is a **refundable amount and posts to `deposit_liability`**, following the
+South Indian usage the word comes from. It is never revenue and never offsets rent by
+default.
+
+The conversion is the part that goes wrong. Where the parties agree to adjust the Advance
+against the final months' rent — a common arrangement, and one the lease builder must
+capture explicitly rather than infer — the adjusted portion moves from
+`deposit_liability` to `tenant_advance` **at the point of adjustment**, and the rent and
+TDS consequences attach from that date. A platform that lets a tenancy quietly consume
+its deposit as rent without that posting has understated the owner's income and missed a
+TDS deduction, which is a real liability and not a reporting nit.
+
+**The Advance is a lump sum.** It is a single payment at move-in, not financeable into
+instalments by this platform, and no collection flow may present it as one. A third-party
+deposit-alternative product ([#109](https://github.com/tesserix/dwellm8/issues/109)) is a
+different thing entirely: a lender pays the owner the full sum and the tenant repays the
+lender. That repayment is loan servicing between tenant and lender, and Dwellm8 neither
+collects it nor books it as rent.
 
 ---
 
