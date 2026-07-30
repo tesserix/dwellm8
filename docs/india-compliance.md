@@ -103,10 +103,52 @@ generating a defective one.
 
 ### Model Tenancy Act 2021
 
-Adopted state by state. Where adopted, it constrains security deposits (commonly two
-months' rent for residential), mandates written agreements filed with a Rent Authority,
-and defines notice and eviction process. Modelled as a per-state feature flag with the
-deposit cap enforced in the lease builder, not as a warning banner.
+Adopted state by state. Where adopted, it mandates written agreements filed with a Rent
+Authority, defines notice and eviction process, and caps the security deposit at **two
+months' rent for residential and six months' for non-residential** premises. Modelled as
+a per-state feature flag with the cap enforced in the lease builder, not as a warning
+banner.
+
+### Security deposit and advance rent — a state-scoped rule table
+
+The cap is state law, not national, and the states that matter most to us disagree with
+each other and with market practice. Bengaluru's ten-month deposit is the extreme case:
+lawful under the Karnataka Rent Act 2001, and reportedly cut to two months by a 2025
+amendment. A platform that hard-codes any single number is wrong in half the country
+within a year of shipping.
+
+So it is a versioned, state-scoped rule table — `state`, `use` (residential /
+non-residential), `max_deposit_months`, `max_advance_rent_months`, `statute`,
+`effective_from`, `verified_against_bare_act`, owner, review date — and the lease
+builder reads it. Same construction as the rail rule table in
+[`payment-rails.md`](payment-rails.md), for the same reason.
+
+| Jurisdiction | Residential | Non-residential | Statute | Status |
+|---|---|---|---|---|
+| Model Tenancy Act baseline | 2 months | 6 months | MTA 2021, s.11 | Verified |
+| Maharashtra | 2 months | 6 months | Maharashtra Rent Control Act 1999, s.56 | Needs bare-act check |
+| Karnataka (pre-amendment) | up to 10 months | up to 10 months | Karnataka Rent Act 2001 | Needs bare-act check |
+| Karnataka (from Jan 2026) | 2 months | — | Karnataka Rent (Amendment) Act 2025 | **Unverified** — secondary sources only |
+| Tamil Nadu | 3 months (some sources say 1) | 6 months | TN Landlords and Tenants Act 2017 | **Conflicting** — resolve before use |
+| Elsewhere | MTA baseline where adopted, else no statutory cap | | | |
+
+Every row marked unverified or conflicting must be checked against the bare act and
+signed off by legal before it gates anything a user sees. Until then the builder warns
+and does not block, and the row records that it is doing so — a cap enforced from a blog
+post is worse than no cap, because it is wrong with authority.
+
+**Advance rent is not the deposit** and is capped separately (or prohibited) in several
+states; the table carries both columns so the lease builder cannot conflate them. Where
+a statute caps the deposit and the parties want more, the excess is not recorded as a
+deposit under another name.
+
+**The deposit is a lump sum.** It is a single payment to the owner at move-in, held
+against the tenancy — it is not financeable into instalments by this platform, and no
+collection flow may present it as one. A third-party deposit-alternative product
+([#109](https://github.com/tesserix/dwellm8/issues/109)) is a different thing entirely:
+a lender pays the owner the full sum and the tenant repays the lender. That repayment is
+a loan servicing arrangement between tenant and lender, and Dwellm8 neither collects it
+nor books it as rent.
 
 ---
 

@@ -36,16 +36,21 @@ is genuinely the merchant:
 - Dwellm8's own platform fees, subscription tiers and premium AI entitlement (#147).
 - A management firm collecting into its own account under its own PA contract —
   it *is* a merchant, and its tenants may pay it by card if the firm accepts the MDR.
-- Brokerage, onboarding, agreement/e-stamp and services-marketplace charges billed
-  by whoever performs the service.
-- Deposit alternatives and deposit financing (#109), which are a lending product
-  sold by a lender, not a rent collection.
+- Brokerage, onboarding, agreement/e-stamp, registration and services-marketplace
+  charges, billed by whoever performs the service.
 
-That last group is where EMI earns its place: a ₹1.5 lakh security deposit split
-over three months is a real conversion lever, and it is a legitimate card/EMI
-transaction because the merchant is the party providing the deposit product. A
-₹45,000 monthly rent on a credit card is not, and we should stop describing it as
-a roadmap item.
+**The security deposit is not in that list.** A deposit is a lump sum paid to the
+owner at move-in and held against the tenancy; it is not an instalment product and
+no collection flow may present it as one. The deposit-alternative products (#109)
+are a separate thing that only looks similar: a lender pays the owner the full sum
+and the tenant repays the lender. That repayment is loan servicing between tenant
+and lender — Dwellm8 does not collect it, does not book it as rent, and does not
+put it on a card of ours. See the deposit cap rule table in
+[`india-compliance.md`](india-compliance.md), which also carries the statutory
+limit on how many months may be taken at all.
+
+So EMI's honest scope on this platform is platform-billed services and fees, and
+nothing that is rent or deposit.
 
 ---
 
@@ -64,8 +69,8 @@ is out of scope for this spike. UPI and RuPay debit carry zero MDR by statute.
 | Netbanking | `netbanking` | bank-set | ~1.9% | ✅ 50+ banks | ✅ | One-off high-value where UPI caps bite; MDR must be a disclosed pass-through (#179) |
 | Debit card | `card` | ₹15k AFA-free recurring | ~0.9%–1.9% | ✅ | ✅ | Marginal for rent; useful for platform billing |
 | Credit card | `card` | — | ~1.9%+ | ✅ | ✅ | **Not for rent** — §1. Platform billing and firm-as-merchant only |
-| Card EMI / no-cost EMI | *new* `emi` | issuer-set | ~1.9%+ subvention | ✅ 35+ issuers | ✅ | Deposits, brokerage, deposit alternatives — **never rent** |
-| Cardless EMI / BNPL | *new* `emi` | lender-set | ~2.5% | ✅ FlexMoney, HDFC, ICICI, IDFC, TVS, CASHe | ✅ | Same: deposit financing (#109), not rent |
+| Card EMI / no-cost EMI | *new* `emi` | issuer-set | ~1.9%+ subvention | ✅ 35+ issuers | ✅ | Platform-billed fees and services only — **never rent, never the deposit** |
+| Cardless EMI / BNPL | *new* `emi` | lender-set | ~2.5% | ✅ FlexMoney, HDFC, ICICI, IDFC, TVS, CASHe | ✅ | Same. #109 is a lender's product, not an EMI we collect |
 | Wallets | *new* `wallet` | ₹2L full-KYC | ~1.9% | ✅ | ✅ | Low value for rent-sized amounts. Defer |
 | Cash / cheque / bank transfer | `offline_*` | — | 0 | n/a | n/a | Already built. ADR-0011 §6 — a method, not a fallback |
 
