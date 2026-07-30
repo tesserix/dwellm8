@@ -351,7 +351,92 @@ jobs:
             exit 1
           fi
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
-          echo "the assertions caught all eleven, as they should"
+
+          # Assertion 14, ADR-0008. Column-driven like assertion 6, so it polices a
+          # table nobody updated it for — the second plant is a table invented here
+          # and never mentioned in the schema, which is how ADR-0010's rent schedule
+          # was covered before it existed.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            ALTER TABLE property_ownership DROP CONSTRAINT property_ownership_no_overlap_unit;
+            ALTER TABLE property_ownership DROP CONSTRAINT property_ownership_no_overlap_property" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 14 accepted an effective-dated table with no exclusion constraint — two revisions of the same flat can both be current"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE TABLE assertion14_probe (id uuid PRIMARY KEY, tenant_id uuid NOT NULL,
+              valid_from date NOT NULL, valid_to date)" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 14 did not notice a new effective-dated table — it only covers the tables its author had in mind"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "DROP TABLE assertion14_probe" >/dev/null
+
+          # And the other half of the rule: an effective date modelled as a timestamp,
+          # which is the plausible mistake because every other date column in the file
+          # is a timestamptz.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE TABLE assertion14_tsprobe (id uuid PRIMARY KEY, tenant_id uuid NOT NULL,
+              valid_from timestamptz NOT NULL, valid_to timestamptz)" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 14 accepted an effective date as a timestamp — 1 April then means two days five and a half hours apart"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "DROP TABLE assertion14_tsprobe" >/dev/null
+          echo "the assertions caught all fourteen, as they should"
+
+      # ADR-0008 §4 and §6. Neither of these failures has an error in it at the time:
+      # an overlap makes an as-of query silently return whichever row the planner
+      # reached first, and an in-place edit makes the history say something that was
+      # never true.
+      - name: Prove effective dating still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            ALTER TABLE property_ownership DROP CONSTRAINT property_ownership_no_overlap_unit"
+          if go test -count=1 -run TestOwnershipAnswersAsOfAndRefusesOverlap \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::two ownership intervals overlapping the same day were accepted"
+            exit 1
+          fi
+          # The planted test committed the overlapping row, and ADD CONSTRAINT
+          # validates existing rows — same situation as the ADR-0015 guard, same fix.
+          PGPASSWORD=bootstrap psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            ALTER TABLE property_ownership NO FORCE ROW LEVEL SECURITY;
+            DELETE FROM property_ownership;
+            ALTER TABLE property_ownership FORCE ROW LEVEL SECURITY;" >/dev/null
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "DROP TRIGGER property_ownership_no_edit ON property_ownership"
+          if go test -count=1 -run TestOwnershipHistoryCannotBeEditedInPlace \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::ownership history was edited in place, so the record now says something that was never true"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "effective dating caught both, as it should"
+
+      # ADR-0001's dependency direction, which nothing enforced until ADR-0008 wanted
+      # money.Minor for a rent amount in a platform package. That reads as harmless
+      # and inverts the arrow.
+      - name: Prove platform cannot depend on a module
+        run: |
+          set -uo pipefail
+          trap 'rm -f internal/platform/effective/planted_dep.go' EXIT
+          printf 'package effective\n\nimport _ "github.com/tesserix/dwellm8/services/api/internal/money/domain"\n' \
+            > internal/platform/effective/planted_dep.go
+          if go test -count=1 -run TestPlatformDoesNotImportAModule ./internal/platform/arch/; then
+            echo "::error::a platform package imported a module and the guard passed"
+            exit 1
+          fi
+          echo "the guard caught it, as it should"
 
       # ADR-0015 §4. The rule this whole standard turns on: a run that passed the
       # point of no return cannot have been compensated, because nothing after an

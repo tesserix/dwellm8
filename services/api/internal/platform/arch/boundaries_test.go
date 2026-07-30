@@ -20,6 +20,44 @@ var modules = []string{
 
 const modulePrefix = "github.com/tesserix/dwellm8/services/api/internal/"
 
+// Platform is below the modules, so it may not import one.
+//
+// ADR-0001 puts config, health, telemetry and the tenancy machinery in platform and
+// the eight modules above it. Nothing enforced the direction until ADR-0008 landed a
+// platform package that wanted money.Minor for a rent amount — which reads as
+// harmless and inverts the dependency, so the money module could no longer be
+// changed without checking what platform assumed about it.
+//
+// The fix in that case was an int64 in the one place it was needed. The guard is
+// here because the next one will look just as harmless.
+func TestPlatformDoesNotImportAModule(t *testing.T) {
+	root := repoInternalDir(t)
+	platformDir := filepath.Join(root, "platform")
+
+	err := filepath.WalkDir(platformDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(root, path)
+		for _, mod := range modules {
+			needle := modulePrefix + mod + "/"
+			if strings.Contains(string(src), needle) {
+				t.Errorf("%s imports %s\n\tplatform sits below the modules (ADR-0001): a module may "+
+					"use platform, and platform may not depend on a module — otherwise %s cannot be "+
+					"changed without checking what platform assumed about it", rel, needle, mod)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walking platform/: %v", err)
+	}
+}
+
 func TestNoModuleImportsAnotherModulesStoreOrDomain(t *testing.T) {
 	root := repoInternalDir(t)
 
