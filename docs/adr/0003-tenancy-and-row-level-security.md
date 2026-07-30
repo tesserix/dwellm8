@@ -45,8 +45,9 @@ CREATE POLICY <t>_tenant_isolation ON <t>
     WITH CHECK (tenant_id = current_tenant_id() OR is_platform_session());
 ```
 
-Three things in that template are load-bearing, and each was learned the hard
-way.
+Three things in that template are load-bearing. Two were learned the hard way;
+the third turned out to be less dramatic than first claimed, and is corrected
+below rather than left standing.
 
 **`FORCE`, not merely `ENABLE`.** A table's owner bypasses its own policies.
 The bootstrap job creates these tables as `dwellm8`, and the API originally
@@ -54,10 +55,20 @@ connected as `dwellm8` — so every policy was decorative for exactly the role
 that mattered. Measured on a real instance: the owner saw 2 of 2 rows with
 `ENABLE`, and 1 of 2 with `FORCE`.
 
-**`WITH CHECK`, not only `USING`.** `USING` filters what a statement can see;
-`WITH CHECK` filters what it can write. With only the first, a session scoped
-to organisation A can insert a row belonging to organisation B and then be
-unable to read it back — worse than either failing or succeeding cleanly.
+**`WITH CHECK` as well as `USING`.** `USING` filters what a statement can see;
+`WITH CHECK` filters what it can write.
+
+An earlier draft of this ADR claimed that `USING` alone lets a scoped session
+insert a row belonging to another organisation. That is **not** true, and the
+harness proved it: with `USING` only, PostgreSQL falls back to the `USING`
+expression for the write check, and the cross-tenant insert is refused. The
+claim was wrong and is corrected here rather than quietly deleted.
+
+`WITH CHECK` is still required, for two reasons that survive the correction.
+It is explicit — a reader does not have to know the fallback rule to see that
+writes are constrained. And the moment a policy needs the two to differ (a
+read-only grant, say, where you may see a row you may not modify) the fallback
+silently does the wrong thing.
 
 **`current_tenant_id()`, not `current_setting(...)::uuid`.**
 `current_setting('app.tenant_id', true)` returns NULL when never set but an
@@ -114,13 +125,22 @@ and wrong in favour of disclosure.
 `internal/platform/tenancy` is the only sanctioned way to reach the database:
 
 ```go
-// Scoped runs fn inside a transaction with app.tenant_id set. There is no
-// exported way to get a *sql.Tx without a tenant, which is the point.
-func Scoped(ctx context.Context, db *sql.DB, fn func(context.Context, *sql.Tx) error) error
+// Scoped runs fn in a transaction with app.tenant_id set. Without a tenant in
+// the context it returns ErrNoTenant and never reaches the database.
+func Scoped(ctx context.Context, p Pool, fn func(context.Context, pgx.Tx) error) error
+
+// Platform is the exemption, and it takes a different pool — one connected as
+// dwellm8_platform. Being unscoped is not enough, because the policies exempt
+// a role; passing the request pool here would just return zero rows, which is
+// a confusing way to fail. reason is written to the audit trail.
+func Platform(ctx context.Context, p PlatformPool, reason string, fn func(context.Context, pgx.Tx) error) error
 ```
 
-A repository that takes a raw `*sql.DB` fails the boundary test in
-`internal/platform/arch`, alongside ADR-0001's module import rules.
+`PlatformPool` is a distinct type rather than a plain `Pool`, so the privileged
+connection cannot be passed where the request pool is expected. That shape came
+out of the harness: the first version took a `Pool`, and the test failed with a
+policy violation that took a minute to read as "wrong role" rather than "wrong
+tenant".
 
 ### 6. The tenant-isolation test contract
 
@@ -135,10 +155,27 @@ Every module's store package satisfies the same five, or it is not done:
 5. A platform session sees across organisations, and the access appears in
    `audit_events`.
 
-Three of these are asserted at bootstrap as well, in
-`003_tenancy_assertions.sql`: a table with RLS enabled but not forced, a role
-holding `BYPASSRLS`, or a policy without `WITH CHECK` fails the schema job
-rather than shipping.
+The harness in `internal/platform/tenancy/isolationtest` implements all five,
+so a module satisfies the contract by describing its table:
+
+```go
+isolationtest.Run(t, pool, isolationtest.Table{
+    Name:   "audit_events",
+    Insert: func(ctx, tx, tenant, token) error { ... },
+    Count:  func(ctx, tx, token) (int, error) { ... },
+})
+```
+
+Each run tags its rows with a token, because the harness commits: without one
+the counts drift upward across runs and the first assertion fails for a reason
+that has nothing to do with isolation. That happened during development.
+
+`SchemaAudit` then catches the table nobody wrote a test for — anything in
+`public` without `tenant_id`, without RLS, or without FORCE fails the build and
+names the table.
+
+The same three properties are asserted at bootstrap, so a schema that violates
+them fails the job rather than shipping.
 
 ### 7. Cross-organisation access
 

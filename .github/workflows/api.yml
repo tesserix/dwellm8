@@ -21,6 +21,24 @@ jobs:
     defaults:
       run:
         working-directory: services/api
+
+    # A real PostgreSQL, because the isolation harness checks PostgreSQL's own
+    # behaviour — FORCE row level security, and what an unset session variable
+    # does. A mock would only assert that the mock works.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: bootstrap
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -38,10 +56,47 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      # Includes internal/platform/arch — the ADR-0001 boundary tests. A module
-      # reaching into another module's store fails the build here.
+      # The schema under test is the one that ships: the same file the cluster's
+      # bootstrap job applies, fetched from tesserix-k8s rather than a copy that
+      # can drift.
+      - name: Load the dwellm8 schema
+        env:
+          PGPASSWORD: bootstrap
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/dwellm8.sql \
+            https://raw.githubusercontent.com/tesserix/tesserix-k8s/main/charts/apps/db-schema-bootstrap/schemas/dwellm8/dwellm8/dwellm8.sql
+          psql -h localhost -U postgres -c "CREATE ROLE dwellm8 LOGIN CREATEROLE PASSWORD 'ci'"
+          psql -h localhost -U postgres -c "CREATE DATABASE dwellm8 OWNER dwellm8"
+          PGPASSWORD=ci psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql
+          PGPASSWORD=ci psql -h localhost -U dwellm8 -d dwellm8 \
+            -c "ALTER ROLE dwellm8_api WITH PASSWORD 'ci'" \
+            -c "ALTER ROLE dwellm8_platform WITH PASSWORD 'ci'"
+
+      # Includes internal/platform/arch — the ADR-0001 boundary tests — and the
+      # ADR-0003 isolation harness, which needs both DSNs to run rather than skip.
       - name: Test
+        env:
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
         run: go test -race -count=1 ./...
+
+      # The harness is only worth having if it fails. This plants a real
+      # violation and expects a red build; a green one means the guard is gone.
+      - name: Prove the isolation harness still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -c "ALTER TABLE audit_events NO FORCE ROW LEVEL SECURITY"
+          if go test -count=1 -run TestAuditEventsIsolation ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::the isolation harness passed with FORCE removed — the guard is not working"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -c "ALTER TABLE audit_events FORCE ROW LEVEL SECURITY"
+          echo "the harness caught it, as it should"
 
       - name: Build
         run: go build ./...
