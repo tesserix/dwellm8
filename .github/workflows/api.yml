@@ -597,6 +597,59 @@ jobs:
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
           echo "the lifecycle caught all four, as it should"
 
+      # ADR-0019. The first read path in this schema that does not fail closed, so the
+      # guards are about how narrow it is. The second plant is the one that matters: a
+      # policy reaching a publicly-readable table through a subquery inherits its
+      # visibility, which is how an anonymous visitor could read every enquiry — and
+      # assertion 17 cannot see it, because the policy does mention the tenant.
+      - name: Prove the public listing surface stays narrow
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            DROP POLICY listings_public_read ON listings;
+            CREATE POLICY listings_public_read ON listings
+              USING (tenant_id = current_tenant_id() OR is_platform_session()
+                     OR is_delegated_unit(tenant_id, property_id, unit_id, unit_parent_id, 'property.read')
+                     OR true)
+              WITH CHECK (tenant_id = current_tenant_id() OR is_platform_session());"
+          if go test -count=1 -run TestAnAnonymousVisitorSeesPublishedListingsAndNothingElse \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::an unpublished listing was publicly visible — a draft would be advertised before its owner published it"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          # The leak this ADR actually caused. A policy that mentions the tenant *and*
+          # reaches listings through a subquery is world-readable, and looks correct.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            DROP POLICY enquiries_tenant_isolation ON enquiries;
+            CREATE POLICY enquiries_tenant_isolation ON enquiries
+              USING (tenant_id = current_tenant_id() OR is_platform_session()
+                     OR EXISTS (SELECT 1 FROM listings l WHERE l.id = listing_id))
+              WITH CHECK (tenant_id = current_tenant_id() OR is_platform_session());"
+          if go test -count=1 -run TestAnAnonymousVisitorSeesNothingButListings \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::an anonymous visitor read enquiries through a subquery to the public listings table"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION enquiries_need_a_verified_prospect() RETURNS trigger
+              LANGUAGE plpgsql AS \$\$ BEGIN RETURN NEW; END \$\$"
+          if go test -count=1 -run TestAnEnquiryNeedsAVerifiedProspect \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::an unverified prospect booked an inspection — the only wall in the funnel is gone"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the listing surface caught all three, as it should"
+
       # ADR-0021. The two halves hold each other up, so both are planted: a demo that can
       # reach a real provider would hold real money, and a sandbox that cannot be purged
       # grows forever. Neither failure announces itself.

@@ -19,6 +19,7 @@ stays readable.
 | [0012](0012-settlement-reconciliation-and-drift.md) | Settlement reconciliation: two directions, drift by which pair disagreed, `reconciled` earned not claimed | Accepted |
 | [0013](0013-kyc-data-handling.md) | KYC data handling: three tiers, a full identifier made unstorable, a column allowlist | Accepted |
 | [0015](0015-durable-workflow-standard.md) | Durable workflows: a rule that generates the list, the irreversible step last, keys from the workflow | Accepted |
+| [0019](0019-public-listing-surface.md) | Public listings: one table readable without a tenant, rows that opt in, read-only by construction | Accepted |
 | [0021](0021-demo-sandbox-architecture.md) | Demo sandbox: purgeable because nothing real originates in it, and vice versa | Accepted |
 
 0004 is missing on purpose: the identity and authorisation decision it was
@@ -29,7 +30,6 @@ number is reserved by an open planning issue and will be written when the work
 reaches it: 0014 database topology and RPO/RTO ([#25](https://github.com/tesserix/dwellm8/issues/25)),
 0016 mobile stack ([#118](https://github.com/tesserix/dwellm8/issues/118)),
 0018 web topology ([#120](https://github.com/tesserix/dwellm8/issues/120)),
-0019 public listing surface ([#132](https://github.com/tesserix/dwellm8/issues/132)),
 0020 OpenFGA authorisation ([#148](https://github.com/tesserix/dwellm8/issues/148)).
 The money spine was built first because everything else posts to it.
 

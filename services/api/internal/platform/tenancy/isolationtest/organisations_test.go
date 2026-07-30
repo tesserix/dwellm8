@@ -113,8 +113,18 @@ func TestSchemaAudit(t *testing.T) {
 	//
 	// This guard is why that pair had to be argued for rather than added: it fired
 	// on both tables the moment they existed.
+	// And ADR-0019's two, which are exempt for a third reason again: they hold data about
+	// somebody who is not a customer of anybody. A prospect is browsing the whole site,
+	// and attributing them to the first owner whose listing they opened would be wrong —
+	// and would leak their interest in the others to that owner. So a prospect belongs to
+	// no organisation, their shortlist likewise, and assertion 12 requires both to be
+	// platform-write-only, which they are.
+	//
+	// An enquiry is the first row in that funnel that does belong to somebody, and it has
+	// an ordinary tenant_id — which is the line this exemption stops at.
 	p := pool(t)
 	isolationtest.SchemaAudit(t, p,
 		"ledger_accounts", "posting_templates", "posting_template_lines",
-		"settlement_batches", "reconciliation_runs")
+		"settlement_batches", "reconciliation_runs",
+		"prospects", "prospect_shortlist")
 }
