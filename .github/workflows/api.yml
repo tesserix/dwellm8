@@ -48,7 +48,10 @@ jobs:
 
   image:
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Manual dispatch builds an image too — otherwise re-running a build by hand
+    # silently produces nothing, which is how you wait an hour for a tag that
+    # was never going to exist.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
