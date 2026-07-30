@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -196,6 +197,45 @@ func TestTheGoVocabulariesAreAcceptedByTheSchema(t *testing.T) {
 	} {
 		if !strings.Contains(reasons, "'"+string(r)+"'") {
 			t.Errorf("reversal reason %q is producible in Go and refused by the schema", r)
+		}
+	}
+}
+
+// ADR-0007's two constants exist in Go and in the schema, and a constant that
+// exists twice is a constant that will differ once.
+//
+// The ceiling matters more than it looks. Go refuses an amount beyond 2^53-1
+// before writing it; the CHECK refuses it again for everything that did not come
+// through Go. If the two ever drift apart, the looser one is the real limit and
+// the stricter one is decoration.
+func TestTheRepresentableCeilingAndCurrencyMatchTheSchema(t *testing.T) {
+	ctx := context.Background()
+	p := pool(t)
+
+	var ceiling string
+	if err := p.QueryRow(ctx,
+		`SELECT pg_get_constraintdef(oid) FROM pg_constraint
+		  WHERE conname = 'ledger_postings_amount_representable'`).Scan(&ceiling); err != nil {
+		t.Fatalf("reading the amount ceiling: %v — ADR-0007 §5 requires it on ledger_postings", err)
+	}
+	if want := strconv.FormatInt(int64(domain.MaxSafeMinor), 10); !strings.Contains(ceiling, want) {
+		t.Errorf("the schema bounds amount_minor by %q and Go by %s — the looser of the two is the real limit",
+			ceiling, want)
+	}
+
+	// The currency is stated in three places — both tables and Go — and all
+	// three have to name the same one, or a row is writable that the module
+	// cannot produce.
+	for _, table := range []string{"journal_entries", "ledger_postings"} {
+		var def string
+		if err := p.QueryRow(ctx,
+			`SELECT pg_get_constraintdef(oid) FROM pg_constraint
+			  WHERE conrelid = $1::regclass AND pg_get_constraintdef(oid) LIKE '%currency%'`,
+			table).Scan(&def); err != nil {
+			t.Fatalf("reading %s's currency constraint: %v", table, err)
+		}
+		if !strings.Contains(def, "'"+domain.Currency+"'") {
+			t.Errorf("%s constrains currency as %q and Go's constant is %q", table, def, domain.Currency)
 		}
 	}
 }

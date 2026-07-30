@@ -270,6 +270,25 @@ jobs:
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
           echo "the assertions caught all five, as they should"
 
+      # ADR-0007 §6. The float guard is the one check whose whole value is that
+      # it fails, and the failure it prevents — a percentage computed in float64
+      # — looks entirely reasonable in review. So a real float is planted in the
+      # money module and the build is expected to go red naming the line.
+      - name: Prove the money float guard still bites
+        run: |
+          set -uo pipefail
+          trap 'rm -f internal/money/domain/planted_float.go' EXIT
+          cat > internal/money/domain/planted_float.go <<'GO'
+          package domain
+
+          func plantedFee(amount Minor) Minor { return Minor(float64(amount) * 0.0299) }
+          GO
+          if go test -count=1 -run TestNoFloatInAMoneyPath ./internal/platform/arch/; then
+            echo "::error::the float guard passed with a float64 percentage in internal/money/domain"
+            exit 1
+          fi
+          echo "the float guard caught it, as it should"
+
       - name: Build
         run: go build ./...
 

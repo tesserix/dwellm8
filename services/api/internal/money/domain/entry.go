@@ -140,6 +140,10 @@ func (e Entry) Validate() error {
 			return fmt.Errorf("money: posting %d on %s is %s: amounts are positive and the side carries the direction",
 				i, p.Account, p.Amount)
 		}
+		// ADR-0007 §5: nothing is written that cannot be read back exactly.
+		if err := p.Amount.Valid(); err != nil {
+			return fmt.Errorf("posting %d on %s: %w", i, p.Account, err)
+		}
 		if p.Side != Debit && p.Side != Credit {
 			return fmt.Errorf("money: posting %d on %s has side %q", i, p.Account, p.Side)
 		}
