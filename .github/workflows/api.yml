@@ -385,7 +385,88 @@ jobs:
             exit 1
           fi
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "DROP TABLE assertion14_tsprobe" >/dev/null
-          echo "the assertions caught all fourteen, as they should"
+
+          # Assertion 15, ADR-0013. Two clauses because they catch different developers:
+          # a column named after the identifier (the careless case, and the common one),
+          # and any column at all that ADR-0013 does not list (the case that does not
+          # depend on guessing what somebody calls the field).
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE TABLE assertion15_probe (id uuid PRIMARY KEY, aadhaar_number text)" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 15 accepted a column named after a prohibited identifier"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "DROP TABLE assertion15_probe" >/dev/null
+
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            ALTER TABLE kyc_verifications ADD COLUMN full_number text" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 15 accepted a thirteenth column on kyc_verifications — a field that would persist a full identifier is not blocked"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            ALTER TABLE kyc_verifications DROP COLUMN full_number" >/dev/null
+          echo "the assertions caught all fifteen, as they should"
+
+      # ADR-0013 §2. The mechanism, not the intention: the column will not take a full
+      # identifier. Dropping the CHECK must make the isolation test go red, and the
+      # cleanup afterwards matters — the planted test writes the rows the constraint
+      # forbids, so the schema cannot be replayed over them.
+      - name: Prove a full identifier cannot be stored
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "ALTER TABLE kyc_verifications DROP CONSTRAINT kyc_verifications_reference_is_a_mask"
+          if go test -count=1 -run TestAFullIdentifierCannotBeWrittenByAnyPath \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::a full Aadhaar number was stored — this is the honeypot ADR-0013 exists to prevent"
+            exit 1
+          fi
+          # The planted rows hold full identifiers, so ADD CONSTRAINT cannot validate over
+          # them. The schema warns rather than aborting (see its load-bearing rules block)
+          # and assertion 13 then fails, so the rows have to go before the replay.
+          PGPASSWORD=bootstrap psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            ALTER TABLE kyc_verifications NO FORCE ROW LEVEL SECURITY;
+            DELETE FROM kyc_access_log; DELETE FROM kyc_verifications;
+            ALTER TABLE kyc_verifications FORCE ROW LEVEL SECURITY;" >/dev/null
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "ALTER TABLE kyc_access_log DROP CONSTRAINT kyc_access_log_support_needs_a_grant"
+          if go test -count=1 -run TestASupportReadWithoutAGrantIsRefused \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::a support read with no grant behind it was recorded, so access is not time-bound"
+            exit 1
+          fi
+          PGPASSWORD=bootstrap psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            ALTER TABLE kyc_access_log NO FORCE ROW LEVEL SECURITY;
+            DELETE FROM kyc_access_log;
+            ALTER TABLE kyc_access_log FORCE ROW LEVEL SECURITY;" >/dev/null
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the KYC constraints caught both, as they should"
+
+      # ADR-0013 §2's Go half. A field named after the identifier is a field that reaches
+      # a log, and the SDK returning `aadhaarNumber` is how the name gets there.
+      - name: Prove nothing can be named after a prohibited identifier
+        run: |
+          set -uo pipefail
+          trap 'rm -f internal/money/domain/planted_pii.go' EXIT
+          cat > internal/money/domain/planted_pii.go <<'GO'
+          package domain
+
+          type plantedKYC struct {
+          	AadhaarNumber string `json:"aadhaar_number"`
+          }
+          GO
+          if go test -count=1 -run TestNothingIsNamedAfterAProhibitedIdentifier ./internal/platform/arch/; then
+            echo "::error::a struct field named after a prohibited identifier passed the guard"
+            exit 1
+          fi
+          echo "the guard caught it, as it should"
 
       # ADR-0008 §4 and §6. Neither of these failures has an error in it at the time:
       # an overlap makes an as-of query silently return whichever row the planner
