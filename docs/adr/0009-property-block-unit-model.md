@@ -207,7 +207,40 @@ privilege lock firing before the policy is reached.
 The table owner remains the escape hatch: a DBA at a `psql` prompt can still
 delete, deliberately, and that is the only path.
 
-### 6. The contract, and what fails the build
+### 6. A data migration in this schema cannot see any row
+
+Found by replaying ADR-0009 onto a database that already held a grant scope,
+which is the only path prod would ever take.
+
+The backfill that resolves an old scope row to its property is an `UPDATE`. It
+reported `UPDATE 0` and the `CHECK` constraint two statements later failed on the
+row the backfill was supposed to have fixed — `check constraint
+delegation_grant_scopes_property_shape ... is violated by some row`. The backfill
+read correctly, reviewed correctly, and could not work: the bootstrap connects as
+the table owner, `FORCE ROW LEVEL SECURITY` applies to the owner, and the job
+sets no `app.tenant_id` because it is not a request. Every policy evaluates to
+false, so the statement matches nothing — and matching nothing is not an error.
+
+This is a property of the schema, not of this migration. Any future backfill has
+it.
+
+Two fixes were possible. Granting the owner membership of `dwellm8_platform`
+looked obvious and is wrong: the API deployment connects with the CNPG app
+credentials, whose username *is* the owner, so the exemption would have applied to
+every request and switched tenant isolation off for the whole application while
+every policy still read correctly. Verified against the running cluster before
+writing it off.
+
+So a migration opens the smallest window instead — `NO FORCE`, the statement,
+`FORCE` — inside one `DO` block and therefore one transaction. The `ALTER` takes
+an `ACCESS EXCLUSIVE` lock, so no other session reads the table unforced, and a
+failure rolls the whole thing back: measured with an injected exception, `FORCE`
+was still on afterwards. Assertion 1 catches a window left open.
+
+Data migrations therefore live in their own section after the roles, not beside
+the table they touch, and the file says why.
+
+### 7. The contract, and what fails the build
 
 `isolationtest.RunPropertyScope` asserts the whole of §4 against a real
 PostgreSQL: what a unit-scoped mandate sees (an exact set of codes, not a count —
@@ -351,6 +384,9 @@ Keep `is_delegated()` at property granularity and filter units in Go.
 - `is_delegated_unit()` runs a scope lookup per candidate row, as ADR-0005's
   consequences predicted. Indexed on `(grant_id, scope_property_id)`, but a
   delegated portfolio listing is measurably more work than an owner's own.
+- A data migration needs an explicit RLS window (§6) and is easy to write without
+  one, in which case it silently does nothing. The `UPDATE 0` looks like "there
+  was nothing to do".
 - Every external identifier — municipal tax id, electricity consumer number,
   RERA id — is unconstrained free text and not unique. Two flats genuinely can
   share a meter, and a municipal id genuinely is reassigned after a subdivision.
