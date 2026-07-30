@@ -23,9 +23,12 @@ an owner's units through a grant, at unit granularity, since ADR-0009 — so an
 owner's money has to be reachable the same way and no further.
 
 Everything below was measured against PostgreSQL 16, which is what CI and prod
-run. Four things came out differently from the design, and one of them was a live
-defect in the tenancy model that has nothing to do with the ledger. They are
-recorded as they happened.
+run. Four things came out differently from the design, and one of them was a
+defect in the tenancy model that has nothing to do with the ledger — it switched
+tenant isolation off for any session connecting as the schema's owner, in every
+environment whose roles the bootstrap job created. They are recorded as they
+happened, production included, where the answer was better than expected and is
+written down rather than assumed.
 
 ---
 
@@ -244,20 +247,37 @@ creates** — `WITH ADMIN TRUE, INHERIT FALSE, SET FALSE`. The bootstrap job has
 `CREATEROLE` and creates `dwellm8_platform`, so it holds a bookkeeping membership
 of it, and `'MEMBER'` answers true for a membership whose privileges are
 explicitly not inherited. ADR-0009 §6 argued at length against granting the owner
-membership of `dwellm8_platform` because the API deployment connects with the
-CNPG app credentials, whose username *is* the owner. The server had already
-granted it.
+membership of `dwellm8_platform`. The server grants it by itself.
 
 The fix is one word: `'USAGE'` asks whether the role's privileges are in force for
 this session, which is what the exemption actually means. It answers false for
 the admin-only grant and stays true for `dwellm8_platform` itself. After the
 change, the owner sees 0 postings and the platform role still sees all 161.
 
-Assertion 11 fails the bootstrap if any table owner ever does inherit the
-platform role, and CI plants the inherited grant and requires the assertion to
-fire. Every policy in the schema read correctly throughout; nothing about the
-defect was visible in a diff, which is the argument for assertions that ask the
-running server rather than for review.
+**What this was worth in production, measured rather than assumed.** Two things
+in ADR-0009 §6 have since stopped being true, and both were checked against the
+running cluster before this paragraph was written:
+
+- The API does *not* connect as the owner. Its `DB_USER` comes from
+  `dwellm8-postgres-api-credentials`, whose username is `dwellm8_api` — a
+  dedicated role, exactly as the schema intends. ADR-0009 §6 recorded the CNPG
+  app credentials, and the deployment has moved on.
+- On the production database (16.4), `dwellm8` holds the automatic grant for the
+  eight module roles and for `dwellm8_app`, and **not** for `dwellm8_api` or
+  `dwellm8_platform` — those two predate the bootstrap creating them and were
+  made by a superuser. So `is_platform_session()` was false for the owner there,
+  and production was not exposed.
+
+It was one role-creation away from being exposed. Any environment where the
+bootstrap job creates `dwellm8_platform` itself — which is what the schema file
+says to do, and what every fresh environment and every CI run does — has the
+grant, and had the exemption. That is where it was found.
+
+Assertion 11 fails the bootstrap if any table owner ever inherits the platform
+role, and CI plants the inherited grant and requires the assertion to fire. Every
+policy in the schema read correctly throughout; nothing about the defect was
+visible in a diff, which is the argument for assertions that ask the running
+server rather than for review.
 
 ### 8. What fails the build
 
@@ -453,5 +473,7 @@ Two templates: one for a payment against an invoice, one for an advance.
   #18, #19). The templates have the lines; nothing computes the amounts.
 - A statement renderer, which is where `occurred_on` versus `posted_at` first
   matters to somebody outside the database.
-- Verifying §7 against the running production database, and confirming which role
-  the API deployment actually connects as.
+- ADR-0009 §6 is now wrong about which role the API connects as (§7 records what
+  it is). The correction belongs in a superseding ADR rather than in an edit, and
+  it changes that section's conclusion about how much the owner exemption would
+  have cost.
