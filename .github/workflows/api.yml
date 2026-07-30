@@ -151,6 +151,54 @@ jobs:
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
           echo "the contract caught it, as it should"
 
+      # ADR-0006. Double entry is the one rule that cannot be a review comment:
+      # an entry whose debits and credits differ is money that came from nowhere,
+      # and it is invisible in every screen that shows a balance. This removes
+      # the check and requires the ledger contract to go red.
+      - name: Prove the ledger balance rule still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION ledger_entry_balances() RETURNS trigger
+              LANGUAGE plpgsql AS \$\$ BEGIN RETURN NULL; END \$\$"
+          if go test -count=1 -run TestLedger ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::the ledger contract passed with the balance check removed — an entry of 2500000 debits and 2000000 credits now commits"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the contract caught it, as it should"
+
+      # And ADR-0009's granularity lesson, applied to money. This defect passes
+      # every assertion in the schema: the policy checks the grant, the
+      # permission and the property, and simply stops checking the unit. A firm
+      # managing one flat then reads the whole tower's rent roll. Measured
+      # locally: visible postings [scope-granted scope-parking scope-sibling],
+      # want [scope-granted scope-parking].
+      - name: Prove the ledger's unit scope still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            DROP POLICY ledger_postings_tenant_isolation ON ledger_postings;
+            CREATE POLICY ledger_postings_tenant_isolation ON ledger_postings
+              USING (tenant_id = current_tenant_id() OR is_platform_session()
+                     OR (property_id IS NOT NULL AND is_delegated(tenant_id, property_id, 'money.read')))
+              WITH CHECK (tenant_id = current_tenant_id() OR is_platform_session()
+                     OR (property_id IS NOT NULL AND is_delegated(tenant_id, property_id, 'money.collect')));"
+          if go test -count=1 -run TestLedger ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::the ledger contract passed with unit granularity removed — a one-flat mandate now reads the whole tower's money"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the contract caught it, as it should"
+
       # The bootstrap assertions cannot be tested by replaying the file: the
       # replay re-creates the policy it is about to judge, repairing the defect
       # before the assertion runs. So the assertion block is extracted and run on
@@ -186,8 +234,41 @@ jobs:
             echo "::error::assertion 5 accepted a table with property_id and no delegated branch"
             exit 1
           fi
+          # Assertion 7: the ledger made mutable. This one had to be fixed before
+          # it worked — with the subquery alias named `cmd`, `p.cmd = cmd` binds
+          # to pg_policies' own column and the check passes on either policy.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "DROP POLICY ledger_postings_no_update ON ledger_postings" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 7 accepted a ledger with no deny-update policy"
+            exit 1
+          fi
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
-          echo "the assertions caught both, as they should"
+
+          # Assertion 10: the balances view running as its owner instead of its
+          # caller. It does not leak — it under-reports, which is worse.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "ALTER VIEW ledger_balances SET (security_invoker = false)" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 10 accepted a ledger_balances view that is not security_invoker"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          # Assertion 11: the table owner inheriting dwellm8_platform, which
+          # switches tenant isolation off for every session that connects as it
+          # while every policy still reads correctly. ADR-0006 §7 — this was a
+          # live defect, not a hypothetical one.
+          psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "GRANT dwellm8_platform TO dwellm8 WITH INHERIT TRUE" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 11 accepted a table owner that inherits dwellm8_platform"
+            exit 1
+          fi
+          psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "GRANT dwellm8_platform TO dwellm8 WITH INHERIT FALSE, ADMIN TRUE, SET FALSE" >/dev/null
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the assertions caught all five, as they should"
 
       - name: Build
         run: go build ./...

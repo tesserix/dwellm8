@@ -94,6 +94,14 @@ func TestAuditEventsIsolation(t *testing.T) {
 
 func TestSchemaAudit(t *testing.T) {
 	// Catches the table nobody thought to write an isolation test for.
+	//
+	// The three exemptions are the chart of accounts and the posting templates
+	// (ADR-0006 §2). They hold no customer data and are deliberately not
+	// tenant-scoped: a landlord with a private idea of what "deposit_liability"
+	// means is a landlord whose statements cannot be compared or audited. The
+	// application cannot write them either — INSERT, UPDATE and DELETE are
+	// revoked from dwellm8_app, so the schema file is their only author.
 	p := pool(t)
-	isolationtest.SchemaAudit(t, p)
+	isolationtest.SchemaAudit(t, p,
+		"ledger_accounts", "posting_templates", "posting_template_lines")
 }
