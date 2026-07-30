@@ -21,8 +21,13 @@ tables with an owner and a review date, never as constants in a service.
 | **UPI collect** | Reminder-driven pull | Request lands in the payer's UPI app; expiry handling required |
 | **UPI Autopay (e-mandate)** | Recurring rent and society dues | Per-mandate transaction cap applies; pre-debit notification is mandatory |
 | **NACH e-mandate** | High-value rent above the UPI Autopay cap, commercial leases | Slower onboarding, bank-dependent |
-| **Card / netbanking** | Fallback | Rare for rent; keep enabled, do not optimise |
+| **Netbanking** | Fallback for one-off high value | MDR is a disclosed pass-through, never absorbed silently |
+| **Card / EMI** | Platform billing, deposits, brokerage — **not rent** | RBI's 2025 PA Directions bar a PA from aggregating card funds for a non-merchant landlord |
 | **Offline (cash / IMPS / NEFT)** | The majority of Indian rent today | Recorded with evidence, produces a real receipt |
+
+Rail selection by rent amount, the AFA and non-peak-window rules, the full method
+matrix and the Cashfree/Razorpay comparison are in
+[`payment-rails.md`](payment-rails.md).
 
 **Mandate lifecycle** is modelled explicitly: `created → pending_approval → active →
 paused → revoked | expired`, with debit attempts scheduled against it. The
