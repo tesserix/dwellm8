@@ -184,12 +184,37 @@ ERROR:  lease … is ending 2026-05-21 and charges are raised through 2026-06-01
         but say which
 ```
 
-The contract it depends on is that a lease charge is a journal entry with
-`source_kind = 'lease_charge'` and `source_id` the lease id. **That convention belongs
-to the invoicing story and is not yet written**, so until it is, the trigger finds
-nothing and permits everything. That is stated here rather than discovered, and the
-isolation test writes such an entry itself — which is what makes the convention a
-contract rather than a hope.
+It reads `journal_entries.lease_id`, and that is a correction made after this ADR was
+first written.
+
+The first version matched on `source_kind = 'lease_charge' AND source_id = the lease
+id` — a string convention the invoicing story had not been written to follow, so the
+trigger was correct and **inert**: it found nothing and permitted everything. A guard
+that depends on a convention nobody has agreed to is not a guard, it is a comment with
+a `RAISE` in it.
+
+So the convention became a foreign key. `journal_entries` gains a nullable `lease_id`
+with a composite FK to `(leases.id, tenant_id)`, and the pairing is structural:
+
+```sql
+CONSTRAINT journal_entries_lease_charge_shape CHECK (
+    (source_kind = 'lease_charge') = (lease_id IS NOT NULL))
+```
+
+An entry cannot call itself a lease charge without naming the lease, and cannot name a
+lease without saying so. Both directions are refused by name in the isolation test,
+because the moment either becomes optional the trigger goes inert again.
+
+`lease_id` is nullable in general because most entries have no tenancy — a GST
+remittance, a payout, a settlement — and it is added by a migration rather than in the
+`CREATE TABLE`, because `journal_entries` has existed since ADR-0006 and
+`CREATE TABLE IF NOT EXISTS` never revisits an existing table. `ADD COLUMN IF NOT
+EXISTS` does exist, so unlike a CHECK this one only had to be written once.
+
+This is a change to a table ADR-0006 owns, made by this ADR. That is the same shape as
+ADR-0012 adding two accounts to ADR-0006's chart: an accepted ADR records what was
+decided when it was decided, and a later one may extend the schema it created as long
+as it says so.
 
 The trigger is SECURITY INVOKER, so the lookup runs under the writer's own row-level
 security. A session that cannot see the ledger gets no rows and the check fails open

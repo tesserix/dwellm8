@@ -201,17 +201,21 @@ func TestARetrospectiveTerminationIsRefusedByAskingTheLedger(t *testing.T) {
 		t.Fatalf("letting: %v", err)
 	}
 
-	// A rent charge raised through June. Writing it here *is* the assertion that the
-	// convention the trigger depends on is the contract: a lease charge is a journal
-	// entry with source_kind = 'lease_charge' and source_id = the lease id.
+	// A rent charge raised through June, naming the lease it bills.
+	//
+	// lease_id is a foreign key rather than a string convention, which is the whole
+	// point: the first version of this trigger matched on source_kind = 'lease_charge'
+	// AND source_id, so it depended on invoicing following a convention nobody had
+	// agreed to — and until they did, it found nothing and permitted everything.
+	// journal_entries_lease_charge_shape now makes the pairing structural.
 	if err := tenancy.Platform(ctx, plat, "raising a charge", func(ctx context.Context, tx pgx.Tx) error {
 		var entry string
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO journal_entries (tenant_id, entry_kind, occurred_on, source_kind, source_id,
-			                             idempotency_key, memo)
-			VALUES ($1, 'invoice', '2026-06-01', 'lease_charge', $2, $3, 'June rent')
+			                             lease_id, idempotency_key, memo)
+			VALUES ($1, 'invoice', '2026-06-01', 'lease_charge', $2, $4::uuid, $3, 'June rent')
 			RETURNING id`,
-			isolationtest.OrgA.String(), id, "charge-"+id).Scan(&entry); err != nil {
+			isolationtest.OrgA.String(), id, "charge-"+id, id).Scan(&entry); err != nil {
 			return err
 		}
 		for _, p := range []struct{ account, side, party, partyID string }{
@@ -249,6 +253,38 @@ func TestARetrospectiveTerminationIsRefusedByAskingTheLedger(t *testing.T) {
 		t.Errorf("refused, but not by the retrospective-end trigger: %v", err)
 	}
 	t.Logf("refused: %v", err)
+
+	// The pairing is enforced in both directions, which is what stops the trigger going
+	// inert again: an entry cannot call itself a lease charge without naming the lease,
+	// and cannot name a lease without saying so.
+	for _, tc := range []struct {
+		name       string
+		sourceKind string
+		leaseID    any
+	}{
+		{"a lease charge that names no lease", "lease_charge", nil},
+		{"an entry that names a lease and calls itself something else", "adjustment", id},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tenancy.Platform(ctx, plat, "a mispaired entry", func(ctx context.Context, tx pgx.Tx) error {
+				_, err := tx.Exec(ctx, `
+					INSERT INTO journal_entries (tenant_id, entry_kind, occurred_on, source_kind,
+					                             source_id, lease_id, idempotency_key, memo)
+					VALUES ($1, 'invoice', '2026-06-01', $2, $3, $4, $5, 'x')`,
+					isolationtest.OrgA.String(), tc.sourceKind, id, tc.leaseID,
+					"mispaired-"+tc.sourceKind+"-"+id)
+				return err
+			})
+			if err == nil {
+				t.Fatalf("accepted: %s — the trigger goes inert again the moment this pairing is "+
+					"optional", tc.name)
+			}
+			if !strings.Contains(err.Error(), "journal_entries_lease_charge_shape") {
+				t.Errorf("refused, but not by the pairing constraint: %v", err)
+			}
+			t.Logf("refused: %v", err)
+		})
+	}
 
 	// With a decision it is accepted, because somebody has now decided.
 	if err := tenancy.Platform(ctx, plat, "ending with a decision", func(ctx context.Context, tx pgx.Tx) error {
