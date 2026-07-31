@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"hash/fnv"
 	"net/http"
 	"strconv"
 	"sync"
@@ -176,6 +177,34 @@ func Limited(l *Limiter, key KeyFunc, next http.Handler) http.Handler {
 // public and webhook surfaces, and ByRoute is what covers them.
 func ByTenant(header string) KeyFunc {
 	return func(r *http.Request) string { return r.Header.Get(header) }
+}
+
+// ByBearer limits per sign-in, falling back to one shared bucket for requests
+// carrying no token.
+//
+// For a surface whose callers are individual people rather than organisations —
+// the tenant view (ADR-0029), where every request belongs to one renter and none
+// of them carries an organisation header to be keyed by. ByTenant would return
+// "" for all of them and limit nothing.
+//
+// The key is a hash rather than the token, so the limiter's map is not a list of
+// live credentials to be found in a heap dump. Truncating it is fine: a
+// collision costs two people one shared bucket, and the bucket is per replica
+// anyway.
+//
+// The fallback matters. Requests with no token are about to be refused by the
+// middleware, and refusing them still costs a request — so they share one bucket
+// rather than escaping the limiter entirely.
+func ByBearer(fallback string) KeyFunc {
+	return func(r *http.Request) string {
+		h := r.Header.Get("Authorization")
+		if h == "" {
+			return fallback
+		}
+		sum := fnv.New64a()
+		_, _ = sum.Write([]byte(h))
+		return "bearer:" + strconv.FormatUint(sum.Sum64(), 36)
+	}
 }
 
 // ByRoute limits everything hitting a route, with no key at all.

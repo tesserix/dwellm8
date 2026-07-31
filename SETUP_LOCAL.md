@@ -76,6 +76,12 @@ export AUTH_ENFORCE=false
 export DEV_IMPERSONATE_ORG="$(psql -h 127.0.0.1 -p 55433 -U postgres -d dwellm8 -tAc \
   "SELECT id FROM organisations LIMIT 1")"
 
+# The tenant surface resolves a renter rather than an organisation (ADR-0029), so
+# it needs its own impersonation: the mobile number of somebody named on a lease.
+# Unset is supported — /v1/resident/* then answers 503 rather than serving an
+# arbitrary renter's dues to whoever opens the page.
+export DEV_IMPERSONATE_RESIDENT="+919876500001"
+
 go run ./cmd/api
 ```
 
@@ -91,6 +97,18 @@ GIP token and both variables go away.
 
 No payment provider is configured, so collection falls back to the `offline` adapter —
 which is correct for the default: a laptop should not reach an aggregator by accident.
+
+### The tenant view
+
+`apps/web/tenant` is one static file and needs no build:
+
+```bash
+python3 -m http.server 4173 --directory apps/web/tenant
+```
+
+With `DEV_IMPERSONATE_RESIDENT` set, the sign-in step is never reached and the page shows
+that renter's tenancies straight away. Add `<meta name="dwellm8-api" content="http://localhost:8080">`
+to the file, or serve it behind the same origin as the API.
 
 ### Exercising Cashfree's sandbox
 

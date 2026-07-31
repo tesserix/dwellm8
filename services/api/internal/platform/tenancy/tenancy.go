@@ -21,6 +21,7 @@ var ErrNoTenant = errors.New("tenancy: no tenant in context")
 
 type ctxKey struct{}
 type grantCtxKey struct{}
+type residentCtxKey struct{}
 
 // ID is an organisation id. A distinct type, so a unit id or a user id cannot
 // be passed where a tenant is expected.
@@ -70,6 +71,35 @@ func GrantFrom(ctx context.Context) (GrantID, bool) {
 	return g, ok && g != ""
 }
 
+// ResidentID is the party id of a renter reading their own tenancy. ADR-0029.
+//
+// A distinct type from ID for the same reason GrantID is: the tenant of a
+// resident request stays the landlord's organisation. A renter is not a small
+// organisation, and a party id must never be assignable to a tenant.
+type ResidentID string
+
+func (r ResidentID) String() string { return string(r) }
+
+// WithResident narrows a context to one renter, in addition to its tenant.
+//
+// The organisation is unchanged: the rows still belong to the landlord, and
+// this says which of them are this person's. Both settings are checked by
+// PostgreSQL on every row — a party id quoted by somebody who is not on that
+// lease yields nothing, because the policy on lease_parties hides the row the
+// check would need.
+//
+// Called once per request by the middleware that resolved the sign-in, never
+// from a handler and never from a client-supplied value.
+func WithResident(ctx context.Context, party ResidentID) context.Context {
+	return context.WithValue(ctx, residentCtxKey{}, party)
+}
+
+// ResidentFrom returns the renter the context is acting as, if any.
+func ResidentFrom(ctx context.Context) (ResidentID, bool) {
+	r, ok := ctx.Value(residentCtxKey{}).(ResidentID)
+	return r, ok && r != ""
+}
+
 // Pool is the subset of pgxpool.Pool this package needs, so a test can
 // substitute one without a database.
 type Pool interface {
@@ -95,7 +125,8 @@ func Scoped(ctx context.Context, p Pool, fn func(context.Context, pgx.Tx) error)
 	if !ok {
 		return ErrNoTenant
 	}
-	grant, _ := GrantFrom(ctx) // empty when the request is acting for itself
+	grant, _ := GrantFrom(ctx)       // empty when the request is acting for itself
+	resident, _ := ResidentFrom(ctx) // empty for everybody who is not a renter
 
 	tx, err := p.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err != nil {
@@ -106,12 +137,21 @@ func Scoped(ctx context.Context, p Pool, fn func(context.Context, pgx.Tx) error)
 	// set_config with parameters, not string interpolation: a malformed tenant
 	// or grant reaches PostgreSQL as data and cannot become SQL.
 	//
-	// Both settings are written every time, the grant to '' when absent. The
-	// empty string is why current_grant_id() coerces '' to NULL rather than
-	// casting it — an unset grant must deny quietly, not raise.
+	// All three settings are written every time, the grant and the resident to
+	// '' when absent. The empty string is why current_grant_id() and
+	// current_resident_party_id() coerce '' to NULL rather than casting it — an
+	// unset grant must deny quietly, and an unset resident must leave every
+	// ADR-0029 policy inert, rather than raising.
+	//
+	// Writing all three unconditionally is what stops one request's resident
+	// leaking into the next request that picks the connection up. A conditional
+	// write would leave the previous value in place for exactly the request that
+	// is not a renter — the widest possible failure, arriving intermittently.
 	if _, err := tx.Exec(ctx,
-		"SELECT set_config('app.tenant_id', $1, true), set_config('app.grant_id', $2, true)",
-		tenant.String(), grant.String()); err != nil {
+		`SELECT set_config('app.tenant_id', $1, true),
+		        set_config('app.grant_id', $2, true),
+		        set_config('app.resident_party_id', $3, true)`,
+		tenant.String(), grant.String(), resident.String()); err != nil {
 		return fmt.Errorf("tenancy: set tenant: %w", err)
 	}
 

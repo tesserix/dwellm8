@@ -17,6 +17,11 @@ import (
 type Leases struct {
 	store *store.Leases
 	log   *slog.Logger
+
+	// residents resolves a mobile number to the party it identifies. Optional:
+	// nil means every party must arrive with an id, which is how this module
+	// worked before the tenant surface existed. See WithResidents.
+	residents Residents
 }
 
 // NewLeases wires the service to its store.
@@ -43,6 +48,10 @@ type Created struct {
 // flat are legitimate and a tenancy is not, so becoming one is a second, checked
 // call.
 func (s *Leases) Create(ctx context.Context, d domain.Draft) (Created, error) {
+	d, err := s.resolveParties(ctx, d)
+	if err != nil {
+		return Created{}, err
+	}
 	out, err := s.store.Create(ctx, d)
 	if err != nil {
 		return Created{}, err

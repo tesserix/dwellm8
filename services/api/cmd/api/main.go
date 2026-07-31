@@ -33,6 +33,7 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/platform/events/natsx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
+	"github.com/tesserix/dwellm8/services/api/internal/surface/resident"
 )
 
 // version is stamped at build time: -ldflags "-X main.version=$(git rev-parse --short HEAD)"
@@ -124,12 +125,22 @@ func run() error {
 			"nats_configured", cfg.Events.Configured(), "relay_enabled", cfg.Events.RelayEnabled)
 	}
 
+	paymentsStore := moneystore.NewPayments(pool)
 	payments := moneyservice.NewPayments(
-		moneystore.NewPayments(pool),
+		paymentsStore,
 		moneystore.NewInbox(tenancy.NewPlatformPool(platformPool)),
 		providers, logger)
+	statements := moneyservice.NewStatements(moneystore.NewLedger(pool), paymentsStore, nil)
 
-	leases := leaseservice.NewLeases(leasestore.New(pool), logger)
+	// Identity's two resolvers. The principals store is shared: a sign-in and a
+	// renter's sign-in are the same table asked different questions.
+	principals := identitystore.New(tenancy.NewPlatformPool(platformPool))
+	residents := identityservice.NewResidents(principals, logger)
+
+	// The lease module learns to identify a party by mobile number, which is how
+	// a renter acquires an identity: their landlord types the number weeks
+	// before they ever open the app. ADR-0029 §2.
+	leases := leaseservice.NewLeases(leasestore.New(pool), logger).WithResidents(residents)
 
 	// Rate limiting, issue #228. Two limiters because they fail differently: the
 	// per-tenant one stops one organisation taking the service down for the rest,
@@ -157,6 +168,16 @@ func run() error {
 	protected := http.NewServeMux()
 	leasehttp.NewLeases(leases, logger).Routes(protected)
 
+	// The tenant view, on its own tree. Issue #51, ADR-0029.
+	//
+	// Separate because it resolves a sign-in differently: the ordinary resolver
+	// answers 409 for a person in two organisations, and a renter with two
+	// landlords is exactly that — the ordinary case for them, not an error. It
+	// also carries its own surface check, so a genuine Ops token presented here
+	// is refused before any query runs.
+	residentMux := http.NewServeMux()
+	resident.New(leases, statements, payments, logger, nil).Routes(residentMux)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)
 	mux.HandleFunc("GET /readyz", health.Readyz)
@@ -174,9 +195,23 @@ func run() error {
 	// this says whose rows they may touch, and it is a database lookup rather
 	// than a token claim for the reason ADR-0027 §6 gives.
 	if cfg.Identity.Enforce {
-		resolver := identityservice.NewResolver(identitystore.New(tenancy.NewPlatformPool(platformPool)), logger)
+		resolver := identityservice.NewResolver(principals, logger)
 		mux.Handle("/", auth.Middleware(verifier, resolver.Middleware(protected)))
+		mux.Handle("/v1/resident/", auth.Middleware(verifier,
+			auth.RequireSurface(auth.SurfaceLive, residents.Middleware(residentMux))))
 	} else {
+		// The renter every tenant-surface request acts as while authentication is
+		// off. Unset is a supported state and answers 503 per request rather than
+		// refusing to boot: the rest of the API is usable without it, and serving
+		// an arbitrary renter would show one tenant's dues to whoever opened the
+		// page.
+		if cfg.Identity.ImpersonateResident == "" {
+			logger.Warn("no renter to impersonate; the tenant surface will answer 503",
+				"set", "DEV_IMPERSONATE_RESIDENT")
+		}
+		mux.Handle("/v1/resident/",
+			residents.Impersonating(cfg.Identity.ImpersonateResident).Middleware(residentMux))
+
 		// Dev only, and config.validate() refuses it anywhere else — an API that
 		// forgot to authenticate does not fail, it works for everybody.
 		//
@@ -197,8 +232,13 @@ func run() error {
 
 	tenantLimiter := httpx.NewLimiter(cfg.RateLimits.Tenant, nil)
 	webhookLimiter := httpx.NewLimiter(cfg.RateLimits.Webhook, nil)
+	// A third, because the tenant surface has nobody to be keyed by: a renter
+	// sends no organisation header, so ByTenant returns "" for every one of
+	// their requests and would limit none of them. Keyed per sign-in instead.
+	residentLimiter := httpx.NewLimiter(cfg.RateLimits.Resident, nil)
 	handler := httpx.Limited(webhookLimiter, webhookRoutes,
-		httpx.Limited(tenantLimiter, httpx.ByTenant("X-Dwellm8-Org"), mux))
+		httpx.Limited(residentLimiter, residentRoutes,
+			httpx.Limited(tenantLimiter, httpx.ByTenant("X-Dwellm8-Org"), mux)))
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
@@ -269,4 +309,17 @@ func webhookRoutes(r *http.Request) string {
 		return "webhooks"
 	}
 	return ""
+}
+
+// residentRoutes keys the tenant surface, per sign-in.
+//
+// The bucket is the renter's own, so one person refreshing their dues on a bad
+// connection cannot shed another tenant's payment — which is the failure a
+// single shared bucket over this prefix would produce, on the busiest day of the
+// month for exactly the people trying to pay.
+func residentRoutes(r *http.Request) string {
+	if !strings.HasPrefix(r.URL.Path, "/v1/resident/") {
+		return ""
+	}
+	return httpx.ByBearer("resident:anonymous")(r)
 }

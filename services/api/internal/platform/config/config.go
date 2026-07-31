@@ -97,17 +97,34 @@ type Identity struct {
 	// organisation by forgetting to configure one, and with Enforce true this is
 	// ignored entirely.
 	ImpersonateOrg string
+
+	// ImpersonateResident is the renter's mobile number every tenant-surface
+	// request acts as while authentication is off. ADR-0029 §5.
+	//
+	// A number rather than a party id, because that is what a developer has: the
+	// one they typed into the lease they are testing against. Unset means the
+	// resident routes answer 503 rather than serving somebody arbitrary — an
+	// impersonation that picked the first renter it found would show one tenant's
+	// dues to whoever opened the page.
+	ImpersonateResident string
 }
 
-// RateLimits configures the two limiters. Issue #228.
+// RateLimits configures the three limiters. Issue #228, and issue #51 for the
+// third.
 //
-// Two, because they fail differently: a per-tenant limit stops one organisation
-// taking the service down for the rest, and a per-route one covers what is
-// reachable without a tenant at all — the webhook endpoint, where an attacker has
-// no identity to be limited by.
+// Three, because they fail differently: a per-tenant limit stops one
+// organisation taking the service down for the rest, a per-route one covers what
+// is reachable without a tenant at all — the webhook endpoint, where an attacker
+// has no identity to be limited by — and a per-sign-in one covers the tenant
+// surface, whose callers are people rather than organisations and send no
+// organisation header to be keyed by.
 type RateLimits struct {
 	// Tenant is the per-organisation allowance on the request path.
 	Tenant httpx.Limit
+	// Resident is the per-sign-in allowance on the tenant surface. Small: one
+	// person on one phone, refreshing their dues and paying once. A generous
+	// allowance here buys nothing and widens what a stolen token can scrape.
+	Resident httpx.Limit
 	// Webhook is the unkeyed allowance on the provider callback route. Higher
 	// burst than the tenant limit and a faster refill: a real aggregator
 	// legitimately delivers in bursts, and shedding its retries is worse than
@@ -187,11 +204,14 @@ func Load() (Config, error) {
 		TenantPrefix:   get("GIP_TENANT_PREFIX", "dwellm8"),
 		Enforce:        get("AUTH_ENFORCE", "true") == "true",
 		ImpersonateOrg: os.Getenv("DEV_IMPERSONATE_ORG"),
+
+		ImpersonateResident: os.Getenv("DEV_IMPERSONATE_RESIDENT"),
 	}
 
 	c.RateLimits = RateLimits{
-		Tenant:  httpx.Limit{Burst: envInt("RATE_LIMIT_TENANT_BURST", 120), Every: envDur("RATE_LIMIT_TENANT_EVERY_MS", 500)},
-		Webhook: httpx.Limit{Burst: envInt("RATE_LIMIT_WEBHOOK_BURST", 300), Every: envDur("RATE_LIMIT_WEBHOOK_EVERY_MS", 100)},
+		Tenant:   httpx.Limit{Burst: envInt("RATE_LIMIT_TENANT_BURST", 120), Every: envDur("RATE_LIMIT_TENANT_EVERY_MS", 500)},
+		Resident: httpx.Limit{Burst: envInt("RATE_LIMIT_RESIDENT_BURST", 30), Every: envDur("RATE_LIMIT_RESIDENT_EVERY_MS", 1000)},
+		Webhook:  httpx.Limit{Burst: envInt("RATE_LIMIT_WEBHOOK_BURST", 300), Every: envDur("RATE_LIMIT_WEBHOOK_EVERY_MS", 100)},
 	}
 
 	c.Workflow = workflow.Config{

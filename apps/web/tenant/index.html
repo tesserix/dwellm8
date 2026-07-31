@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="referrer" content="same-origin" />
+<title>Your rent — Dwellm8</title>
+<meta name="description" content="What you owe, how to pay it, and every receipt." />
+<link rel="icon" href="data:," />
+
+<!--
+  The tenant view. Issue #51.
+
+  This is the page a reminder link lands on, and almost everything about it
+  follows from where it is opened: a four-year-old Android on a two-bar
+  connection, at the moment somebody has been told they owe money.
+
+  So it is one file, hand-written, with no framework and no build step. Not
+  minimalism for its own sake — the Expo apps in this repo are the right answer
+  for a tenant who installs something, and the wrong answer for a link. What
+  arrives here is about 20KB of HTML, CSS and JavaScript, and the first paint
+  does not wait on a bundle.
+
+  The one thing loaded from elsewhere is Identity Platform's auth SDK, and it is
+  imported only when somebody is actually signing in — a returning tenant with a
+  live token never fetches it. Phone OTP through Google's own SDK is deliberate:
+  it is the verification the API already trusts (ADR-0027), and the alternative
+  is a second OTP system of our own with its own rate limits, its own SMS bill
+  and its own ways of being wrong.
+-->
+
+<style>
+/* Tokens shared with apps/web/design/home.html — the same limestone, garden
+   green and brass. A tenant who has seen the marketing site should recognise
+   this as the same company, which matters when the page is asking for money. */
+:root {
+  color-scheme: light;
+
+  --sand:      #F1EDE6;
+  --sand-deep: #E7E0D4;
+  --card:      #FCFAF7;
+  --line:      #DAD2C4;
+  --line-soft: #E9E3D8;
+
+  --ink:       #16231F;
+  --ink-mid:   #43524C;
+  --ink-soft:  #6E7B74;
+  --ink-faint: #9AA49C;
+
+  --green:     #1E5B4B;
+  --green-deep:#14493B;
+  --brass:     #B0803F;
+
+  --credit:    #2F6B3E;
+  --debit:     #A4463C;
+
+  --display: "Avenir Next", Futura, "Century Gothic", "Trebuchet MS", system-ui, sans-serif;
+  --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--sand);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 17px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 560px; margin: 0 auto; padding: 0 18px 64px; }
+
+h1, h2, h3 { font-family: var(--display); font-weight: 600; margin: 0; letter-spacing: -.015em; }
+h1 { font-size: 25px; font-weight: 500; }
+h2 { font-size: 19px; }
+h3 { font-size: 15px; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-soft); font-weight: 600; }
+p { margin: 0; }
+
+header {
+  border-bottom: 1px solid var(--line);
+  background: var(--sand);
+  position: sticky; top: 0; z-index: 10;
+}
+.rail { max-width: 560px; margin: 0 auto; padding: 14px 18px; display: flex; align-items: center; gap: 12px; }
+.mark { font-family: var(--display); font-size: 21px; font-weight: 600; letter-spacing: -.025em; }
+.mark i { font-style: normal; color: var(--green); }
+.mark em { font-style: normal; color: var(--brass); }
+.rail .who { margin-left: auto; font-size: 13px; color: var(--ink-soft); font-family: var(--mono); }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  margin-top: 14px;
+}
+.card + .card { margin-top: 12px; }
+
+/* The number this page exists for. Big enough to read at arm's length in
+   sunlight, which is where a rent reminder is actually opened. */
+.due { font-family: var(--display); font-size: 42px; line-height: 1.05; font-weight: 600; letter-spacing: -.03em; }
+.due.settled { color: var(--credit); font-size: 27px; }
+.due-label { font-size: 13px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .1em; }
+
+.addr { color: var(--ink-mid); font-size: 15px; }
+.chip {
+  display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+  text-transform: uppercase; padding: 3px 8px; border-radius: 99px;
+  border: 1px solid var(--line); color: var(--ink-soft); background: var(--sand-deep);
+}
+.chip.ended { color: var(--ink-faint); }
+
+/* The breakdown. It is a table because it is a table: a tenant checking why
+   they owe 27,400 is reading rows against a column of amounts, and a stack of
+   flex divs makes those amounts stop lining up on the first long label. */
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th, td { text-align: left; padding: 7px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+th { font-weight: 500; color: var(--ink-mid); }
+td.amt, th.amt { text-align: right; font-family: var(--mono); font-size: 14px; white-space: nowrap; }
+tr.total th, tr.total td { border-bottom: none; border-top: 2px solid var(--line); font-weight: 600; padding-top: 11px; }
+tr.total td.amt { font-size: 16px; }
+td.neg, .neg { color: var(--credit); }
+.muted { color: var(--ink-soft); font-size: 13px; }
+.struck { text-decoration: line-through; color: var(--ink-faint); }
+
+button, .btn {
+  font: inherit; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 52px; padding: 12px 18px;
+  border-radius: 9px; border: 1px solid transparent; cursor: pointer;
+  background: var(--green); color: #fff;
+}
+button.ghost { background: transparent; color: var(--green); border-color: var(--line); }
+button.link { background: none; color: var(--green); border: none; width: auto; min-height: 0; padding: 4px 0; text-decoration: underline; font-weight: 500; }
+button[disabled] { opacity: .55; cursor: default; }
+:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+
+input {
+  font: inherit; width: 100%; min-height: 52px; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--ink);
+}
+input[inputmode="numeric"] { font-family: var(--mono); letter-spacing: .28em; }
+label { display: block; font-size: 14px; color: var(--ink-mid); margin: 0 0 6px; }
+.field + .field { margin-top: 12px; }
+
+.notice { border-radius: 9px; padding: 11px 13px; font-size: 15px; margin-top: 12px; }
+.notice.bad { background: #FBEEEC; border: 1px solid #E9CFCA; color: var(--debit); }
+.notice.ok  { background: #EDF4EE; border: 1px solid #CFE2D4; color: var(--credit); }
+
+.rows { list-style: none; margin: 0; padding: 0; }
+.rows li { display: flex; gap: 12px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.rows li:last-child { border-bottom: none; }
+.rows .when { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); min-width: 78px; }
+.rows .what { flex: 1; font-size: 15px; }
+.rows .amt { font-family: var(--mono); font-size: 14px; white-space: nowrap; }
+
+.tabs { display: flex; gap: 6px; margin-top: 18px; }
+.tabs button { width: auto; flex: 1; min-height: 42px; background: transparent; color: var(--ink-mid); border: 1px solid var(--line); font-weight: 500; }
+.tabs button[aria-selected="true"] { background: var(--green); color: #fff; border-color: var(--green); }
+
+.skeleton { height: 14px; border-radius: 4px; background: var(--sand-deep); animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .5 } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none } }
+
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* The receipt, printed. A tenant produces this for an employer's HRA claim or
+   in a dispute, so it prints as a document rather than as a screenshot of an
+   app: no chrome, no buttons, black on white. */
+@media print {
+  header, .tabs, button, .no-print { display: none !important; }
+  body { background: #fff; font-size: 12pt; }
+  .card { border: 1px solid #000; break-inside: avoid; }
+}
+</style>
+
+<header>
+  <div class="rail">
+    <span class="mark"><i>dwell</i><em>m8</em></span>
+    <span class="who" id="who"></span>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- Sign in. Phone, then the six digits Google sent. -->
+  <section id="signin" hidden>
+    <div class="card">
+      <h1>Your rent, receipts and dues</h1>
+      <p class="muted" style="margin-top:8px">
+        Sign in with the mobile number your landlord or manager has for you. We send a
+        one-time code — there is no password.
+      </p>
+
+      <form id="phone-form" style="margin-top:18px">
+        <div class="field">
+          <label for="phone">Mobile number</label>
+          <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel"
+                 placeholder="+91 98765 43210" required />
+        </div>
+        <div class="field"><button id="send" type="submit">Send the code</button></div>
+        <div id="recaptcha"></div>
+      </form>
+
+      <form id="code-form" hidden style="margin-top:18px">
+        <div class="field">
+          <label for="code">The six digits we sent to <span id="sent-to"></span></label>
+          <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code"
+                 maxlength="6" pattern="[0-9]{6}" placeholder="000000" required />
+        </div>
+        <div class="field"><button id="verify" type="submit">Sign in</button></div>
+        <button type="button" class="link" id="restart">Use a different number</button>
+      </form>
+
+      <div id="signin-error" class="notice bad" hidden></div>
+    </div>
+  </section>
+
+  <!-- Loading, and the honest version of it: the shape of what is coming. -->
+  <section id="loading" hidden>
+    <div class="card">
+      <div class="skeleton" style="width:45%"></div>
+      <div class="skeleton" style="width:70%;height:34px;margin-top:14px"></div>
+      <div class="skeleton" style="width:60%;margin-top:16px"></div>
+    </div>
+  </section>
+
+  <!-- The tenancies. -->
+  <section id="view" hidden>
+    <div id="picker" class="tabs" role="tablist" hidden></div>
+    <div id="tenancy"></div>
+  </section>
+
+  <section id="error" hidden>
+    <div class="card">
+      <h2>We could not load this</h2>
+      <p class="muted" id="error-text" style="margin-top:8px"></p>
+      <div style="margin-top:14px"><button id="retry">Try again</button></div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+/* ------------------------------------------------------------------ config
+   The API origin and the Identity Platform project are read from the page's
+   own URL or from a meta tag written at deploy time, so this file is the same
+   in dev, UAT and production. A hard-coded production URL in a static file is
+   how a staging page starts taking real payments.
+*/
+const cfg = {
+  api: document.querySelector('meta[name="dwellm8-api"]')?.content || '',
+  apiKey: document.querySelector('meta[name="gip-api-key"]')?.content || '',
+  authDomain: document.querySelector('meta[name="gip-auth-domain"]')?.content || '',
+  tenantId: document.querySelector('meta[name="gip-tenant"]')?.content || 'dwellm8-live',
+};
+
+const $ = (id) => document.getElementById(id);
+const show = (id, on = true) => { $(id).hidden = !on; };
+
+/* Money. Integer paise in, rupees out — the API sends amount_minor and an
+   integer everywhere (ADR-0007), and this is the only place it becomes text.
+   Never a float: parseFloat on 2500000/100 is fine and the habit is not. */
+function inr(minor) {
+  const neg = minor < 0;
+  const n = Math.abs(minor);
+  const rupees = Math.trunc(n / 100);
+  const paise = String(n % 100).padStart(2, '0');
+  // Indian digit grouping: last three, then pairs. Intl does this correctly and
+  // is present on every browser that matters, so it is used rather than
+  // reimplemented — but the paise are appended by hand so rounding cannot
+  // happen inside a formatter.
+  const grouped = new Intl.NumberFormat('en-IN').format(rupees);
+  return `${neg ? '−' : ''}₹${grouped}.${paise}`;
+}
+
+function day(iso) {
+  if (!iso) return '';
+  const d = new Date(iso.length === 10 ? iso + 'T00:00:00' : iso);
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/* ------------------------------------------------------------------- token
+   Held in memory and mirrored into sessionStorage so a reload inside the same
+   tab does not re-send an SMS. sessionStorage rather than localStorage: the
+   token dies with the tab, which is the right lifetime for a page opened from
+   a link on a shared phone.
+*/
+const KEY = 'dwellm8.tenant.token';
+let token = sessionStorage.getItem(KEY) || '';
+let refresh = null; // set once Identity Platform is loaded
+
+function setToken(t) {
+  token = t || '';
+  if (t) sessionStorage.setItem(KEY, t); else sessionStorage.removeItem(KEY);
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(cfg.api + path, {
+    ...opts,
+    headers: {
+      ...(opts.headers || {}),
+      'Authorization': 'Bearer ' + token,
+      ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    cache: 'no-store',
+  });
+  if (res.status === 401) {
+    // The token expired mid-session. Refreshing is silent where Identity
+    // Platform is already loaded; otherwise the person signs in again, which is
+    // one SMS and is better than a page that says "sign in" and then does not.
+    if (refresh) {
+      const fresh = await refresh();
+      if (fresh) {
+        setToken(fresh);
+        return api(path, opts);
+      }
+    }
+    setToken('');
+    throw Object.assign(new Error('signed out'), { signedOut: true });
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(body.error || 'that did not work'), { status: res.status, body });
+  return body;
+}
+
+/* --------------------------------------------------------------- rendering */
+let tenancies = [];
+let current = 0;
+
+function renderPicker() {
+  const el = $('picker');
+  // One tenancy is the ordinary case and needs no chooser. Two is the story's
+  // edge case — a renter with flats under two landlords — and the two are shown
+  // as separate tabs rather than merged, because they are separate tenancies
+  // with separate money and separate people to pay.
+  if (tenancies.length < 2) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = '';
+  tenancies.forEach((t, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.role = 'tab';
+    b.setAttribute('aria-selected', String(i === current));
+    b.textContent = t.unit + ', ' + t.property;
+    b.onclick = () => { current = i; renderTenancy(); renderPicker(); };
+    el.appendChild(b);
+  });
+}
+
+function renderTenancy() {
+  const t = tenancies[current];
+  const d = t.dues || {};
+  const owed = d.due_amount_minor || 0;
+  const el = $('tenancy');
+  el.innerHTML = '';
+
+  el.appendChild(card(`
+    <div class="due-label">${owed > 0 ? 'You owe' : 'Nothing due'}</div>
+    <div class="due ${owed > 0 ? '' : 'settled'}">${owed > 0 ? inr(owed) : 'All settled'}</div>
+    <p class="addr" style="margin-top:10px">
+      ${esc(t.unit)}, ${esc(t.property)}${t.locality ? ', ' + esc(t.locality) : ''}
+    </p>
+    <p class="muted" style="margin-top:4px">
+      ${esc(t.organisation)} · rent ${inr(t.rent_amount_minor)} on the ${ordinal(t.due_day)}
+      ${t.live ? '' : ' · <span class="chip ended">tenancy ended</span>'}
+    </p>
+    ${owed > 0 ? '<div style="margin-top:16px"><button id="pay">Pay ' + inr(owed) + '</button></div>' : ''}
+    ${d.advance_amount_minor > 0 ? '<p class="muted" style="margin-top:10px">' +
+      inr(d.advance_amount_minor) + ' of yours is held in advance and comes off your next invoice.</p>' : ''}
+  `));
+
+  // Why that number. Shown always, not behind a disclosure: the question "why
+  // do I owe this" is the one that becomes a support ticket, and the answer is
+  // three rows long.
+  el.appendChild(card(`
+    <h3>How that is worked out</h3>
+    <table style="margin-top:10px">
+      <tbody>
+        ${row('Rent charged', d.rent_amount_minor)}
+        ${d.late_fee_amount_minor ? row('Late fee', d.late_fee_amount_minor) : ''}
+        ${d.adjustment_amount_minor ? row('Adjustments', d.adjustment_amount_minor) : ''}
+        ${d.paid_amount_minor ? row('Paid', -d.paid_amount_minor) : ''}
+        ${d.advance_amount_minor ? row('Held in advance', -d.advance_amount_minor) : ''}
+        <tr class="total"><th>Due today</th><td class="amt">${inr(owed)}</td></tr>
+      </tbody>
+    </table>
+    ${d.deposit_amount_minor ? '<p class="muted" style="margin-top:12px">Security deposit held: ' +
+      inr(d.deposit_amount_minor) + '. It is not rent and is not part of what is due.</p>' : ''}
+  `));
+
+  el.appendChild(card(`
+    <h3>Your tenancy</h3>
+    <table style="margin-top:10px"><tbody>
+      ${plain('Flat', esc(t.unit) + ', ' + esc(t.property))}
+      ${plain('Rent', inr(t.rent_amount_minor) + ' a month, due on the ' + ordinal(t.due_day))}
+      ${plain('From', day(t.start_on) + (t.end_on ? ' to ' + day(t.end_on) : ' — no agreed end'))}
+      ${t.ended_on ? plain('Ended', day(t.ended_on)) : ''}
+      ${plain('Notice', t.notice_days + ' days')}
+      ${t.lock_in_until ? plain('Locked in until', day(t.lock_in_until)) : ''}
+      ${plain('Paid to', esc(t.organisation))}
+    </tbody></table>
+  `));
+
+  const history = card('<h3>Receipts and history</h3><div id="history" class="muted" style="margin-top:10px">Loading…</div>');
+  el.appendChild(history);
+
+  const payBtn = $('pay');
+  if (payBtn) payBtn.onclick = () => pay(t, owed);
+  loadHistory(t);
+}
+
+function row(label, minor) {
+  return `<tr><th>${label}</th><td class="amt ${minor < 0 ? 'neg' : ''}">${inr(minor)}</td></tr>`;
+}
+function plain(label, value) {
+  return `<tr><th>${label}</th><td class="amt" style="text-align:right;font-family:var(--ui)">${value}</td></tr>`;
+}
+function card(html) {
+  const d = document.createElement('div');
+  d.className = 'card';
+  d.innerHTML = html;
+  return d;
+}
+function ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+/* Everything from the API is escaped before it reaches innerHTML. A property
+   name is typed by a landlord, which makes it somebody else's text on this
+   tenant's screen. */
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function loadHistory(t) {
+  const el = $('history');
+  try {
+    const h = await api(`/v1/resident/tenancies/${t.lease_id}/history`);
+    const items = [
+      ...h.charges.map((c) => ({
+        when: c.occurred_on,
+        what: esc(c.memo || label(c.kind)) + (c.reversed ? ' <span class="chip">corrected</span>' : ''),
+        amount: c.amount_minor, struck: c.reversed,
+      })),
+      ...h.payments.map((p) => ({
+        when: p.received_at || p.created_at,
+        what: paymentLabel(p),
+        amount: -p.amount_minor,
+        receipt: p.receipt, number: p.receipt_number,
+      })),
+    ].sort((a, b) => (a.when < b.when ? 1 : -1));
+
+    if (!items.length) { el.textContent = 'Nothing yet.'; return; }
+
+    el.innerHTML = '<ul class="rows">' + items.map((i) => `
+      <li>
+        <span class="when">${day(i.when)}</span>
+        <span class="what ${i.struck ? 'struck' : ''}">${i.what}
+          ${i.receipt ? `<br><button class="link" data-receipt="${esc(i.receipt)}">Receipt ${esc(i.number)}</button>` : ''}
+        </span>
+        <span class="amt ${i.amount < 0 ? 'neg' : ''}">${inr(i.amount)}</span>
+      </li>`).join('') + '</ul>';
+
+    el.querySelectorAll('[data-receipt]').forEach((b) => {
+      b.onclick = () => openReceipt(b.dataset.receipt);
+    });
+  } catch (e) {
+    if (e.signedOut) return signIn();
+    el.textContent = 'Could not load your history. ' + e.message;
+  }
+}
+
+function label(kind) {
+  return ({
+    invoice: 'Rent invoice', late_fee: 'Late fee', payment: 'Payment',
+    payment_with_tds: 'Payment (TDS deducted)', refund: 'Refund',
+    write_off: 'Written off', reversal: 'Correction',
+    deposit_collection: 'Security deposit', deposit_refund: 'Deposit refunded',
+  })[kind] || kind.replace(/_/g, ' ');
+}
+
+function paymentLabel(p) {
+  const method = String(p.method || '').replace(/_/g, ' ');
+  if (p.status === 'captured' || p.status === 'settled') return `Paid by ${esc(method)}`;
+  if (p.status === 'failed') return `<span style="color:var(--debit)">Payment failed</span> (${esc(method)})`;
+  return `Payment ${esc(p.status)} (${esc(method)})`;
+}
+
+/* A receipt opens as its own printable page. Not a download of a PDF this
+   service does not generate: the browser's own print-to-PDF produces a document
+   the tenant can attach to an HRA claim, and it does so without this codebase
+   acquiring a PDF library or a font to embed in it. */
+async function openReceipt(path) {
+  try {
+    const r = await api(path);
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(receiptHTML(r));
+    w.document.close();
+  } catch (e) {
+    if (e.signedOut) return signIn();
+    alert(e.message);
+  }
+}
+
+function receiptHTML(r) {
+  return `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Receipt ${esc(r.receipt_number)}</title>
+<style>
+  body{font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#16231F;max-width:640px;margin:32px auto;padding:0 20px}
+  h1{font-size:20px;margin:0 0 4px} .m{color:#6E7B74;font-size:13px}
+  table{width:100%;border-collapse:collapse;margin-top:22px}
+  th,td{text-align:left;padding:8px 0;border-bottom:1px solid #E9E3D8;vertical-align:top}
+  td{text-align:right;font-family:ui-monospace,Menlo,monospace}
+  .big{font-size:26px;font-weight:600;margin-top:18px}
+  @media print{body{margin:0}.no-print{display:none}}
+</style>
+<h1>Rent receipt</h1>
+<p class="m">${esc(r.receipt_number)} · ${day(r.received_at)}</p>
+<p class="big">${inr(r.amount_minor)}</p>
+<table><tbody>
+  <tr><th>Received by</th><td style="font-family:inherit">${esc(r.payee)}</td></tr>
+  <tr><th>For</th><td style="font-family:inherit">${esc(r.unit)}, ${esc(r.property)}${r.locality ? ', ' + esc(r.locality) : ''}${r.city ? ', ' + esc(r.city) : ''}</td></tr>
+  <tr><th>Method</th><td style="font-family:inherit">${esc(String(r.method).replace(/_/g, ' '))} via ${esc(r.provider)}</td></tr>
+  <tr><th>Status</th><td style="font-family:inherit">${esc(r.status)}</td></tr>
+  ${r.provider_reference ? `<tr><th>Gateway reference</th><td>${esc(r.provider_reference)}</td></tr>` : ''}
+  <tr><th>Payment id</th><td>${esc(r.payment_id)}</td></tr>
+  <tr><th>Ledger entry</th><td>${esc(r.entry_id)}</td></tr>
+</tbody></table>
+<p class="m" style="margin-top:22px">Issued by Dwellm8 on behalf of ${esc(r.payee)}. The payment id and ledger entry above identify this receipt uniquely.</p>
+<p class="no-print" style="margin-top:20px"><button onclick="print()">Print or save as PDF</button></p>`;
+}
+
+/* ------------------------------------------------------------------- paying
+   The idempotency key is generated here and reused on retry, which is the whole
+   point of it: a tenant on a bad connection pressing Pay twice must not pay
+   twice, and the client is the only thing that knows the two presses were one
+   intention.
+*/
+const payKeys = new Map();
+async function pay(t, owed) {
+  const btn = $('pay');
+  btn.disabled = true;
+  btn.textContent = 'Starting…';
+
+  if (!payKeys.has(t.lease_id)) payKeys.set(t.lease_id, crypto.randomUUID());
+  try {
+    const r = await api(`/v1/resident/tenancies/${t.lease_id}/payments`, {
+      method: 'POST',
+      body: JSON.stringify({
+        amount_minor: owed,
+        method: 'upi_intent',
+        idempotency_key: payKeys.get(t.lease_id),
+      }),
+    });
+    if (r.pay_url) { window.location.href = r.pay_url; return; }
+    // No URL means the provider handed back a token for a native checkout,
+    // which this page has no checkout to hand it to. Said plainly rather than
+    // left as a button that did nothing.
+    btn.textContent = 'Payment started';
+    $('tenancy').appendChild(card(
+      `<div class="notice ok">Your payment has been started. Complete it in your UPI app, then
+       reopen this page — the receipt appears here once your bank confirms it.</div>`));
+  } catch (e) {
+    if (e.signedOut) return signIn();
+    btn.disabled = false;
+    btn.textContent = 'Pay ' + inr(owed);
+    $('tenancy').appendChild(card(`<div class="notice bad">${esc(e.message)}</div>`));
+  } finally {
+    // The key is kept, not cleared. A retry after a failure is the same
+    // intention as the first press, and a fresh key would make it a second
+    // payment.
+  }
+}
+
+/* ------------------------------------------------------------------ loading */
+async function load() {
+  show('signin', false); show('error', false); show('view', false); show('loading', true);
+  try {
+    const r = await api('/v1/resident/tenancies');
+    tenancies = r.tenancies || [];
+    show('loading', false);
+    if (!tenancies.length) {
+      show('error', true);
+      $('error-text').textContent =
+        'There is no tenancy on this number yet. If you have just moved in, your landlord or ' +
+        'manager needs to add you — ask them to check the number they have for you.';
+      $('retry').hidden = true;
+      return;
+    }
+    $('who').textContent = tenancies.length + (tenancies.length === 1 ? ' tenancy' : ' tenancies');
+    current = 0;
+    renderPicker();
+    renderTenancy();
+    show('view', true);
+  } catch (e) {
+    show('loading', false);
+    if (e.signedOut) return signIn();
+    if (e.status === 403) {
+      show('error', true);
+      $('error-text').textContent = e.message;
+      $('retry').hidden = true;
+      return;
+    }
+    show('error', true);
+    $('error-text').textContent = e.message;
+  }
+}
+
+$('retry').onclick = load;
+
+/* -------------------------------------------------------------- signing in
+   Identity Platform's SDK is imported here and only here, so a returning tenant
+   with a live token never downloads it. Everything above this line works
+   without it.
+*/
+function signIn() {
+  setToken('');
+  show('loading', false); show('view', false); show('error', false); show('signin', true);
+}
+
+let auth = null, verifier = null, confirmation = null;
+
+async function loadAuth() {
+  if (auth) return auth;
+  if (!cfg.apiKey) throw new Error('this page is not configured to sign anybody in');
+  const [{ initializeApp }, mod] = await Promise.all([
+    import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js'),
+  ]);
+  const app = initializeApp({ apiKey: cfg.apiKey, authDomain: cfg.authDomain });
+  auth = mod.getAuth(app);
+  // The Live pool, and nothing else. A token minted against another surface's
+  // tenant is refused by the API too (ADR-0027), so this is the first of two
+  // locks rather than the only one.
+  auth.tenantId = cfg.tenantId;
+  auth.useDeviceLanguage();
+  verifier = new mod.RecaptchaVerifier(auth, 'recaptcha', { size: 'invisible' });
+  refresh = async () => (auth.currentUser ? auth.currentUser.getIdToken(true) : null);
+  return Object.assign(auth, { _mod: mod });
+}
+
+$('phone-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const btn = $('send');
+  const raw = $('phone').value.replace(/[^\d+]/g, '');
+  const phone = raw.startsWith('+') ? raw : '+91' + raw.replace(/^0+/, '');
+  $('signin-error').hidden = true;
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    const a = await loadAuth();
+    confirmation = await a._mod.signInWithPhoneNumber(a, phone, verifier);
+    $('sent-to').textContent = phone;
+    $('phone-form').hidden = true;
+    $('code-form').hidden = false;
+    $('code').focus();
+  } catch (err) {
+    $('signin-error').textContent = friendly(err);
+    $('signin-error').hidden = false;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Send the code';
+  }
+};
+
+$('code-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const btn = $('verify');
+  btn.disabled = true; btn.textContent = 'Checking…';
+  $('signin-error').hidden = true;
+  try {
+    const cred = await confirmation.confirm($('code').value.trim());
+    setToken(await cred.user.getIdToken());
+    await load();
+  } catch (err) {
+    $('signin-error').textContent = friendly(err);
+    $('signin-error').hidden = false;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign in';
+  }
+};
+
+$('restart').onclick = () => {
+  confirmation = null;
+  $('code-form').hidden = true;
+  $('phone-form').hidden = false;
+  $('signin-error').hidden = true;
+};
+
+/* Google's codes are for developers. These are for somebody standing in a lift
+   with one bar of signal. */
+function friendly(err) {
+  const code = String(err?.code || '');
+  if (code.includes('invalid-phone-number')) return 'That does not look like a mobile number. Try +91 and ten digits.';
+  if (code.includes('invalid-verification-code')) return 'That code is not right. Check the SMS and try again.';
+  if (code.includes('code-expired')) return 'That code has expired. Ask for a new one.';
+  if (code.includes('too-many-requests')) return 'Too many attempts. Wait a few minutes and try again.';
+  if (code.includes('network')) return 'We could not reach the network. Check your connection and try again.';
+  return err?.message || 'That did not work. Try again.';
+}
+
+/* ---------------------------------------------------------------- start up */
+if (token) load(); else signIn();
+</script>
+</html>

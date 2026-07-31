@@ -58,6 +58,36 @@ is not built, so no code path releases money at all.
 > reads the ledger instead of the settlement file re-opens this, and it will look correct
 > in every test written against a clean database.
 
+### 2.2 The tenant surface, and the boundary that is not the organisation
+
+Every control in the table above draws the line between organisations. Issue #51 opened a
+surface where that line is the wrong one: a renter scoped only to their landlord's
+organisation reads **every other tenant of that landlord** — their rent, their arrears,
+their payment history — and the failure is silent, because every policy still reads
+correctly and every screen still renders. A firm with three hundred flats has three hundred
+tenants who can each read the other two hundred and ninety-nine.
+
+| | Threat | Control | Status |
+|---|---|---|---|
+| **I** | A tenant reads another tenant of the same landlord | `app.resident_party_id` narrows the session a second time; nine tables opened by restrictive policy, every other row-level-secured table denied by a generated policy | Implemented and asserted — ADR-0029, assertion 19 |
+| **I** | A tenant changes the lease id in the URL | The session's residency list is the authorisation, PostgreSQL refuses independently, and the answer is `404` rather than `403` — a `403` confirms the tenancy exists | Implemented — `internal/surface/resident` |
+| **I** | Two landlords of one renter learn of each other | No query in the product returns rows from two organisations; a renter's tenancy list is one scoped read per landlord | Implemented — ADR-0029 §4 |
+| **S** | Somebody claims a renter's number and inherits their tenancies | The claim is conditioned on the reservation marker, so it can only take over an unclaimed row; the number itself is verified by Identity Platform's OTP | Implemented — ADR-0029 §5 |
+| **E** | A tenant writes a payment against somebody else's tenancy | `payments_resident_scope` constrains payer *and* lease in `WITH CHECK`; a payment naming no lease is refused | Implemented and asserted — `TestResidentScope` |
+| **D** | A stolen tenant token is used to scrape | A third rate-limit bucket, keyed per sign-in — the tenant surface sends no organisation header, so the per-tenant limiter would key on `""` and limit nothing | Implemented — `httpx.ByBearer` |
+| **R** | "I never received this receipt" | The receipt is derived from the payment and names the ledger entry it posted; nothing stores a second copy that can disagree | Implemented — ADR-0029 |
+
+Two CI steps plant defects here and require a red build. One removes the renter narrowing
+from `leases` and `lease_parties`; one drops four deny policies. Note that weakening
+`resident_holds_lease` alone is *not* a usable planted defect — the policy on
+`lease_parties` catches it. That is two independent locks working, and it is why the
+planted defect has to remove both.
+
+**The gap that remains**: a denied attempt is written to the application log and not to
+`audit_events`, because `audit_events.tenant_id` is `NOT NULL` and a denied attempt belongs
+to no organisation. A probe across a hundred lease ids is therefore visible in logs and not
+in any customer's audit trail, which is the right place for it but is not alertable today.
+
 ---
 
 ## 3. STRIDE over the identity path

@@ -210,6 +210,63 @@ jobs:
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
           echo "the contract caught it, as it should"
 
+      # ADR-0029, and the defect it exists to prevent. This one is the most
+      # plausible in the file: the policy still checks the organisation, so every
+      # cross-tenant assertion in the suite stays green, and it simply stops
+      # checking *which renter*. A tenant then reads every other tenant of the
+      # same landlord — their rent, their arrears, their payment history — and
+      # nothing about the request or the response looks wrong.
+      - name: Prove the resident scope still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          # The narrowing removed and the organisation policy left intact, which
+          # is what "somebody deleted the resident section" looks like. Both
+          # tables, because they are two independent locks: weakening only
+          # resident_holds_lease is caught by the policy on lease_parties, which
+          # is the design working and would make this step pass while proving
+          # nothing. Measured: visible leases [Priya's, Rohit's], want [Priya's].
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            DROP POLICY IF EXISTS leases_resident_scope ON leases;
+            CREATE POLICY leases_resident_scope ON leases AS RESTRICTIVE
+              USING (true) WITH CHECK (true);
+            DROP POLICY IF EXISTS lease_parties_resident_scope ON lease_parties;
+            CREATE POLICY lease_parties_resident_scope ON lease_parties AS RESTRICTIVE
+              USING (true) WITH CHECK (true);"
+          if go test -count=1 -run TestResidentScope ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::the resident contract passed with the renter check removed — every tenant of a landlord now reads every other tenant's money"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the contract caught it, as it should"
+
+      # And the half that is not a policy at all. The deny loop is what closes
+      # every table nobody thought about, and removing it is invisible from any
+      # single table — which is exactly why it gets its own planted defect.
+      - name: Prove the resident deny-by-default still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            DROP POLICY IF EXISTS mandates_resident_denied ON mandates;
+            DROP POLICY IF EXISTS kyc_verifications_resident_denied ON kyc_verifications;
+            DROP POLICY IF EXISTS property_ownership_resident_denied ON property_ownership;
+            DROP POLICY IF EXISTS audit_events_resident_denied ON audit_events;"
+          if go test -count=1 -run TestResidentScope ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::the resident contract passed with the deny policies dropped — a renter now reads mandates, KYC and the audit trail of the organisation they rent from"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the contract caught it, as it should"
+
       # The bootstrap assertions cannot be tested by replaying the file: the
       # replay re-creates the policy it is about to judge, repairing the defect
       # before the assertion runs. So the assertion block is extracted and run on

@@ -73,6 +73,31 @@ dispute turns on years later.
 
 ---
 
+## Adding a table
+
+Two things happen to it that you do not write.
+
+**Row-level security is yours to enable** — the assertions at the foot of the file fail the
+bootstrap if a table has RLS enabled without `FORCE`, if a policy has no explicit
+`WITH CHECK`, or if a table with `property_id` or `unit_id` does not pass it to
+`is_delegated()`. Read the assertion block before writing the policy; each one names the
+defect it was written for.
+
+**The resident deny is not yours to write.** ADR-0029 narrows a request a second time, from
+"this organisation" to "this renter", and the loop at the foot of that section puts a
+`RESTRICTIVE` deny on every row-level-secured table that is not on its nine-name allowlist.
+A table added by a future ADR is therefore closed to the tenant surface before anybody
+thinks about it, which is the point: the failure otherwise is a renter reading a table
+nobody remembered, and it looks like the product working.
+
+If a new table genuinely belongs on a tenant's screen, add it to `opened` in that loop and
+give it its own narrowing policy — and expect to argue for it, because assertion 19 also
+fails any resident policy that is `PERMISSIVE` rather than `RESTRICTIVE`. A permissive one
+is an `OR` against the organisation policy, so it would widen every other session to the
+renter's rows rather than narrowing the renter.
+
+---
+
 ## Testing a change
 
 CI fetches the schema **from `tesserix-k8s` on `main`**, not from a copy in this repository
