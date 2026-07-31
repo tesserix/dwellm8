@@ -58,6 +58,22 @@ type harness struct {
 	token    string
 }
 
+// withProvider builds a second service over a different adapter, for the tests
+// that are about what happens when the provider misbehaves rather than about
+// what happens when it answers.
+func (h harness) withProvider(t *testing.T, a provider.Adapter) *service.Payments {
+	t.Helper()
+	registry := provider.NewRegistry()
+	registry.Register(a)
+	if err := registry.SetChain(a.Name()); err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+	return service.NewPayments(
+		store.NewPayments(requestPool(t)),
+		store.NewInbox(tenancy.NewPlatformPool(platformPool(t))),
+		registry, slog.New(slog.NewTextHandler(io.Discard, nil)))
+}
+
 func newHarness(t *testing.T) harness {
 	t.Helper()
 	req, plat := requestPool(t), platformPool(t)

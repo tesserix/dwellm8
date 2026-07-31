@@ -306,3 +306,61 @@ func isUniqueViolation(err error, index string) bool {
 	// reported to a caller as a successful duplicate.
 	return err != nil && strings.Contains(err.Error(), index)
 }
+
+// Pending returns payments that have been waiting longer than a cut-off, oldest
+// first, for the polling sweep to ask the provider about.
+//
+// Ordered oldest first so a limit truncates the newest rather than starving the
+// ones that have waited longest — a sweep that always asked about the same
+// hundred recent payments would leave an old stuck one stuck forever.
+//
+// Terminal statuses are excluded in SQL rather than in Go: filtering after the
+// fact would read every settled payment this organisation has ever taken in
+// order to skip it.
+func (s *Payments) Pending(ctx context.Context, olderThan time.Time, limit int) ([]collect.Payment, error) {
+	var out []collect.Payment
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT `+paymentColumns+`
+			  FROM payments p
+			 WHERE p.status = ANY($3)
+			   AND p.created_at < $1
+			 ORDER BY p.created_at
+			 LIMIT $2`, olderThan, limit, awaitingPayer())
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var p collect.Payment
+			var kind, method, status string
+			if err := rows.Scan(&p.ID, &p.TenantID, &p.Property, &p.Unit, &p.MandateID, &p.Lease,
+				&kind, &p.PayerID, &p.Amount, &method, &p.Provider,
+				&p.ProviderOrderID, &p.ProviderPaymentID, &status, &p.FailureCode,
+				&p.IdempotencyKey, &p.EntryID, &p.CreatedAt); err != nil {
+				return err
+			}
+			p.PayerKind = domain.PartyKind(kind)
+			p.Method = collect.Method(method)
+			p.Status = collect.Status(status)
+			out = append(out, p)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, fmt.Errorf("money: reading pending payments: %w", err)
+	}
+	return out, nil
+}
+
+// awaitingPayer is collect.AwaitingPayerStatuses as the driver wants it. Derived
+// from the domain rather than written out here, so the query cannot drift from
+// the Go predicate the sweep uses.
+func awaitingPayer() []string {
+	statuses := collect.AwaitingPayerStatuses()
+	out := make([]string, len(statuses))
+	for i, s := range statuses {
+		out[i] = string(s)
+	}
+	return out
+}

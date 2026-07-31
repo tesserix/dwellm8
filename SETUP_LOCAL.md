@@ -90,7 +90,32 @@ GIP token and both variables go away.
 `curl localhost:8080/healthz` answers when it is up.
 
 No payment provider is configured, so collection falls back to the `offline` adapter —
-which is correct locally: nothing should be able to reach Cashfree from a laptop.
+which is correct for the default: a laptop should not reach an aggregator by accident.
+
+### Exercising Cashfree's sandbox
+
+A webhook cannot reach a laptop, so confirmation locally is **API-based**: `Confirm`
+asks Cashfree `GET /orders/{id}/payments` and has never trusted a delivery's contents,
+and the polling sweep drives it on a timer instead of on a delivery.
+
+```bash
+export CASHFREE_CLIENT_ID="$(gcloud secrets versions access latest \
+  --secret=prod-homechef-cashfree-test-app-id --project=tesseracthub-480811)"
+export CASHFREE_CLIENT_SECRET="$(gcloud secrets versions access latest \
+  --secret=prod-homechef-cashfree-test-secret-key --project=tesseracthub-480811)"
+
+go run ./tools/cfprobe
+```
+
+It creates a sandbox order and polls it, printing `created` — nobody has paid it. That is
+the whole round trip the sweep makes, against the real provider.
+
+These are HomeChef's Cashfree **test** credentials, borrowed while Dwellm8's own merchant
+account is opened. Read them from Secret Manager at the moment of use; never into a file.
+
+**A deployment with no webhook secret is a poll-only deployment and works.** It also
+trusts no delivery: `VerifyWebhook` refuses by name rather than comparing against an empty
+key, because an empty HMAC key is a real key and a signature computed with it verifies.
 
 ### Tests
 

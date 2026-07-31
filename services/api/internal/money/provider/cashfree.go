@@ -44,6 +44,11 @@ const CashfreeName = "cashfree"
 // CashfreeConfig is what a deployment must supply. Every field is required
 // except the clock and the HTTP client, which exist for the tests.
 type CashfreeConfig struct {
+	// acceptsDeliveries is derived in NewCashfree from whether a webhook secret
+	// was configured. Unexported: it is a conclusion, not a setting, and a
+	// deployment must not be able to claim it can verify deliveries it cannot.
+	acceptsDeliveries bool
+
 	// BaseURL is https://api.cashfree.com/pg or the sandbox equivalent. Required
 	// rather than defaulted: a default would make production the thing you get
 	// by forgetting to configure anything.
@@ -96,8 +101,22 @@ func NewCashfree(cfg CashfreeConfig) (*Cashfree, error) {
 		return nil, errors.New("cashfree: no client credentials")
 	case cfg.APIVersion == "":
 		return nil, errors.New("cashfree: no x-api-version — an unpinned client changes behaviour on Cashfree's release schedule, not ours")
-	case cfg.WebhookSecret == "":
-		return nil, errors.New("cashfree: no webhook secret — every delivery would be rejected, which is the safe failure but not a working one")
+	}
+	// A missing webhook secret is not fatal, and used to be. Confirmation is an
+	// API call — Confirm asks `GET /orders/{id}/payments` and has never trusted a
+	// delivery's contents — so a deployment that only polls is a working
+	// deployment, and refusing to construct one made local development and any
+	// cluster the provider cannot reach impossible to exercise.
+	//
+	// The safety property is unchanged and is now enforced where it belongs: with
+	// no secret, VerifyWebhookWithReason refuses every delivery by name rather
+	// than by comparing against an empty key. An empty HMAC key is a *valid* key,
+	// so the old code would have verified deliveries signed with "" if the
+	// constructor had ever let one through.
+	if cfg.WebhookSecret == "" {
+		cfg.acceptsDeliveries = false
+	} else {
+		cfg.acceptsDeliveries = true
 	}
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 20 * time.Second
@@ -158,8 +177,21 @@ func (c *Cashfree) VerifyWebhook(w Webhook) bool {
 // VerifyWebhookWithReason reports both halves: whether the signature is the
 // provider's, and whether the delivery is fresh enough to act on.
 func (c *Cashfree) VerifyWebhookWithReason(w Webhook) (bool, error) {
+	if !c.cfg.acceptsDeliveries {
+		// Refused by name rather than by comparing against an empty key: an empty
+		// HMAC key verifies anything signed with an empty key, which is a
+		// signature an attacker can produce.
+		return false, errors.New("cashfree: this deployment has no webhook secret, so no delivery " +
+			"can be trusted — it confirms by polling instead")
+	}
 	return VerifyHMACSHA256Base64WithTimestamp(w, c.cfg.WebhookSecret, c.now(), c.cfg.ReplayWindow)
 }
+
+// AcceptsDeliveries reports whether this deployment can verify a webhook at all.
+// A poll-only deployment answers false, and the difference is worth surfacing:
+// "no deliveries arrived" and "deliveries arrived and none could be trusted" are
+// different operational facts.
+func (c *Cashfree) AcceptsDeliveries() bool { return c.cfg.acceptsDeliveries }
 
 // ---------------------------------------------------------------------------
 // One-off collection

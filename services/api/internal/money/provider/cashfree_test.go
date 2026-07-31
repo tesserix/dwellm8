@@ -155,11 +155,10 @@ func TestCashfreeRefusesToStartWithoutItsPins(t *testing.T) {
 		ClientSecret: "s", WebhookSecret: "w", APIVersion: testVersion}
 
 	for name, mangle := range map[string]func(*CashfreeConfig){
-		"no base URL":       func(c *CashfreeConfig) { c.BaseURL = "" },
-		"no client id":      func(c *CashfreeConfig) { c.ClientID = "" },
-		"no client secret":  func(c *CashfreeConfig) { c.ClientSecret = "" },
-		"no webhook secret": func(c *CashfreeConfig) { c.WebhookSecret = "" },
-		"no api version":    func(c *CashfreeConfig) { c.APIVersion = "" },
+		"no base URL":      func(c *CashfreeConfig) { c.BaseURL = "" },
+		"no client id":     func(c *CashfreeConfig) { c.ClientID = "" },
+		"no client secret": func(c *CashfreeConfig) { c.ClientSecret = "" },
+		"no api version":   func(c *CashfreeConfig) { c.APIVersion = "" },
 	} {
 		cfg := full
 		mangle(&cfg)
@@ -169,6 +168,51 @@ func TestCashfreeRefusesToStartWithoutItsPins(t *testing.T) {
 	}
 	if _, err := NewCashfree(full); err != nil {
 		t.Errorf("a complete configuration was refused: %v", err)
+	}
+}
+
+// A deployment with no webhook secret is a poll-only deployment, and it works:
+// confirmation is an API call and never trusted a delivery's contents. What it
+// must not do is trust a delivery.
+//
+// The subtle part is why the check moved rather than being deleted. An empty
+// HMAC key is a *valid* key — a signature computed with "" verifies against ""
+// — so a construction that quietly kept an empty secret would verify deliveries
+// an attacker can sign. Refusing by name is not the same as comparing against
+// nothing.
+func TestAPollOnlyDeploymentWorksAndTrustsNoDelivery(t *testing.T) {
+	c, err := NewCashfree(CashfreeConfig{
+		BaseURL: "https://sandbox.cashfree.com/pg", ClientID: "c",
+		ClientSecret: "s", APIVersion: testVersion,
+	})
+	if err != nil {
+		t.Fatalf("a poll-only deployment was refused: %v — confirmation is an API call, so a "+
+			"deployment the provider cannot reach is still a working one", err)
+	}
+	if c.AcceptsDeliveries() {
+		t.Error("a deployment with no webhook secret claims it can verify deliveries")
+	}
+
+	// Signed with the empty key, which is what an attacker would try against a
+	// deployment that kept one.
+	body := []byte(`{"type":"PAYMENT_SUCCESS_WEBHOOK"}`)
+	stamp := strconv.FormatInt(time.Now().Unix(), 10)
+	mac := hmac.New(sha256.New, []byte(""))
+	mac.Write([]byte(stamp))
+	mac.Write(body)
+	w := Webhook{
+		Body:      body,
+		Timestamp: stamp,
+		Signature: base64.StdEncoding.EncodeToString(mac.Sum(nil)),
+	}
+
+	if c.VerifyWebhook(w) {
+		t.Fatal("a delivery signed with the empty key verified — an empty HMAC key is a real key, " +
+			"which is why this is refused by name rather than by comparison")
+	}
+	ok, err := c.VerifyWebhookWithReason(w)
+	if ok || err == nil {
+		t.Error("the refusal does not say why no delivery can be trusted here")
 	}
 }
 

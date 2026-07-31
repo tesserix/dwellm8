@@ -132,6 +132,24 @@ func (s Status) IsTerminal() bool {
 
 func (s Status) String() string { return string(s) }
 
+// AwaitingPayer reports whether the payment is still waiting on the person
+// paying it, and is therefore worth asking the provider about.
+//
+// Not the same as "not terminal", and the difference is the polling sweep's
+// whole cost model: a captured payment is non-terminal — it can still settle or
+// be refunded — and asking Cashfree about it changes nothing, because settlement
+// is a reconciliation question (ADR-0012) rather than a payment-status one. So a
+// sweep keyed on IsTerminal would re-ask about every captured payment forever.
+func (s Status) AwaitingPayer() bool {
+	return s == StatusCreated || s == StatusAttempted
+}
+
+// AwaitingPayerStatuses is the same set, for the query that has to express it in
+// SQL. Two copies, one test — collect_test.go asserts they agree.
+func AwaitingPayerStatuses() []Status {
+	return []Status{StatusCreated, StatusAttempted}
+}
+
 // Statuses returns every status, ordered.
 func Statuses() []Status {
 	out := make([]Status, 0, len(transitions))
