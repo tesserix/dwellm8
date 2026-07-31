@@ -62,11 +62,14 @@ func TestAFlatCannotBeLetTwiceOverTheSameDays(t *testing.T) {
 
 	let := func(state, from, to string) error {
 		return tenancy.Platform(ctx, plat, "letting a flat", func(ctx context.Context, tx pgx.Tx) error {
-			_, err := tx.Exec(ctx, `
+			var id string
+			if err := tx.QueryRow(ctx, `
 				INSERT INTO leases (tenant_id, property_id, unit_id, state, valid_from, valid_to)
-				VALUES ($1, $2, $3, $4, $5::date, $6::date)`,
-				isolationtest.OrgA.String(), prop, unit, state, from, to)
-			return err
+				VALUES ($1, $2, $3, $4, $5::date, $6::date) RETURNING id`,
+				isolationtest.OrgA.String(), prop, unit, state, from, to).Scan(&id); err != nil {
+				return err
+			}
+			return isolationtest.SeedLeaseTaxFacts(ctx, tx, isolationtest.OrgA.String(), id, from)
 		})
 	}
 
@@ -114,10 +117,13 @@ func TestTerminatingShortensOccupancyAndLeavesTheAgreement(t *testing.T) {
 
 	var id string
 	if err := tenancy.Platform(ctx, plat, "letting", func(ctx context.Context, tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `
+		if err := tx.QueryRow(ctx, `
 			INSERT INTO leases (tenant_id, property_id, unit_id, state, valid_from, valid_to)
 			VALUES ($1, $2, $3, 'active', '2025-07-01', '2026-07-01') RETURNING id`,
-			isolationtest.OrgA.String(), prop, unit).Scan(&id)
+			isolationtest.OrgA.String(), prop, unit).Scan(&id); err != nil {
+			return err
+		}
+		return isolationtest.SeedLeaseTaxFacts(ctx, tx, isolationtest.OrgA.String(), id, "2025-07-01")
 	}); err != nil {
 		t.Fatalf("letting: %v", err)
 	}
@@ -153,11 +159,14 @@ func TestTerminatingShortensOccupancyAndLeavesTheAgreement(t *testing.T) {
 	// So the flat is free from 21 June, and a new tenancy may start then even though the
 	// old agreement ran to July.
 	if err := tenancy.Platform(ctx, plat, "re-letting", func(ctx context.Context, tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `
+		var relet string
+		if err := tx.QueryRow(ctx, `
 			INSERT INTO leases (tenant_id, property_id, unit_id, state, valid_from, valid_to)
-			VALUES ($1, $2, $3, 'active', '2026-06-21', '2027-06-21')`,
-			isolationtest.OrgA.String(), prop, unit)
-		return err
+			VALUES ($1, $2, $3, 'active', '2026-06-21', '2027-06-21') RETURNING id`,
+			isolationtest.OrgA.String(), prop, unit).Scan(&relet); err != nil {
+			return err
+		}
+		return isolationtest.SeedLeaseTaxFacts(ctx, tx, isolationtest.OrgA.String(), relet, "2026-06-21")
 	}); err != nil {
 		t.Errorf("the flat could not be re-let from the day occupancy ceased: %v — the agreement "+
 			"ran to July, and what matters is when the tenant left", err)
@@ -167,10 +176,13 @@ func TestTerminatingShortensOccupancyAndLeavesTheAgreement(t *testing.T) {
 	prop2, unit2 := seedLeaseUnit(t, plat)
 	var id2 string
 	_ = tenancy.Platform(ctx, plat, "letting", func(ctx context.Context, tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `
+		if err := tx.QueryRow(ctx, `
 			INSERT INTO leases (tenant_id, property_id, unit_id, state, valid_from, valid_to)
 			VALUES ($1, $2, $3, 'active', '2025-07-01', '2026-07-01') RETURNING id`,
-			isolationtest.OrgA.String(), prop2, unit2).Scan(&id2)
+			isolationtest.OrgA.String(), prop2, unit2).Scan(&id2); err != nil {
+			return err
+		}
+		return isolationtest.SeedLeaseTaxFacts(ctx, tx, isolationtest.OrgA.String(), id2, "2025-07-01")
 	})
 	err := tenancy.Platform(ctx, plat, "terminating carelessly", func(ctx context.Context, tx pgx.Tx) error {
 		_, err := tx.Exec(ctx,
@@ -193,10 +205,13 @@ func TestARetrospectiveTerminationIsRefusedByAskingTheLedger(t *testing.T) {
 
 	var id string
 	if err := tenancy.Platform(ctx, plat, "letting", func(ctx context.Context, tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `
+		if err := tx.QueryRow(ctx, `
 			INSERT INTO leases (tenant_id, property_id, unit_id, state, valid_from, valid_to)
 			VALUES ($1, $2, $3, 'active', '2025-07-01', '2026-07-01') RETURNING id`,
-			isolationtest.OrgA.String(), prop, unit).Scan(&id)
+			isolationtest.OrgA.String(), prop, unit).Scan(&id); err != nil {
+			return err
+		}
+		return isolationtest.SeedLeaseTaxFacts(ctx, tx, isolationtest.OrgA.String(), id, "2025-07-01")
 	}); err != nil {
 		t.Fatalf("letting: %v", err)
 	}
@@ -302,10 +317,13 @@ func TestTheRetrospectiveGuardReadsChargesNotReceipts(t *testing.T) {
 
 	var id string
 	if err := tenancy.Platform(ctx, plat, "letting", func(ctx context.Context, tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `
+		if err := tx.QueryRow(ctx, `
 			INSERT INTO leases (tenant_id, property_id, unit_id, state, valid_from, valid_to)
 			VALUES ($1, $2, $3, 'active', '2025-07-01', '2026-07-01') RETURNING id`,
-			isolationtest.OrgA.String(), prop, unit).Scan(&id)
+			isolationtest.OrgA.String(), prop, unit).Scan(&id); err != nil {
+			return err
+		}
+		return isolationtest.SeedLeaseTaxFacts(ctx, tx, isolationtest.OrgA.String(), id, "2025-07-01")
 	}); err != nil {
 		t.Fatalf("letting: %v", err)
 	}
@@ -394,12 +412,15 @@ func TestRenewalIsContiguousAndAtMostOnce(t *testing.T) {
 
 	renew := func(from, to string) error {
 		return tenancy.Platform(ctx, plat, "renewing", func(ctx context.Context, tx pgx.Tx) error {
-			_, err := tx.Exec(ctx, `
+			var successor string
+			if err := tx.QueryRow(ctx, `
 				INSERT INTO leases (tenant_id, property_id, unit_id, state, valid_from, valid_to,
 				                    renews_lease_id)
-				VALUES ($1, $2, $3, 'active', $4::date, $5::date, $6)`,
-				isolationtest.OrgA.String(), prop, unit, from, to, first)
-			return err
+				VALUES ($1, $2, $3, 'active', $4::date, $5::date, $6) RETURNING id`,
+				isolationtest.OrgA.String(), prop, unit, from, to, first).Scan(&successor); err != nil {
+				return err
+			}
+			return isolationtest.SeedLeaseTaxFacts(ctx, tx, isolationtest.OrgA.String(), successor, from)
 		})
 	}
 
@@ -438,10 +459,13 @@ func TestTheAgreedTermCannotBeEdited(t *testing.T) {
 
 	var id string
 	if err := tenancy.Platform(ctx, plat, "letting", func(ctx context.Context, tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `
+		if err := tx.QueryRow(ctx, `
 			INSERT INTO leases (tenant_id, property_id, unit_id, state, valid_from, valid_to)
 			VALUES ($1, $2, $3, 'active', '2025-07-01', '2026-07-01') RETURNING id`,
-			isolationtest.OrgA.String(), prop, unit).Scan(&id)
+			isolationtest.OrgA.String(), prop, unit).Scan(&id); err != nil {
+			return err
+		}
+		return isolationtest.SeedLeaseTaxFacts(ctx, tx, isolationtest.OrgA.String(), id, "2025-07-01")
 	}); err != nil {
 		t.Fatalf("letting: %v", err)
 	}
@@ -493,10 +517,13 @@ func TestARentRevisionIsTwoRowsAndOneAnswerPerDay(t *testing.T) {
 
 	var id string
 	if err := tenancy.Platform(ctx, plat, "letting", func(ctx context.Context, tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `
+		if err := tx.QueryRow(ctx, `
 			INSERT INTO leases (tenant_id, property_id, unit_id, state, valid_from, valid_to)
 			VALUES ($1, $2, $3, 'active', '2026-01-01', '2027-01-01') RETURNING id`,
-			isolationtest.OrgA.String(), prop, unit).Scan(&id)
+			isolationtest.OrgA.String(), prop, unit).Scan(&id); err != nil {
+			return err
+		}
+		return isolationtest.SeedLeaseTaxFacts(ctx, tx, isolationtest.OrgA.String(), id, "2026-01-01")
 	}); err != nil {
 		t.Fatalf("letting: %v", err)
 	}

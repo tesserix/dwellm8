@@ -52,11 +52,16 @@ func newFixture(t *testing.T) fixture {
 				unit, isolationtest.OrgOwner.String(), isolationtest.PropertyGranted, "LDG-"+tok[:6]); err != nil {
 				return fmt.Errorf("seeding the unit: %w", err)
 			}
-			_, err := tx.Exec(ctx, `
+			if _, err := tx.Exec(ctx, `
 				INSERT INTO leases (id, tenant_id, property_id, unit_id, state, valid_from, valid_to)
 				VALUES ($1, $2, $3, $4, 'active', date '2026-01-01', date '2026-12-31')`,
-				lease, isolationtest.OrgOwner.String(), isolationtest.PropertyGranted, unit)
-			return err
+				lease, isolationtest.OrgOwner.String(), isolationtest.PropertyGranted, unit); err != nil {
+				return err
+			}
+			// ADR-0024: a tenancy does not start without the two facts that decide
+			// which TDS section governs every payment made under it.
+			return isolationtest.SeedLeaseTaxFacts(ctx, tx, isolationtest.OrgOwner.String(),
+				lease, "2026-01-01")
 		})
 	if err != nil {
 		t.Fatalf("seeding the lease: %v", err)

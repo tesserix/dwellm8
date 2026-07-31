@@ -36,6 +36,7 @@ import (
 	"sort"
 
 	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds"
 )
 
 // State is where a lease has got to.
@@ -356,6 +357,15 @@ type Lease struct {
 
 	// Renews is the lease this one succeeds, if any.
 	Renews string
+
+	// Tax is the deductor class and the landlord's residency over the life of the
+	// tenancy — the two facts that decide which TDS section governs every payment
+	// under it. ADR-0024, and tax.go for when they are demanded.
+	//
+	// A history rather than two fields because residency changes: a landlord who
+	// leaves the country in October was a resident in April, and both are true of
+	// this lease in the same financial year.
+	Tax tds.History
 }
 
 // ErrTransition is what a caller checks for to tell an illegal move from a bad input.

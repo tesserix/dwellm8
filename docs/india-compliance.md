@@ -288,26 +288,46 @@ Implementation requirements:
 
 ## 5. TDS on rent
 
-| Section | Deductor | Trigger | Rate | Deposit / certificate |
-|---|---|---|---|---|
-| **§194-I** | Business/company tenants and other non-individual deductors | Annual rent above the section threshold | Standard rate for land/building rent | Monthly challan, quarterly TDS return, Form 16A |
-| **§194-IB** | Individuals/HUF not liable to tax audit | Monthly rent above the section threshold | Section rate on the year's/lease's rent | Form 26QC challan-cum-statement, Form 16C to the landlord |
-| **§195** | Any tenant paying a non-resident landlord (NRI) | Any rent | Rates per Act/DTAA, no small-value exemption | Form 15CA/15CB, Form 16A |
+Specified as a decision matrix in [ADR-0024](adr/0024-tds-decision-matrix.md) and
+implemented in `internal/platform/statutory/tds`. Rates and thresholds come from the
+registry ([ADR-0023](adr/0023-statutory-rule-tables.md)), never from this page.
+
+| Section | Deductor | Threshold | Timing | TAN | Artefacts |
+|---|---|---|---|---|---|
+| **§194-I** | Anyone not on the row below — companies, firms, LLPs, government, and individuals/HUF liable to audit under §44AB | The year's rent to that landlord, exceeded | Every payment or credit | Yes | Challan (or Form 24G for government), quarterly 26Q, Form 16A |
+| **§194-IB** | An individual or HUF **not** liable to tax audit | The month's rent, exceeded | **Once**, at year end or lease end, on the whole period's rent | No | Form 26QC challan-cum-statement, Form 16C |
+| **§195** | Anyone paying a **non-resident** landlord | **None** — from the first rupee | Every payment or credit | Yes | Challan, quarterly **27Q**, Form 16A, Forms 15CA/15CB |
+
+The line between the first two is audit liability under §44AB, not "individual versus
+company": a salaried tenant and a doctor with a large practice are both individuals and
+are not on the same path. Residency is tested first and overrides both — a non-resident
+landlord puts every deductor on §195.
 
 Product requirements:
 
-- The lease captures **deductor class** (individual vs business) and **landlord residency**
-  at creation, because those two facts alone determine the entire TDS path — and getting
-  them at settlement time is too late.
-- NRI landlords are a distinct, high-risk flow: TDS applies from the first rupee, the
-  tenant is liable for failure, and this is where an unaware tenant is most exposed. The
-  platform must surface the obligation prominently at lease creation.
+- The lease captures **deductor class** and **landlord residency** before the tenancy
+  starts, because those two facts determine the entire TDS path and discovering them at
+  the first payout means months of deduction, interest under §201(1A) and penalty.
+- Both are **effective-dated**. A landlord who moves abroad in October was a resident in
+  April, and April's deduction is not restated by what happened in October.
+- NRI landlords are a distinct, high-risk flow: TDS applies from the first rupee and the
+  tenant carries the liability. The lease cannot be completed until the deductor has
+  acknowledged it — enforced in the domain and by a deferred constraint trigger.
+- **There is no §195 rate in the registry, deliberately.** It is the Act's or a treaty's,
+  read with the landlord's tax residency certificate. The platform names the section and
+  the exposure and refuses to compute a deduction against a number nobody chose.
+- Joint owners are assessed **per payee**, and only on an exact split — shares totalling
+  10,000 basis points and amounts totalling the rent to the paisa. The §194-I threshold
+  is per landlord across their whole portfolio, not per property.
 - Deducted TDS is a ledger posting against `tds_receivable` on the owner side, reflected
   in the owner statement so the payout reconciles.
 - The platform generates reminders and the required forms/references, tracks challan and
   certificate receipt, and never files on the user's behalf without explicit authority.
 - The obligation stays with the deductor. Dwellm8's role is documented as facilitation,
-  in the terms of service and in the UI.
+  in the terms of service and in the UI, in one set of words.
+
+Not yet modelled: lower or nil deduction certificates under §197, which are the common
+NRI answer to §195 and are a per-landlord rate override with their own validity window.
 
 ---
 

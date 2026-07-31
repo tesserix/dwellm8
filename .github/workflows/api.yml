@@ -1132,6 +1132,77 @@ jobs:
              WHERE rule_key = 'tds.194ib_monthly';" >/dev/null
           echo "the registry caught all four, as it should"
 
+      # ADR-0024. Three plants, and none of them announces itself: a tenancy that
+      # starts with no TDS section computes nothing and looks healthy for nine
+      # months, and the third — a guard that fires immediately instead of at commit
+      # — is the version of this trigger that passes its own test and refuses every
+      # real write, because the facts carry a foreign key to the lease they are
+      # written with.
+      - name: Prove the TDS decision matrix still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION leases_tax_path_is_known() RETURNS trigger
+              LANGUAGE plpgsql AS \$\$ BEGIN RETURN NULL; END \$\$"
+          if go test -count=1 -run TestATenancyCannotStartWithNoTaxPath \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::a tenancy started with no TDS section governing it — every payment under it is a deduction nobody computed"
+            exit 1
+          fi
+          if go test -count=1 -run TestASection195TenancyCannotStartUnacknowledged \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::a section 195 tenancy started unacknowledged — the tenant carries the liability and was never told"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          # Two sets of facts true on one day: two sections govern the same payment,
+          # and whichever row sorted first decides the rate.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "ALTER TABLE lease_tax_facts DROP CONSTRAINT lease_tax_facts_no_overlap"
+          if go test -count=1 -run TestALeaseHasOneSetOfTaxFactsPerDay \
+              ./internal/platform/tenancy/isolationtest/; then
+            echo "::error::a lease held two sets of tax facts on the same day"
+            exit 1
+          fi
+          # The overlapping rows that plant wrote have to go before the constraint can
+          # come back. Otherwise ADD CONSTRAINT refuses them — correctly — and the
+          # replay stops there, leaving every later plant restored against a schema
+          # that was never rebuilt.
+          PGPASSWORD=bootstrap psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            ALTER TABLE lease_tax_facts NO FORCE ROW LEVEL SECURITY;
+            DELETE FROM lease_tax_facts;
+            ALTER TABLE lease_tax_facts FORCE ROW LEVEL SECURITY;" >/dev/null
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          # The plant that looks like a tidy-up. An immediate trigger enforces the
+          # same rule and refuses every legitimate write, because the facts cannot
+          # exist before the lease they reference.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            DROP TRIGGER leases_tax_path_known ON leases;
+            CREATE TRIGGER leases_tax_path_known
+              AFTER INSERT OR UPDATE ON leases
+              FOR EACH ROW EXECUTE FUNCTION leases_tax_path_is_known();"
+          if go test -count=1 -run TestTheTaxPathGuardIsDeferredToCommit ./internal/lease/store/; then
+            echo "::error::the tax path guard is no longer deferred, so no lease can be written with its own facts"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          # And the Go half: the matrix must not invent a section 195 rate.
+          if ! go test -count=1 -run TestANonResidentLandlordPutsEveryDeductorOnSection195 \
+              ./internal/platform/statutory/tds/; then
+            echo "::error::section 195 resolved to a rate nobody chose"
+            exit 1
+          fi
+          echo "the matrix caught all three, as it should"
+
       - name: Build
         run: go build ./...
 

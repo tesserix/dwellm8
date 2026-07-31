@@ -34,6 +34,11 @@ decision, `statutory_rules` and `statutory_rule_slabs` are the tables, and
 `internal/platform/statutory` resolves against them. What follows describes the
 columns; the ADR describes what the database refuses.
 
+The first consumer is the TDS decision matrix
+([ADR-0024](adr/0024-tds-decision-matrix.md)), which is also the first place the
+registry's deliberate silence matters: there is no §195 rate row, so the platform
+names the section, names the exposure, and refuses to compute a deduction.
+
 ### 1.1 The registry entry
 
 Every rule table in the platform — stamp duty, deposit caps, GST rates, TDS
@@ -374,7 +379,7 @@ Property held in one name for another's benefit is a benami transaction with
 criminal consequence for both parties. The platform records the **beneficial
 owner** alongside the registered owner, and a mismatch is a disclosure the
 platform surfaces rather than a field it quietly stores. Corporate and LLP
-holdings change the TDS path (§194-I always applies to a company tenant) and the
+holdings change the TDS path (a company tenant is on §194-I — ADR-0024 §1) and the
 capital gains treatment; the owning entity's type is a first-class attribute, not
 a free-text field.
 
