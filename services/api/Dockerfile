@@ -11,6 +11,10 @@
 # service whose build is not reproducible and whose rollback lands somewhere new;
 # Dependabot raises the bump, and the bump is a reviewable line.
 FROM ghcr.io/tesserix/base-go-builder:latest@sha256:26832d7a02b1cc85fd5f5848849cd51a32c7bf788e570622ef7cd48176cb5c95 AS build
+# The builder runs as 10001 so a consumer can keep that uid; this stage writes
+# to /src and /out, neither of which that user owns. Root here is a build-time
+# concern only — nothing from this stage ships, only the binary it produces.
+USER 0:0
 WORKDIR /src
 
 # Dependencies first, so a code change does not re-download the module cache.
