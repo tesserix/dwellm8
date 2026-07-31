@@ -71,6 +71,11 @@ materially higher stamp duty and a registrar appointment.
 more switches the flow to the registration path — it never silently produces a long
 unregistered lease. Renewal, not extension, is the default motion.
 
+**The convention is state-scoped, not national.** Maharashtra requires registration of a
+tenancy at any tenure (Rent Control Act 1999, s.55), so 11 months buys nothing there.
+"Does a term under 12 months avoid registration in this state?" is a per-state flag beside
+the deposit cap — see [`e-stamping-by-state.md`](e-stamping-by-state.md).
+
 ### Stamp duty and e-stamping
 
 - Stamp duty on a lease is a **state subject**: the base, the slab and the treatment of
@@ -82,6 +87,9 @@ unregistered lease. Renewal, not extension, is the default motion.
 - E-stamping is delivered through the authorised channel for the state (SHCIL/ e-stamp
   vendors where available, state portals elsewhere). The certificate identifier is stored
   on the agreement; a signed agreement with no stamp evidence is an invalid state.
+- No state exposes an e-stamping API to us; every digital path runs through an aggregator
+  holding SHCIL ACC standing. Channel, duty base and launch verdict per state:
+  [`e-stamping-by-state.md`](e-stamping-by-state.md).
 
 ### eSign
 
