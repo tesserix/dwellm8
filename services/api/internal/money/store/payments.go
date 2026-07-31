@@ -49,13 +49,13 @@ func (s *Payments) Create(ctx context.Context, p collect.Payment) (collect.Payme
 	}
 	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `
-			INSERT INTO payments (tenant_id, property_id, unit_id, mandate_id,
+			INSERT INTO payments (tenant_id, property_id, unit_id, mandate_id, lease_id,
 			                      payer_kind, payer_id, amount_minor, method,
 			                      provider, provider_order_id, status, idempotency_key)
-			VALUES ($1, $2, nullif($3,'')::uuid, nullif($4,'')::uuid,
-			        $5, $6, $7, $8, $9, nullif($10,''), $11, $12)
+			VALUES ($1, $2, nullif($3,'')::uuid, nullif($4,'')::uuid, nullif($5,'')::uuid,
+			        $6, $7, $8, $9, $10, nullif($11,''), $12, $13)
 			RETURNING id, created_at`,
-			p.TenantID, p.Property, p.Unit, p.MandateID,
+			p.TenantID, p.Property, p.Unit, p.MandateID, p.Lease,
 			string(p.PayerKind), p.PayerID, int64(p.Amount), string(p.Method),
 			p.Provider, p.ProviderOrderID, string(p.Status), p.IdempotencyKey,
 		).Scan(&p.ID, &p.CreatedAt)
@@ -89,7 +89,8 @@ func (s *Payments) ByProviderOrderID(ctx context.Context, provider, id string) (
 
 const paymentColumns = `
 	p.id, p.tenant_id, p.property_id, coalesce(p.unit_id::text,''),
-	coalesce(p.mandate_id::text,''), p.payer_kind, p.payer_id, p.amount_minor,
+	coalesce(p.mandate_id::text,''), coalesce(p.lease_id::text,''),
+	p.payer_kind, p.payer_id, p.amount_minor,
 	p.method, p.provider, coalesce(p.provider_order_id,''),
 	coalesce(p.provider_payment_id,''), p.status, coalesce(p.failure_code,''),
 	p.idempotency_key, coalesce(p.entry_id::text,''), p.created_at`
@@ -100,7 +101,7 @@ func (s *Payments) one(ctx context.Context, where string, args ...any) (collect.
 	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		return tx.QueryRow(ctx,
 			`SELECT `+paymentColumns+` FROM payments p `+where, args...,
-		).Scan(&p.ID, &p.TenantID, &p.Property, &p.Unit, &p.MandateID,
+		).Scan(&p.ID, &p.TenantID, &p.Property, &p.Unit, &p.MandateID, &p.Lease,
 			&kind, &p.PayerID, &p.Amount, &method, &p.Provider,
 			&p.ProviderOrderID, &p.ProviderPaymentID, &status, &p.FailureCode,
 			&p.IdempotencyKey, &p.EntryID, &p.CreatedAt)
@@ -129,12 +130,134 @@ func (s *Payments) RecordOrder(ctx context.Context, id, providerOrderID string) 
 	})
 }
 
+// PostFor builds the entry a payment must post as it reaches its new status.
+//
+// outstanding is the payer's receivable at that moment, read inside the same
+// transaction: a payment is split into principal and advance against what is
+// actually owed, and reading it outside would price the split against a balance
+// that has since moved.
+type PostFor func(p collect.Payment, outstanding domain.Minor) (domain.Entry, error)
+
+// ApplyConfirmedAndPost writes a confirmed status and, when that status is one
+// that moves money, the ledger entry for it — in one transaction.
+//
+// One transaction is the whole point. Posting first and updating after would
+// leave an entry behind whenever the transition turns out to be stale, and an
+// entry nothing points at is money counted twice. Updating first is worse: the
+// schema refuses a captured payment with no entry, so it would simply fail.
+//
+// build is called only for a status that posts. A stale transition returns
+// collect.ErrStaleTransition, having written neither.
+func (s *Payments) ApplyConfirmedAndPost(ctx context.Context, id string, to collect.Status, at time.Time, build PostFor) (collect.Payment, error) {
+	tenant, ok := tenancy.From(ctx)
+	if !ok {
+		return collect.Payment{}, tenancy.ErrNoTenant
+	}
+
+	var out collect.Payment
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		p, err := lockPayment(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		if err := p.ApplyConfirmed(to, at); err != nil {
+			return err
+		}
+
+		if posts(to) && p.EntryID == "" {
+			outstanding, err := receivable(ctx, tx, p)
+			if err != nil {
+				return fmt.Errorf("reading what is owed: %w", err)
+			}
+			e, err := build(p, outstanding)
+			if err != nil {
+				return err
+			}
+			entryID, err := postEntry(ctx, tx, tenant, e)
+			if err != nil {
+				return err
+			}
+			p.EntryID = entryID
+		}
+
+		out = p
+		_, err = tx.Exec(ctx, `
+			UPDATE payments
+			   SET status = $2,
+			       entry_id = coalesce(entry_id, nullif($3,'')::uuid),
+			       provider_payment_id = coalesce(nullif($4,''), provider_payment_id),
+			       failure_code = nullif($5,''),
+			       authorised_at = coalesce(authorised_at, nullif($6, timestamptz 'epoch')),
+			       captured_at   = coalesce(captured_at,   nullif($7, timestamptz 'epoch')),
+			       settled_at    = coalesce(settled_at,    nullif($8, timestamptz 'epoch'))
+			 WHERE id = $1`,
+			id, string(p.Status), p.EntryID, p.ProviderPaymentID, p.FailureCode,
+			p.AuthorisedAt, p.CapturedAt, p.SettledAt)
+		return err
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return collect.Payment{}, ErrNotFound
+	}
+	if err != nil {
+		return collect.Payment{}, err
+	}
+	return out, nil
+}
+
+// posts reports whether reaching this status means money moved and the ledger
+// must say so. The schema's payments_captured_has_entry is the same list.
+func posts(s collect.Status) bool {
+	return s == collect.StatusCaptured || s == collect.StatusSettled
+}
+
+func lockPayment(ctx context.Context, tx pgx.Tx, id string) (collect.Payment, error) {
+	var p collect.Payment
+	var kind, method, status string
+	if err := tx.QueryRow(ctx,
+		`SELECT `+paymentColumns+` FROM payments p WHERE p.id = $1 FOR UPDATE`, id,
+	).Scan(&p.ID, &p.TenantID, &p.Property, &p.Unit, &p.MandateID, &p.Lease,
+		&kind, &p.PayerID, &p.Amount, &method, &p.Provider,
+		&p.ProviderOrderID, &p.ProviderPaymentID, &status, &p.FailureCode,
+		&p.IdempotencyKey, &p.EntryID, &p.CreatedAt); err != nil {
+		return collect.Payment{}, err
+	}
+	p.PayerKind, p.Method, p.Status = domain.PartyKind(kind), collect.Method(method), collect.Status(status)
+	return p, nil
+}
+
+// receivable is what the payer owes right now, from the postings.
+//
+// Scoped to the lease when the collection names one and to the payer otherwise,
+// which is the difference between "what is owed on this tenancy" and "what this
+// person owes anywhere in the organisation".
+func receivable(ctx context.Context, tx pgx.Tx, p collect.Payment) (domain.Minor, error) {
+	var owed domain.Minor
+	err := tx.QueryRow(ctx, `
+		SELECT coalesce(sum(l.signed_minor), 0)
+		  FROM ledger_postings l
+		  JOIN journal_entries e ON e.id = l.entry_id AND e.tenant_id = l.tenant_id
+		 WHERE l.account_code = $1
+		   AND l.party_kind = $2
+		   AND l.party_id = $3::uuid
+		   AND ($4 = '' OR e.lease_id = $4::uuid)`,
+		domain.TenantReceivable, string(p.PayerKind), p.PayerID, p.Lease).Scan(&owed)
+	if owed < 0 {
+		// A credit balance is an advance already held, not a debt. The templates
+		// treat "owed nothing" and "owed less than nothing" the same way.
+		owed = 0
+	}
+	return owed, err
+}
+
 // ApplyConfirmed writes a status that has been confirmed against the provider.
 //
 // It re-reads the payment inside the transaction and applies the transition
 // through the domain, so the rule is the same one the handler used and the
 // schema's trigger is the backstop rather than the only check. A stale
 // transition returns collect.ErrStaleTransition and writes nothing.
+//
+// It cannot write a status that posts — the schema refuses a captured payment
+// with no entry — so those go through ApplyConfirmedAndPost.
 func (s *Payments) ApplyConfirmed(ctx context.Context, id string, to collect.Status, at time.Time) (collect.Payment, error) {
 	var out collect.Payment
 	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -142,7 +265,7 @@ func (s *Payments) ApplyConfirmed(ctx context.Context, id string, to collect.Sta
 		var kind, method, status string
 		if err := tx.QueryRow(ctx,
 			`SELECT `+paymentColumns+` FROM payments p WHERE p.id = $1 FOR UPDATE`, id,
-		).Scan(&p.ID, &p.TenantID, &p.Property, &p.Unit, &p.MandateID,
+		).Scan(&p.ID, &p.TenantID, &p.Property, &p.Unit, &p.MandateID, &p.Lease,
 			&kind, &p.PayerID, &p.Amount, &method, &p.Provider,
 			&p.ProviderOrderID, &p.ProviderPaymentID, &status, &p.FailureCode,
 			&p.IdempotencyKey, &p.EntryID, &p.CreatedAt); err != nil {

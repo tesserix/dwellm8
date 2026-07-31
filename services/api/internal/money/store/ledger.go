@@ -47,20 +47,9 @@ func (l *Ledger) Post(ctx context.Context, e domain.Entry) (Posted, error) {
 
 	var id string
 	err := tenancy.Scoped(ctx, l.pool, func(ctx context.Context, tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, `
-			INSERT INTO journal_entries (tenant_id, entry_kind, template_version, occurred_on,
-			                             lease_id, source_kind, source_id, idempotency_key,
-			                             memo, reverses_entry_id, reversal_reason)
-			VALUES ($1, $2, $3, $4::date, nullif($5,'')::uuid, $6, $7, $8,
-			        nullif($9,''), nullif($10,'')::uuid, nullif($11,''))
-			RETURNING id`,
-			tenant.String(), string(e.Kind), e.TemplateVersion, e.OccurredOn,
-			e.Lease, e.SourceKind, e.SourceID, e.IdempotencyKey,
-			e.Memo, e.Reverses, string(e.ReversalReason),
-		).Scan(&id); err != nil {
-			return err
-		}
-		return insertPostings(ctx, tx, tenant, id, e)
+		var err error
+		id, err = postEntry(ctx, tx, tenant, e)
+		return err
 	})
 	switch {
 	case err == nil:
@@ -77,6 +66,29 @@ func (l *Ledger) Post(ctx context.Context, e domain.Entry) (Posted, error) {
 	default:
 		return Posted{}, fmt.Errorf("money: posting a %s entry: %w", e.Kind, err)
 	}
+}
+
+// postEntry writes the header and its lines inside a caller's transaction, so
+// that a payment's capture and its posting can be one atomic act.
+func postEntry(ctx context.Context, tx pgx.Tx, tenant tenancy.ID, e domain.Entry) (string, error) {
+	if err := e.Validate(); err != nil {
+		return "", err
+	}
+	var id string
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO journal_entries (tenant_id, entry_kind, template_version, occurred_on,
+		                             lease_id, source_kind, source_id, idempotency_key,
+		                             memo, reverses_entry_id, reversal_reason)
+		VALUES ($1, $2, $3, $4::date, nullif($5,'')::uuid, $6, $7, $8,
+		        nullif($9,''), nullif($10,'')::uuid, nullif($11,''))
+		RETURNING id`,
+		tenant.String(), string(e.Kind), e.TemplateVersion, e.OccurredOn,
+		e.Lease, e.SourceKind, e.SourceID, e.IdempotencyKey,
+		e.Memo, e.Reverses, string(e.ReversalReason),
+	).Scan(&id); err != nil {
+		return "", err
+	}
+	return id, insertPostings(ctx, tx, tenant, id, e)
 }
 
 // The place lives on the lines, not on the header: it is what their policy is

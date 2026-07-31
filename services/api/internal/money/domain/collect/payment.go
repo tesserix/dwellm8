@@ -191,6 +191,11 @@ type Payment struct {
 	// most of them. The authority itself lives in money/domain/mandate.
 	MandateID string
 
+	// Lease is the tenancy this collection pays. Empty for a deposit or an ad-hoc
+	// collection; where it is set, the entry the capture posts inherits it, which
+	// is what puts a receipt into the lease position. ADR-0006 §5.
+	Lease string
+
 	// IdempotencyKey is the caller's key, unique within the organisation.
 	IdempotencyKey string
 

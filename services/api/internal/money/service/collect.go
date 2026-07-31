@@ -43,11 +43,33 @@ func NewPayments(s *store.Payments, inbox *store.Inbox, r *provider.Registry, lo
 	return &Payments{store: s, inbox: inbox, providers: r, log: log, now: time.Now}
 }
 
+// receipt is the entry a captured payment posts. ADR-0006 §4's split: the part
+// that clears what is owed, and the remainder held as an advance.
+//
+// The idempotency key is the payment's own id, so the entry is the payment's one
+// posting however many times a confirmation arrives.
+func receipt(p collect.Payment, outstanding domain.Minor, at time.Time) (domain.Entry, error) {
+	return domain.Payment(p.Amount, outstanding,
+		domain.Place{Property: p.Property, Unit: p.Unit},
+		p.PayerID,
+		domain.Source{
+			Kind:           "payment",
+			ID:             p.ID,
+			IdempotencyKey: "payment:" + p.ID,
+			OccurredOn:     at,
+			Lease:          p.Lease,
+			Memo:           string(p.Method) + " via " + p.Provider,
+		})
+}
+
 // CollectRequest is one attempt to take money.
 type CollectRequest struct {
-	TenantID       string
-	Property       string
-	Unit           string
+	TenantID string
+	Property string
+	Unit     string
+	// Lease is the tenancy this collection pays, when it pays one. It is what
+	// carries the receipt into the lease position beside the charges.
+	Lease          string
 	PayerID        string
 	PayerName      string
 	PayerContact   string
@@ -69,7 +91,7 @@ func (s *Payments) Collect(ctx context.Context, req CollectRequest) (collect.Pay
 	}
 
 	p := collect.Payment{
-		TenantID: req.TenantID, Property: req.Property, Unit: req.Unit,
+		TenantID: req.TenantID, Property: req.Property, Unit: req.Unit, Lease: req.Lease,
 		PayerKind: domain.Tenant, PayerID: req.PayerID,
 		Amount: req.Amount, Method: req.Method,
 		Provider: adapter.Name(), Status: collect.StatusCreated,
@@ -148,7 +170,11 @@ func (s *Payments) Confirm(ctx context.Context, p collect.Payment) (collect.Paym
 			p.ID, p.Amount, conf.AmountMinor)
 	}
 
-	updated, err := s.store.ApplyConfirmed(ctx, p.ID, conf.Status, s.now())
+	at := s.now()
+	updated, err := s.store.ApplyConfirmedAndPost(ctx, p.ID, conf.Status, at,
+		func(p collect.Payment, outstanding domain.Minor) (domain.Entry, error) {
+			return receipt(p, outstanding, at)
+		})
 	if errors.Is(err, collect.ErrStaleTransition) {
 		// Normal, and not a fault: the confirmation says what we already knew, or
 		// arrived after something later. Nothing is written.

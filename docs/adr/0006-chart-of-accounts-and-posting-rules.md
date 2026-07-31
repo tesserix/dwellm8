@@ -520,9 +520,27 @@ No materialised projection is used, so §5's sanctioned fix — the rebuildable
 period-close snapshot, issue #190 — is still the answer when the portfolio-wide
 aggregate stops being fast enough. Nothing here stores a balance.
 
-### C. What is not wired yet
+### C. The collection path posts, in the same transaction as the capture
 
-`payments` carries no `lease_id`, so the collection path cannot yet name the lease
-a receipt pays. Until it does — issues #37 and #42 — a lease position contains its
-charges and any payment posted directly through the engine, and not the payments
-raised by the gateway path. The engine supports it; the caller does not exist.
+`payments` gained a nullable `lease_id`, so a collection names the tenancy it pays
+and the entry inherits it. A captured payment now posts its receipt through
+`ApplyConfirmedAndPost`: one transaction that locks the payment, applies the
+ADR-0011 §3 transition, reads what the payer owes, posts the entry, and writes
+`entry_id` back.
+
+One transaction rather than two, and the ordering inside it does not matter
+because a rollback takes both halves. Two transactions would: posting first
+orphans an entry whenever the transition turns out to be stale, and updating first
+cannot work at all — `payments_captured_has_entry` refuses a captured payment with
+no entry, which is that constraint earning its place.
+
+The receipt's idempotency key is `payment:<payment id>`, so the entry is the
+payment's one posting however many confirmations arrive. Two guards, deliberately:
+the service skips a payment that already names an entry, and the unique index
+refuses a second one regardless. Removing the first leaves the second failing
+loudly, which is what the contract test measures.
+
+What still does not exist is the invoice that a receipt pays down — issue #37. The
+split between principal and advance is computed against the receivable actually
+posted, so until charges are raised by something other than a test, most receipts
+will be advances. That is correct behaviour, not a gap.
