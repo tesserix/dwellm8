@@ -130,12 +130,12 @@ type Entry struct {
 	Unit            string
 	// Lease is the tenancy this entry concerns — charges and the payments against
 	// them alike. Optional, and how a lease position is derived. ADR-0006 §5.
-	Lease           string
-	SourceKind      string
-	SourceID        string
-	IdempotencyKey  string
-	Memo            string
-	Postings        []Posting
+	Lease          string
+	SourceKind     string
+	SourceID       string
+	IdempotencyKey string
+	Memo           string
+	Postings       []Posting
 
 	// A reversal names what it reverses and why. Set by Reverse() and by
 	// nothing else.
