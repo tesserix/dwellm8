@@ -981,6 +981,18 @@ jobs:
             echo "::error::two active mandates were registered on one unit"
             exit 1
           fi
+
+          # The planted test committed the second authority — that is what it was
+          # proving — so the index cannot simply be rebuilt by replaying the schema:
+          # CREATE UNIQUE INDEX validates the rows already there and fails on the
+          # duplicate this step deliberately caused. Same shape as the compensation
+          # guard above, and the same bigger hammer for the same good reason: DELETE
+          # on mandates is refused by a RESTRICTIVE policy, because a revoked
+          # authority is exactly what a disputed debit needs the record to disprove.
+          PGPASSWORD=bootstrap psql -h localhost -U postgres -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            ALTER TABLE mandates NO FORCE ROW LEVEL SECURITY;
+            DELETE FROM mandates;
+            ALTER TABLE mandates FORCE ROW LEVEL SECURITY;" >/dev/null
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
           echo "the index caught it, as it should"
 

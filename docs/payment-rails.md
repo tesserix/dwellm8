@@ -193,6 +193,10 @@ has an opinion about.
 
 ## 8. What this changes in ADR-0011
 
+**Settled in [ADR-0022](adr/0022-mandates-and-the-cashfree-adapter.md), which
+amends ADR-0011 rather than superseding it.** All four items below are
+implemented; the section stands as the reasoning that produced them.
+
 The `Adapter` interface cannot carry either provider's mandate flow, and one part
 of it cannot carry Cashfree at all. Both are amendments to a Rejected-nothing ADR
 rather than a supersession — the seam is right, it is incomplete.
