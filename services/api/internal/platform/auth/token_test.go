@@ -264,6 +264,21 @@ func TestEverySurfaceHasItsOwnPool(t *testing.T) {
 	}
 }
 
+// GIP mints tenant ids as <displayName>-<random>, so the id a real token
+// carries is dwellm8-own-x8f3a. The suffixed form must resolve; a name that
+// merely shares the prefix without the separator must not.
+func TestAMintedTenantIDResolvesAndAPrefixCollisionDoesNot(t *testing.T) {
+	back, err := auth.SurfaceFor("dwellm8-own-x8f3a", "dwellm8")
+	if err != nil || back != auth.SurfaceOwn {
+		t.Errorf("the minted id resolved to %q (%v), want own", back, err)
+	}
+	for _, id := range []string{"dwellm8-ownx", "dwellm8-own2-abc", "notdwellm8-own-x"} {
+		if _, err := auth.SurfaceFor(id, "dwellm8"); !errors.Is(err, auth.ErrToken) {
+			t.Errorf("%q was accepted as a Dwellm8 pool", id)
+		}
+	}
+}
+
 // A token that expired inside the leeway is still refused once the leeway has
 // passed — the window is small on purpose, because a generous one extends the
 // life of a stolen token.

@@ -29,6 +29,7 @@ package auth
 import (
 	"fmt"
 	"slices"
+	"strings"
 )
 
 // Surface is one of the product's front doors. Each has its own GIP tenant and
@@ -77,7 +78,13 @@ func (s Surface) TenantID(prefix string) string {
 // tenant to staff is the worst available failure.
 func SurfaceFor(tenantID, prefix string) (Surface, error) {
 	for _, s := range Surfaces() {
-		if s.TenantID(prefix) == tenantID {
+		want := s.TenantID(prefix)
+		// GIP mints tenant ids as <displayName>-<random>, so the id a token
+		// carries is dwellm8-own-x8f3a, never bare dwellm8-own. The separator
+		// is required: dwellm8-own matches and dwellm8-ownx must not, because
+		// only project admins can create tenants and the names they create are
+		// exactly the derived ones.
+		if tenantID == want || strings.HasPrefix(tenantID, want+"-") {
 			return s, nil
 		}
 	}
