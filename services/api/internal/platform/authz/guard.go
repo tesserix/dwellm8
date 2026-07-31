@@ -108,6 +108,15 @@ func (g *Guard) wrap(c Check, next http.Handler) http.Handler {
 			}
 			g.Cache.Put(user, c.Relation, object, allowed)
 		}
+		// The decision audit, dwellm8#154: subject, relation, object and result
+		// on every enforced decision, allowed or not. A structured line rather
+		// than an audit_events row for now — the row, its retention and the
+		// granting-relationship trace stay #154's to land.
+		if g.Log != nil {
+			g.Log.Info("authz decision",
+				"subject", user, "relation", c.Relation, "object", object,
+				"allowed", allowed, "cached", hit)
+		}
 		if !allowed {
 			g.deny(w, r, c, nil)
 			return
