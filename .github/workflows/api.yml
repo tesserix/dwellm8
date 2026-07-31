@@ -559,9 +559,16 @@ jobs:
                WHERE entry_id IN (SELECT id FROM journal_entries WHERE lease_id IS NOT NULL);
               DELETE FROM journal_entries WHERE lease_id IS NOT NULL;
               ALTER TABLE lease_tax_facts NO FORCE ROW LEVEL SECURITY;
+              ALTER TABLE tds_obligations NO FORCE ROW LEVEL SECURITY;
+              ALTER TABLE tds_obligation_steps NO FORCE ROW LEVEL SECURITY;
               DELETE FROM rent_schedule; DELETE FROM lease_parties;
-              -- ADR-0024's facts reference the lease, so they go first or nothing goes.
+              -- Everything that names a lease goes before the lease does. Both of
+              -- these reference it, and neither cascades on purpose: what was
+              -- deducted and what the tenant declared are answers to a notice.
+              DELETE FROM tds_obligation_steps; DELETE FROM tds_obligations;
               DELETE FROM lease_tax_facts; DELETE FROM leases;
+              ALTER TABLE tds_obligation_steps FORCE ROW LEVEL SECURITY;
+              ALTER TABLE tds_obligations FORCE ROW LEVEL SECURITY;
               ALTER TABLE lease_tax_facts FORCE ROW LEVEL SECURITY;
               ALTER TABLE payment_events FORCE ROW LEVEL SECURITY;
               ALTER TABLE payments FORCE ROW LEVEL SECURITY;
