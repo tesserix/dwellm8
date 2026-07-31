@@ -46,7 +46,10 @@ export default function PropertyScreen() {
               <KeyValue k="Rent paid to" v={u.paidTo ?? '—'} tone={u.paidTo ? 'green' : undefined} />
               <KeyValue k="Lease ends" v={u.leaseEnds ?? '—'} />
               <KeyValue k="Deposit held" v={inr(u.rentPaise * 3)} />
-              <KeyValue k="Notice period" v="60 days" last />
+              <KeyValue k="Notice period" v="60 days" />
+              {/* ADR-0024: a tenancy cannot start without these, so an existing one
+                  showing "not recorded" is a lease that predates the requirement. */}
+              <KeyValue k="TDS section" v={u.tenant ? 'Section 194-I' : 'Not recorded'} last />
               {u.tenant ? (
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: space(4) }}>
                   <Button label="Call" tone="secondary" small icon={<PhoneIcon size={17} c={color.accent} />} onPress={() => {}} style={{ flex: 1 }} />
@@ -55,6 +58,12 @@ export default function PropertyScreen() {
               ) : (
                 <Button label="Create a listing" onPress={() => router.push('/leads')} style={{ marginTop: space(4) }} />
               )}
+              <Button
+                label={u.tenant ? 'Review tax on the rent' : 'Record tax on the rent'}
+                tone="secondary"
+                onPress={() => router.push('/lease-tax')}
+                style={{ marginTop: space(3) }}
+              />
             </Card>
 
             <Card>
