@@ -1,0 +1,73 @@
+name: repo
+
+# Repository-wide rules, on every push and every pull request with no path
+# filter — because the thing being guarded is a file appearing somewhere it
+# should not, and a path filter would exempt exactly that.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: repo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # This repository ships no SQL. Every table, policy, function and seed row
+      # lives in tesserix-k8s and reaches the cluster through ArgoCD, so a .sql
+      # file here is a schema change that will apply on somebody's laptop and
+      # nowhere else — and will diverge silently from the one that ships.
+      #
+      # The exemption is documentation: docs/ may show SQL in a fenced block.
+      - name: No SQL in the application repository
+        run: |
+          set -uo pipefail
+          offenders=$(git ls-files '*.sql' | grep -v '^docs/' || true)
+          if [ -n "$offenders" ]; then
+            echo "::error::SQL does not live in this repository — move it to tesserix-k8s/charts/apps/db-schema-bootstrap/schemas/dwellm8/dwellm8/dwellm8.sql and let ArgoCD apply it. See docs/schema-changes.md"
+            echo "$offenders"
+            exit 1
+          fi
+          echo "no SQL here, as intended"
+
+      # A migration tool in this repository would be a second author of the
+      # schema, and the second author always wins on the day nobody is watching.
+      - name: No migration tooling
+        run: |
+          set -uo pipefail
+          offenders=$(git ls-files | grep -Ei '(^|/)(migrations?|alembic|flyway|liquibase)(/|$)' || true)
+          if [ -n "$offenders" ]; then
+            echo "::error::migration tooling belongs in tesserix-k8s, not here — see docs/schema-changes.md"
+            echo "$offenders"
+            exit 1
+          fi
+          echo "no migration tooling here, as intended"
+
+      # Every ADR the table of contents claims, and every ADR that exists. A
+      # decision nobody can find from the index is a decision that gets made
+      # twice.
+      - name: The ADR index matches the ADRs
+        run: |
+          set -uo pipefail
+          missing=0
+          for f in docs/adr/0*.md; do
+            base=$(basename "$f")
+            if ! grep -q "($base)" docs/adr/README.md; then
+              echo "::error::$base is not listed in docs/adr/README.md"
+              missing=1
+            fi
+          done
+          for listed in $(grep -o '(0[0-9]*-[a-z0-9-]*\.md)' docs/adr/README.md | tr -d '()'); do
+            if [ ! -f "docs/adr/$listed" ]; then
+              echo "::error::docs/adr/README.md lists $listed, which does not exist"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || exit 1
+          echo "the index and the decisions agree"

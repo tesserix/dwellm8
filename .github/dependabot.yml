@@ -1,0 +1,58 @@
+version: 2
+
+# Grouped, weekly, and deliberately quiet. An update firehose gets muted, and a
+# muted feed is worse than none because it is believed to be watched.
+#
+# Every ecosystem carries a cooldown. A package published an hour ago has not yet
+# been looked at by anybody, and the compromised-release window is measured in
+# hours: waiting a week costs nothing and is the whole defence against installing
+# a hijacked version before its own registry has noticed.
+updates:
+  - package-ecosystem: gomod
+    directory: /services/api
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      go-minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: 'chore(deps)'
+
+  # One entry for the whole npm workspace: apps and packages share a lockfile,
+  # so a per-app entry would raise six pull requests for one bump.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      expo-sdk:
+        patterns: ['expo', 'expo-*', 'react-native', 'react-native-*', '@expo/*']
+      types-and-tooling:
+        patterns: ['@types/*', 'typescript']
+    commit-message:
+      prefix: 'chore(deps)'
+    ignore:
+      # Expo SDK majors move react-native, the router and every native module
+      # together. That is a planned migration with a changelog to read, not a
+      # dependency bump to merge.
+      - dependency-name: expo
+        update-types: [version-update:semver-major]
+      - dependency-name: react-native
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: 'chore(ci)'

@@ -1,0 +1,85 @@
+name: apps
+
+# The apps and the shared package had no CI at all until this file existed, which
+# was survivable while they were mock-data screens and stopped being survivable
+# when they started carrying compliance text a tenant acts on.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/apps.yml'
+  pull_request:
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+concurrency:
+  group: apps-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      # Every workspace, in one command, because a change to mobile-shared breaks
+      # the app that consumes it and not the package itself.
+      - name: Typecheck every workspace
+        run: npm run typecheck
+
+  bundle:
+    runs-on: ubuntu-latest
+    # A typecheck proves the types line up; a bundle proves the imports resolve
+    # at runtime, which is the failure a wrong export path actually produces.
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [admin, find, live, ops, own, pro]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Bundle ${{ matrix.app }} for web
+        working-directory: apps/${{ matrix.app }}
+        run: npx expo export --platform web --output-dir /tmp/export-${{ matrix.app }}
+
+  guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ADR-0024 §8 and the facilitation rule it names: the product describes its
+      # own role in one set of words, and a screen that paraphrases it is a screen
+      # making a different legal claim. mobile-shared exports the sentence; an app
+      # that hardcodes its own is caught here.
+      - name: One statement of what Dwellm8 does and does not do
+        run: |
+          set -uo pipefail
+          offenders=$(grep -rln "does not deduct, deposit or file" apps/ 2>/dev/null || true)
+          if [ -n "$offenders" ]; then
+            echo "::error::these screens carry their own copy of the facilitation notice instead of importing facilitationNotice from @dwellm8/mobile-shared:"
+            echo "$offenders"
+            exit 1
+          fi
+          echo "the facilitation notice has one home"

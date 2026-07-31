@@ -79,11 +79,15 @@ The India-specific mechanics are the product, not a settings page. Details in
 
 ## Repository status
 
-Planning and backlog repository. The implementation plan lives as GitHub issues in this
-repository and on the org project board; application code lands here as the MVP is built.
+Building. The Go API, six Expo apps and the shared design system live here; the schema and
+the charts live in [`tesserix-k8s`](https://github.com/tesserix/tesserix-k8s). The plan is
+still GitHub issues and the org project board.
 
 | Resource | Where |
 |---|---|
+| **Running it locally** | [`SETUP_LOCAL.md`](SETUP_LOCAL.md) |
+| **Changing the database schema** | [`docs/schema-changes.md`](docs/schema-changes.md) — it is not in this repository |
+| Architecture decisions | [`docs/adr/`](docs/adr/README.md) |
 | Product & architecture brief | [`docs/product-brief.md`](docs/product-brief.md) |
 | India regulatory, payments & tax model | [`docs/india-compliance.md`](docs/india-compliance.md) |
 | Backlog conventions & taxonomy | [`docs/backlog.md`](docs/backlog.md) |

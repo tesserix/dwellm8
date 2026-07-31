@@ -4,6 +4,10 @@ dist/
 *.log
 .DS_Store
 
+# The local kind overlay's credentials, copied from k8s/secrets.example.yaml.
+# The example is tracked; the copy never is.
+k8s/secrets.yaml
+
 # CI plants deliberate violations to prove each guard still fails, and each step removes
 # its own file. A `planted_*` file that reaches a commit is one that escaped — which
 # happened once, because the simulation ran every step in one shell and each step's
