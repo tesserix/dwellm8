@@ -25,6 +25,7 @@ import (
 	moneyhttp "github.com/tesserix/dwellm8/services/api/internal/money/http"
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	moneystore "github.com/tesserix/dwellm8/services/api/internal/money/store"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/auth"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/config"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
@@ -89,13 +90,6 @@ func run() error {
 
 	leases := leaseservice.NewLeases(leasestore.New(pool), logger)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", health.Live)
-	mux.HandleFunc("GET /readyz", health.Readyz)
-	// Module routes mount here as each module lands, one line per module.
-	moneyhttp.NewWebhooks(payments, logger).Routes(mux)
-	leasehttp.NewLeases(leases, logger).Routes(mux)
-
 	// Rate limiting, issue #228. Two limiters because they fail differently: the
 	// per-tenant one stops one organisation taking the service down for the rest,
 	// and the webhook route is limited unkeyed because its caller is
@@ -104,6 +98,46 @@ func run() error {
 	// Health is outside both. A readiness probe shed as "too many requests" takes
 	// the pod out of rotation at exactly the moment it is busiest, which turns a
 	// load spike into an outage.
+	// ADR-0027. Authentication wraps the module routes and not the health ones:
+	// a probe carrying no token must still answer, or the pod is removed from
+	// rotation for the crime of not being a signed-in user.
+	//
+	// The verifier is built even when enforcement is off, so a dev process is
+	// the same shape as a production one — the only difference is whether the
+	// middleware is in the chain.
+	verifier := &auth.Verifier{
+		ProjectID:    cfg.Identity.ProjectID,
+		TenantPrefix: cfg.Identity.TenantPrefix,
+		Keys:         auth.NewGoogleKeys(),
+		Leeway:       30 * time.Second,
+	}
+
+	// Routes that a person authenticates for.
+	protected := http.NewServeMux()
+	leasehttp.NewLeases(leases, logger).Routes(protected)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", health.Live)
+	mux.HandleFunc("GET /readyz", health.Readyz)
+
+	// The webhook route is deliberately outside authentication: a provider
+	// delivery carries an HMAC signature over its own bytes (ADR-0011) and no
+	// user token, because no user is involved. Putting it behind the bearer
+	// middleware would reject every payment confirmation Cashfree ever sends.
+	//
+	// It is not therefore unauthenticated — it is authenticated by something
+	// else, and it is the one route rate limited without a key for exactly that
+	// reason.
+	moneyhttp.NewWebhooks(payments, logger).Routes(mux)
+	if cfg.Identity.Enforce {
+		mux.Handle("/", auth.Middleware(verifier, protected))
+	} else {
+		// Dev only, and config.validate() refuses it anywhere else — an API that
+		// forgot to authenticate does not fail, it works for everybody.
+		logger.Warn("authentication is not enforced", "env", cfg.Env)
+		mux.Handle("/", protected)
+	}
+
 	tenantLimiter := httpx.NewLimiter(cfg.RateLimits.Tenant, nil)
 	webhookLimiter := httpx.NewLimiter(cfg.RateLimits.Webhook, nil)
 	handler := httpx.Limited(webhookLimiter, webhookRoutes,

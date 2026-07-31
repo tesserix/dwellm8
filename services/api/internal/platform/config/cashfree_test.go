@@ -19,6 +19,10 @@ func sandboxEnv() map[string]string {
 		"CASHFREE_CLIENT_ID":     "TEST1234567890abcdef",
 		"CASHFREE_CLIENT_SECRET": "cfsk_ma_test_0123456789abcdef",
 		"CASHFREE_API_VERSION":   "2023-08-01",
+		// ADR-0027: a prod deployment that cannot verify a token is one where
+		// every request is anonymous, so validate() refuses to start without
+		// these — which means every prod fixture needs them too.
+		"GIP_PROJECT_ID": "tesseracthub-480811",
 	}
 }
 

@@ -127,10 +127,22 @@ func TestSchemaAudit(t *testing.T) {
 	// rule rather than the data, a tenant does not get a private idea of what the
 	// TDS rate is, and the application cannot write one — assertion 18 fails the
 	// bootstrap if the privilege ever comes back.
+	//
+	// identity_principals is exempt for the reason ADR-0027 §6 gives, and it is a
+	// fifth shape: a person exists before they belong to anybody. Somebody signing
+	// into Find is nobody's tenant, and a tenant_id would have to be invented at
+	// the moment of sign-in — before the membership that would decide it.
+	//
+	// So row-level security has nothing to scope it by and the privilege is the
+	// boundary instead: it is revoked from dwellm8_app at the foot of the schema,
+	// after the blanket grant, and only dwellm8_identity holds it. Without that
+	// revoke the table would be a list of every verified phone number on the
+	// platform, readable by every module.
 	p := pool(t)
 	isolationtest.SchemaAudit(t, p,
 		"ledger_accounts", "posting_templates", "posting_template_lines",
 		"settlement_batches", "reconciliation_runs",
 		"prospects", "prospect_shortlist",
-		"statutory_rules", "statutory_rule_slabs")
+		"statutory_rules", "statutory_rule_slabs",
+		"identity_principals")
 }

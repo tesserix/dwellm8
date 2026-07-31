@@ -36,10 +36,32 @@ type Config struct {
 	PaymentProviders []string
 	Cashfree         Cashfree
 
+	// Identity is ADR-0027: the GIP project every token must be minted for, and
+	// the prefix that names this product's user pools.
+	Identity Identity
+
 	// RateLimits are per replica, not per fleet. The effective limit is these
 	// numbers times the replica count, which is stated rather than discovered —
 	// see internal/platform/httpx on why the limiter is in process.
 	RateLimits RateLimits
+}
+
+// Identity configures token verification. ADR-0027.
+//
+// No secret here on purpose: verifying a GIP token needs Google's *public*
+// certificates and the project id, both of which are public knowledge. A service
+// that needed a private key to check a signature would be a service whose ability
+// to authenticate could be stolen.
+type Identity struct {
+	// ProjectID is both the issuer's suffix and the audience. Checking it is what
+	// stops a valid token for another Google project being accepted here.
+	ProjectID string
+	// TenantPrefix names the pools: "dwellm8" gives dwellm8-own and the rest.
+	TenantPrefix string
+	// Enforce turns the middleware on. False only in dev, and validate() refuses
+	// a deployment that leaves it false outside dev — an API that forgot to
+	// authenticate is one that works perfectly for everybody.
+	Enforce bool
 }
 
 // RateLimits configures the two limiters. Issue #228.
@@ -125,6 +147,12 @@ func Load() (Config, error) {
 		AllowSandboxInProd: os.Getenv("CASHFREE_ALLOW_SANDBOX_IN_PROD") == "true",
 	}
 
+	c.Identity = Identity{
+		ProjectID:    os.Getenv("GIP_PROJECT_ID"),
+		TenantPrefix: get("GIP_TENANT_PREFIX", "dwellm8"),
+		Enforce:      get("AUTH_ENFORCE", "true") == "true",
+	}
+
 	c.RateLimits = RateLimits{
 		Tenant:  httpx.Limit{Burst: envInt("RATE_LIMIT_TENANT_BURST", 120), Every: envDur("RATE_LIMIT_TENANT_EVERY_MS", 500)},
 		Webhook: httpx.Limit{Burst: envInt("RATE_LIMIT_WEBHOOK_BURST", 300), Every: envDur("RATE_LIMIT_WEBHOOK_EVERY_MS", 100)},
@@ -153,6 +181,16 @@ func (c Config) validate() error {
 	}
 	if c.Port < 1 || c.Port > 65535 {
 		return fmt.Errorf("PORT out of range: %d", c.Port)
+	}
+	// An API that forgot to authenticate does not fail — it works, for everybody.
+	// So the check is at startup and the failure is the process, not a request.
+	if c.Env != "dev" {
+		if !c.Identity.Enforce {
+			return fmt.Errorf("AUTH_ENFORCE is false outside dev — every request would be anonymous")
+		}
+		if c.Identity.ProjectID == "" {
+			return fmt.Errorf("GIP_PROJECT_ID is required outside dev: without it no token can be verified")
+		}
 	}
 	return c.validateCashfree()
 }
