@@ -186,6 +186,11 @@ type Payment struct {
 	Status      Status
 	FailureCode string
 
+	// MandateID is the standing authority this debit ran under, when it ran
+	// under one. Empty for every collection a payer was present for, which is
+	// most of them. The authority itself lives in money/domain/mandate.
+	MandateID string
+
 	// IdempotencyKey is the caller's key, unique within the organisation.
 	IdempotencyKey string
 

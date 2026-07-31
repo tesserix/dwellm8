@@ -169,6 +169,11 @@ type Mandate struct {
 	PayerKind domain.PartyKind
 	PayerID   string
 
+	// LeaseID is the tenancy this authority was taken for. A mandate that
+	// outlives its lease is a live authority to debit somebody who moved out, so
+	// the link exists to make expiry checkable rather than remembered.
+	LeaseID string
+
 	Rail Rail
 
 	// MaxAmount is the ceiling the payer authorised. It is fixed at registration

@@ -17,6 +17,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	moneyhttp "github.com/tesserix/dwellm8/services/api/internal/money/http"
+	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
+	moneystore "github.com/tesserix/dwellm8/services/api/internal/money/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/config"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
 )
@@ -47,12 +51,29 @@ func run() error {
 	}
 	logProviders(logger, cfg, providers)
 
-	health := httpx.NewHealth(version, nil) // dependency checks arrive with the database
+	// The request pool connects as dwellm8_api — ADR-0003 §3's request role,
+	// never the owner. Row-level security is what isolates one organisation from
+	// another, and it only applies to a role FORCE covers.
+	pool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("database pool: %w", err)
+	}
+	defer pool.Close()
+
+	// Readiness depends on the database; liveness does not. A process that
+	// cannot reach PostgreSQL should stop receiving traffic, not be killed and
+	// restarted into the same outage.
+	health := httpx.NewHealth(version, func(ctx context.Context) error {
+		return pool.Ping(ctx)
+	})
+
+	payments := moneyservice.NewPayments(moneystore.NewPayments(pool), providers, logger)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)
 	mux.HandleFunc("GET /readyz", health.Readyz)
 	// Module routes mount here as each module lands, one line per module.
+	moneyhttp.NewWebhooks(payments, logger).Routes(mux)
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
