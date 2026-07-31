@@ -35,8 +35,14 @@ const (
 	MethodUPICollect Method = "upi_collect"
 	// MethodUPIIntent is the payer opening their own app from a link or QR.
 	MethodUPIIntent Method = "upi_intent"
-	// MethodUPIAutopay is a debit under a standing mandate — no payer present.
+	// MethodUPIAutopay is a debit under a standing UPI mandate — no payer
+	// present. The authority itself lives in money/domain/mandate; this is what
+	// one of its debits looks like once it is an ordinary collection.
 	MethodUPIAutopay Method = "upi_autopay"
+	// MethodNACHDebit is a debit under a NACH authority, electronic or paper.
+	// It carries the rents UPI Autopay cannot: above the AFA-free ceiling every
+	// UPI debit needs the payer's PIN, which is not autopay in any useful sense.
+	MethodNACHDebit  Method = "nach_debit"
 	MethodCard       Method = "card"
 	MethodNetbanking Method = "netbanking"
 
@@ -47,7 +53,7 @@ const (
 
 var methods = map[Method]bool{
 	MethodUPICollect: true, MethodUPIIntent: true, MethodUPIAutopay: true,
-	MethodCard: true, MethodNetbanking: true,
+	MethodNACHDebit: true, MethodCard: true, MethodNetbanking: true,
 	MethodOfflineCash: true, MethodOfflineCheque: true, MethodOfflineTransfer: true,
 }
 

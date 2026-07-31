@@ -228,7 +228,10 @@ func TestOfflineMethodsAreMarkedAndOnlineOnesAreNot(t *testing.T) {
 			t.Errorf("%s: IsOffline is %v", m, m.IsOffline())
 		}
 	}
-	if len(Methods()) != 8 {
+	// Nine since ADR-0022 added nach_debit: a debit under a NACH authority is
+	// neither a UPI method nor an offline one, and before that it had nowhere to
+	// go. The count is asserted so widening the vocabulary stays a decision.
+	if len(Methods()) != 9 {
 		t.Errorf("the method vocabulary has %d entries", len(Methods()))
 	}
 }

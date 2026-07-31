@@ -40,8 +40,11 @@ func (f *fake) Confirm(_ context.Context, id string) (Confirmation, error) {
 	return Confirmation{ProviderPaymentID: id, Status: collect.StatusCaptured}, nil
 }
 
-func (f *fake) VerifyWebhook(payload []byte, sig string) bool {
-	return VerifyHMACSHA256(payload, f.secret, sig)
+// The hex-over-body scheme, which is what most aggregators do and what the
+// fake stands in for. Cashfree's differs, and that difference is the reason
+// this method takes a Webhook — see TestCashfreeSignatureVerification.
+func (f *fake) VerifyWebhook(w Webhook) bool {
+	return VerifyHMACSHA256(w.Body, f.secret, w.Signature)
 }
 
 func upiFake() *fake {
@@ -242,8 +245,14 @@ func TestOfflineRecordsWhatAHumanWitnessed(t *testing.T) {
 	if o.Name() != collect.OfflineProvider {
 		t.Errorf("offline is named %q", o.Name())
 	}
-	if o.VerifyWebhook([]byte("{}"), "anything") {
+	if o.VerifyWebhook(Webhook{Body: []byte("{}"), Signature: "anything"}) {
 		t.Error("offline verified a webhook, and offline payments generate none")
+	}
+	// Offline must not be a MandateAdapter. Cash does not sign a standing
+	// authority, and an interface it could satisfy by accident is one that would
+	// eventually be handed a mandate to register.
+	if _, isMandateAdapter := any(o).(MandateAdapter); isMandateAdapter {
+		t.Error("offline implements MandateAdapter — an offline mandate is an authority nobody granted")
 	}
 	if _, err := o.CreateOrder(context.Background(),
 		OrderRequest{Method: collect.MethodCard, IdempotencyKey: "k"}); err == nil {

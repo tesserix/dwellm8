@@ -6,10 +6,11 @@
 // money/domain/collect and back, and adding a second aggregator is a new file
 // here plus a line of configuration.
 //
-// Razorpay's own HTTP client is not in this package yet — that is the next
-// story. What is here is the contract it must satisfy, the registry that selects
-// it, the signature verification every adapter needs, and the offline adapter,
-// which is not a stub: it is how a tenant pays when the aggregator is down.
+// Cashfree is the first real aggregator behind it (cashfree.go), and writing it
+// found the one thing a seam validated against a single provider always hides:
+// the original VerifyWebhook took a payload and a signature, and Cashfree signs
+// a timestamp with the body, so that interface could not express it at all.
+// ADR-0022 §3.
 package provider
 
 import (
@@ -17,12 +18,15 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/tesserix/dwellm8/services/api/internal/money/domain"
 	"github.com/tesserix/dwellm8/services/api/internal/money/domain/collect"
@@ -82,11 +86,35 @@ type Adapter interface {
 
 	// VerifyWebhook reports whether a delivery really came from the provider.
 	// Implementations must be constant-time.
-	VerifyWebhook(payload []byte, signature string) bool
+	//
+	// It takes the whole delivery rather than a payload and a string because the
+	// providers do not agree on what is signed. Razorpay signs the body alone and
+	// hex-encodes; Cashfree signs the timestamp concatenated with the body and
+	// base64-encodes. An interface that passed only the payload could not express
+	// the second at all — the timestamp is not recoverable from the body — so a
+	// Cashfree adapter would have been unable to verify anything.
+	VerifyWebhook(w Webhook) bool
 
 	// Supports reports whether this adapter can handle a method at all, so the
 	// registry can fall through to one that can.
 	Supports(m collect.Method) bool
+}
+
+// Webhook is one delivery as it arrived, before anything has been believed
+// about it.
+//
+// Body is the exact bytes read off the wire. Not a re-marshalled struct: both
+// aggregators sign the raw payload, and JSON round-tripping reorders keys and
+// normalises whitespace, so a handler that decodes before verifying breaks
+// every signature — silently, and only against real traffic, because a test
+// that builds the body and signs the same bytes never notices.
+type Webhook struct {
+	Body      []byte
+	Signature string
+	// Timestamp is whatever the provider put in its timestamp header, verbatim
+	// and unparsed. Cashfree signs it as a string, so parsing it into a time and
+	// formatting it back would change the bytes that get hashed.
+	Timestamp string
 }
 
 // ErrUnavailable is what an adapter returns when the provider is down. It is
@@ -216,10 +244,10 @@ func (Offline) Confirm(_ context.Context, providerPaymentID string) (Confirmatio
 
 // VerifyWebhook is false for every input: offline payments generate no webhooks,
 // so anything claiming to be one is not from a provider that does not exist.
-func (Offline) VerifyWebhook([]byte, string) bool { return false }
+func (Offline) VerifyWebhook(Webhook) bool { return false }
 
-// VerifyHMACSHA256 is the signature check every aggregator worth using needs,
-// Razorpay included.
+// VerifyHMACSHA256 is the hex-over-body scheme — Razorpay's, and the shape most
+// aggregators use.
 //
 // Constant-time comparison via crypto/subtle, because a byte-by-byte compare on
 // a signature leaks the correct value one request at a time to anybody willing
@@ -234,8 +262,60 @@ func VerifyHMACSHA256(payload []byte, secret, signature string) bool {
 	if err != nil {
 		return false
 	}
+	return equalHMAC(payload, secret, want)
+}
+
+// ErrStaleDelivery is a delivery whose timestamp is outside the replay window.
+// It is returned rather than folded into "not verified" because the two mean
+// different things to whoever is looking: a bad signature is noise or an
+// attacker guessing, and a correctly signed delivery arriving four hours late
+// is either our own outage draining a queue or somebody replaying captured
+// traffic. Both deserve to be parked; only one deserves a page.
+var ErrStaleDelivery = errors.New("provider: a correctly signed delivery outside the replay window")
+
+// VerifyHMACSHA256Base64WithTimestamp is Cashfree's scheme: HMAC-SHA256 over
+// the timestamp concatenated with the raw body, base64-encoded, plus the replay
+// window the timestamp exists for.
+//
+// The window is the reason this is not just an encoding difference. A signature
+// over the body alone is valid forever, so a delivery captured once can be
+// replayed at any point in the future and will verify. Signing the timestamp
+// with it lets us refuse anything older than the window — and refusing is only
+// possible because the interface carries the timestamp, which is the change
+// that made this adapter expressible at all.
+func VerifyHMACSHA256Base64WithTimestamp(w Webhook, secret string, now time.Time, window time.Duration) (bool, error) {
+	if secret == "" || w.Signature == "" || w.Timestamp == "" {
+		return false, nil
+	}
+	want, err := base64.StdEncoding.DecodeString(w.Signature)
+	if err != nil {
+		return false, nil
+	}
+	// Signed exactly as received: timestamp string, then body bytes, with nothing
+	// between them and nothing normalised.
+	signed := append([]byte(w.Timestamp), w.Body...)
+	if !equalHMAC(signed, secret, want) {
+		return false, nil
+	}
+	// Only now, with the delivery proven to be the provider's, is its timestamp
+	// worth reading. Parsing an unverified attacker-supplied field first would be
+	// working for them.
+	secs, err := strconv.ParseInt(strings.TrimSpace(w.Timestamp), 10, 64)
+	if err != nil {
+		return false, nil
+	}
+	sent := time.Unix(secs, 0)
+	if window > 0 {
+		if delta := now.Sub(sent); delta > window || delta < -window {
+			return true, fmt.Errorf("%w: signed at %s, now %s", ErrStaleDelivery,
+				sent.UTC().Format(time.RFC3339), now.UTC().Format(time.RFC3339))
+		}
+	}
+	return true, nil
+}
+
+func equalHMAC(payload []byte, secret string, want []byte) bool {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(payload)
-	got := mac.Sum(nil)
-	return subtle.ConstantTimeCompare(got, want) == 1
+	return subtle.ConstantTimeCompare(mac.Sum(nil), want) == 1
 }

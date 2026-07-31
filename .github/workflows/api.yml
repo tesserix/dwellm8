@@ -933,6 +933,82 @@ jobs:
           fi
           echo "the float guard caught it, as it should"
 
+      # ADR-0022. Two plants, because the mandate lifecycle has two ways of being
+      # wrong and only one of them looks wrong. Dropping the resume is the subtle
+      # one: it makes the mandate machine forward-only, which reads as consistency
+      # with ADR-0011 and quietly forces every tenant coming off a payment holiday
+      # to re-authorise an authority nobody revoked.
+      - name: Prove the mandate lifecycle still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            CREATE OR REPLACE FUNCTION mandate_transition_allowed(from_status text, to_status text)
+              RETURNS boolean LANGUAGE sql IMMUTABLE PARALLEL SAFE AS \$\$
+              SELECT (from_status, to_status) IN (
+                ('created','pending'), ('created','rejected'), ('created','expired'),
+                ('created','revoked'), ('pending','active'), ('pending','rejected'),
+                ('pending','expired'), ('pending','revoked'), ('active','paused'),
+                ('active','revoked'), ('active','expired'), ('paused','revoked'),
+                ('paused','expired')) \$\$"
+          if go test -count=1 -run 'TestTheGoMandateMachineMatchesTheDatabase|TestTheDatabaseAllowsAnAuthorityToResume' \
+              ./internal/money/store/; then
+            echo "::error::the drift check passed with the self-transition and the resume removed"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the drift check caught it, as it should"
+
+      # The index is the only thing standing between a tenant and being debited
+      # twice on the first of the month. Both authorities are real and both were
+      # authorised by somebody, so nothing else in the system reads as wrong.
+      - name: Prove a unit cannot hold two live authorities
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "DROP INDEX mandates_one_active_per_unit_idx"
+          if go test -count=1 -run 'TestAUnitHasAtMostOneLiveAuthority|TestTheMandateIndexesThatAreRules' \
+              ./internal/platform/tenancy/isolationtest/ ./internal/money/store/; then
+            echo "::error::two active mandates were registered on one unit"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+          echo "the index caught it, as it should"
+
+      # ADR-0022 §3. The bug that only ever appears against real traffic: a handler
+      # that decodes the body before verifying it. Every provider signs raw bytes,
+      # and a test that builds the body itself never notices.
+      - name: Prove webhook verification is over raw bytes
+        run: |
+          set -uo pipefail
+          # Restored from a copy rather than with git checkout, so the step is safe
+          # to run against a working tree that has uncommitted changes in it.
+          cp internal/money/provider/provider.go /tmp/provider.go.orig
+          trap 'cp /tmp/provider.go.orig internal/money/provider/provider.go' EXIT
+          python3 - <<'PLANT'
+          p = 'internal/money/provider/provider.go'
+          s = open(p).read()
+          s = s.replace('signed := append([]byte(w.Timestamp), w.Body...)',
+                        'var reparsed any\n\t_ = json.Unmarshal(w.Body, &reparsed)\n\tnormalised, _ := json.Marshal(reparsed)\n\tsigned := append([]byte(w.Timestamp), normalised...)')
+          s = s.replace('"encoding/hex"', '"encoding/hex"\n\t"encoding/json"')
+          open(p, 'w').write(s)
+          PLANT
+          if go test -count=1 -run TestVerificationIsOverRawBytesAndNotReMarshalledJSON \
+              ./internal/money/provider/; then
+            echo "::error::verification passed over a re-marshalled body, so a decoding handler would look correct"
+            exit 1
+          fi
+          echo "the raw-bytes test caught it, as it should"
+
       - name: Build
         run: go build ./...
 

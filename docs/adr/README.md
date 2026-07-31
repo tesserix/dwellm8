@@ -21,6 +21,7 @@ stays readable.
 | [0015](0015-durable-workflow-standard.md) | Durable workflows: a rule that generates the list, the irreversible step last, keys from the workflow | Accepted |
 | [0019](0019-public-listing-surface.md) | Public listings: one table readable without a tenant, rows that opt in, read-only by construction | Accepted |
 | [0021](0021-demo-sandbox-architecture.md) | Demo sandbox: purgeable because nothing real originates in it, and vice versa | Accepted |
+| [0022](0022-mandates-and-the-cashfree-adapter.md) | Mandates: a standing authority is not a payment, and the seam that could not hold one | Accepted |
 
 0004 is missing on purpose: the identity and authorisation decision it was
 reserved for was closed as not planned, and the numbers are not reused.
