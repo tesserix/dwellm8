@@ -8,6 +8,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +22,51 @@ type Config struct {
 	ShutdownGrace   time.Duration // how long in-flight requests get on SIGTERM
 	LogLevel        string
 	SandboxOrgSlugs []string // organisations that hold demonstration data (M19)
+
+	// PaymentProviders is the ADR-0011 chain, in preference order. Offline is
+	// appended if it is missing rather than being required of every deployment:
+	// a chain with no way to record a cash payment is a deployment that cannot
+	// take rent when the aggregator is down.
+	PaymentProviders []string
+	Cashfree         Cashfree
+}
+
+// Cashfree is the aggregator's configuration. ADR-0022 §5.
+//
+// There are no defaults on the first four fields on purpose. A defaulted base
+// URL makes production the thing you get by forgetting to configure anything,
+// and a defaulted API version makes the deployment's behaviour change on
+// Cashfree's release day rather than ours.
+type Cashfree struct {
+	BaseURL      string
+	ClientID     string
+	ClientSecret string
+	APIVersion   string
+	// WebhookSecret verifies deliveries. Cashfree signs with the merchant's
+	// secret key, so this is normally the client secret and is defaulted to it —
+	// separate anyway, because "they are the same value today" is a fact about
+	// Cashfree's current scheme rather than something to hard-code.
+	WebhookSecret string
+	// AllowSandboxInProd is the explicit acknowledgement that a production
+	// deployment is pointed at test credentials. See validate().
+	AllowSandboxInProd bool
+}
+
+// Configured reports whether enough is present to build the adapter.
+func (c Cashfree) Configured() bool {
+	return c.BaseURL != "" && c.ClientID != "" && c.ClientSecret != "" && c.APIVersion != ""
+}
+
+// IsSandbox reports whether these are test credentials, from the credential
+// itself rather than from a flag somebody sets alongside it.
+//
+// Cashfree prefixes both: an app id starts with TEST and a secret key with
+// cfsk_ma_test_. Reading the credential is the only version of this check that
+// cannot disagree with reality — a boolean in a values file is a claim about
+// the secret, and the two drift the first time somebody rotates one.
+func (c Cashfree) IsSandbox() bool {
+	return strings.HasPrefix(c.ClientID, "TEST") ||
+		strings.Contains(c.ClientSecret, "_test_")
 }
 
 // Load reads configuration from the environment.
@@ -42,6 +88,20 @@ func Load() (Config, error) {
 		c.SandboxOrgSlugs = strings.Split(slugs, ",")
 	}
 
+	c.Cashfree = Cashfree{
+		BaseURL:            os.Getenv("CASHFREE_BASE_URL"),
+		ClientID:           os.Getenv("CASHFREE_CLIENT_ID"),
+		ClientSecret:       os.Getenv("CASHFREE_CLIENT_SECRET"),
+		APIVersion:         os.Getenv("CASHFREE_API_VERSION"),
+		WebhookSecret:      get("CASHFREE_WEBHOOK_SECRET", os.Getenv("CASHFREE_CLIENT_SECRET")),
+		AllowSandboxInProd: os.Getenv("CASHFREE_ALLOW_SANDBOX_IN_PROD") == "true",
+	}
+
+	c.PaymentProviders = splitList(get("PAYMENT_PROVIDERS", "offline"))
+	if !contains(c.PaymentProviders, "offline") {
+		c.PaymentProviders = append(c.PaymentProviders, "offline")
+	}
+
 	if grace := os.Getenv("SHUTDOWN_GRACE_SECONDS"); grace != "" {
 		s, err := strconv.Atoi(grace)
 		if err != nil {
@@ -61,7 +121,82 @@ func (c Config) validate() error {
 	if c.Port < 1 || c.Port > 65535 {
 		return fmt.Errorf("PORT out of range: %d", c.Port)
 	}
+	return c.validateCashfree()
+}
+
+func (c Config) validateCashfree() error {
+	named := contains(c.PaymentProviders, "cashfree")
+
+	// A chain naming an aggregator that is not configured fails here rather than
+	// at the first collection of the month. ADR-0011 §1: the typo is discovered
+	// at startup or it is discovered by a tenant.
+	if named && !c.Cashfree.Configured() {
+		missing := []string{}
+		for name, v := range map[string]string{
+			"CASHFREE_BASE_URL":      c.Cashfree.BaseURL,
+			"CASHFREE_CLIENT_ID":     c.Cashfree.ClientID,
+			"CASHFREE_CLIENT_SECRET": c.Cashfree.ClientSecret,
+			"CASHFREE_API_VERSION":   c.Cashfree.APIVersion,
+		} {
+			if v == "" {
+				missing = append(missing, name)
+			}
+		}
+		sort.Strings(missing)
+		return fmt.Errorf("PAYMENT_PROVIDERS names cashfree and %s %s not set",
+			strings.Join(missing, ", "), plural(len(missing)))
+	}
+
+	// Configured but not in the chain is the opposite mistake and just as quiet:
+	// credentials mounted, nothing routing to them, and every collection falling
+	// to whatever is next.
+	if c.Cashfree.Configured() && !named {
+		return fmt.Errorf("cashfree is configured and PAYMENT_PROVIDERS is [%s] — "+
+			"credentials nothing routes to are credentials nobody notices are unused",
+			strings.Join(c.PaymentProviders, ", "))
+	}
+
+	// The one this deployment actually needs today. Dwellm8 is pointed at
+	// Cashfree's sandbox while the merchant account is being set up, and a
+	// production process quietly taking test payments is the worst version of
+	// that: a tenant who has "paid" and an owner who has not been paid.
+	//
+	// The check reads the credential rather than trusting a flag, so it cannot be
+	// satisfied by editing a values file, and the acknowledgement has to be
+	// written down where a reviewer sees it.
+	if named && c.IsProd() && c.Cashfree.IsSandbox() && !c.Cashfree.AllowSandboxInProd {
+		return fmt.Errorf("APP_ENV=prod with Cashfree sandbox credentials (client id begins TEST): " +
+			"set CASHFREE_ALLOW_SANDBOX_IN_PROD=true to say that is deliberate, " +
+			"or point CASHFREE_CLIENT_ID and CASHFREE_CLIENT_SECRET at the live merchant account")
+	}
 	return nil
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return "is"
+	}
+	return "are"
+}
+
+func splitList(s string) []string {
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func contains(haystack []string, needle string) bool {
+	for _, h := range haystack {
+		if h == needle {
+			return true
+		}
+	}
+	return false
 }
 
 // IsProd reports whether this process is serving real money.

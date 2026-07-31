@@ -182,6 +182,7 @@ func TestEveryRequestCarriesTheVersionPinAndCredentials(t *testing.T) {
 	if _, err := c.CreateOrder(context.Background(), OrderRequest{
 		IdempotencyKey: "rent-2026-08-u1", Amount: 1_200_000,
 		Currency: domain.Currency, Method: collect.MethodUPIIntent,
+		PayerRef: "payer-1",
 	}); err != nil {
 		t.Fatalf("CreateOrder: %v", err)
 	}
@@ -224,13 +225,73 @@ func TestARetriedOrderIsTheSameOrderAtCashfree(t *testing.T) {
 	})
 
 	req := OrderRequest{IdempotencyKey: "rent-2026-08-u1", Amount: 1_200_000,
-		Currency: domain.Currency, Method: collect.MethodUPICollect}
+		Currency: domain.Currency, Method: collect.MethodUPICollect, PayerRef: "payer-1"}
 	o, err := c.CreateOrder(context.Background(), req)
 	if err != nil || o.ProviderOrderID != "rent-2026-08-u1" {
 		t.Fatalf("first order = (%+v, %v)", o, err)
 	}
 	if _, err := c.CreateOrder(context.Background(), req); err == nil {
 		t.Error("a duplicate order id was accepted at the provider")
+	}
+}
+
+// The sandbox found this one, which is the argument for having a smoke test at
+// all: every recorded-shape test passed while the adapter was sending the
+// payer's phone number as Cashfree's customer id. Their API rejects it — a
+// customer id must be alphanumeric with underscores or hyphens — and a leading
+// + is not. It was also wrong for a reason their validation does not care
+// about: it hands a contact detail to a system that needs an opaque key, and it
+// breaks when a tenant changes number.
+func TestTheCustomerIdIsAPayerReferenceAndNotAPhoneNumber(t *testing.T) {
+	var sent struct {
+		Customer struct {
+			ID    string `json:"customer_id"`
+			Phone string `json:"customer_phone"`
+		} `json:"customer_details"`
+	}
+	c, _ := testCashfree(t, func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		if err := json.Unmarshal(raw, &sent); err != nil {
+			t.Errorf("unreadable request: %v", err)
+		}
+		fmt.Fprint(w, `{"order_id":"o1","payment_session_id":"s"}`)
+	})
+
+	if _, err := c.CreateOrder(context.Background(), OrderRequest{
+		IdempotencyKey: "o1", Amount: 1_200_000, Currency: domain.Currency,
+		Method: collect.MethodUPIIntent, PayerContact: "9000000000",
+		PayerRef: "b3f1c2d4-0000-4000-8000-000000000001",
+	}); err != nil {
+		t.Fatalf("CreateOrder: %v", err)
+	}
+	if sent.Customer.ID == sent.Customer.Phone {
+		t.Error("the customer id is the phone number")
+	}
+	if sent.Customer.ID != "b3f1c2d4-0000-4000-8000-000000000001" {
+		t.Errorf("customer_id = %q", sent.Customer.ID)
+	}
+
+	// An order with no payer reference is refused here rather than by Cashfree,
+	// so the error names what the caller left out.
+	if _, err := c.CreateOrder(context.Background(), OrderRequest{
+		IdempotencyKey: "o2", Amount: 1_200_000, Currency: domain.Currency,
+		Method: collect.MethodUPIIntent, PayerContact: "9000000000",
+	}); err == nil {
+		t.Error("an order with no payer reference was sent")
+	}
+}
+
+func TestSanitisingACustomerId(t *testing.T) {
+	for in, want := range map[string]string{
+		"b3f1c2d4-0000-4000-8000-000000000001": "b3f1c2d4-0000-4000-8000-000000000001",
+		"payer_42":                             "payer_42",
+		"+919000000000":                        "919000000000",
+		"a b/c":                                "abc",
+		"+++":                                  "",
+	} {
+		if got := sanitiseCustomerID(in); got != want {
+			t.Errorf("sanitiseCustomerID(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 

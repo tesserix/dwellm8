@@ -41,6 +41,12 @@ func run() error {
 	slog.SetDefault(logger)
 	logger.Info("starting", "version", version, "env", cfg.Env, "port", cfg.Port)
 
+	providers, err := paymentProviders(cfg)
+	if err != nil {
+		return fmt.Errorf("payment providers: %w", err)
+	}
+	logProviders(logger, cfg, providers)
+
 	health := httpx.NewHealth(version, nil) // dependency checks arrive with the database
 
 	mux := http.NewServeMux()

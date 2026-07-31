@@ -175,6 +175,11 @@ func (c *Cashfree) CreateOrder(ctx context.Context, req OrderRequest) (Order, er
 	if req.Amount <= 0 {
 		return Order{}, fmt.Errorf("cashfree: an order of %s is not a collection", req.Amount)
 	}
+	customer := sanitiseCustomerID(req.PayerRef)
+	if customer == "" {
+		return Order{}, errors.New("cashfree: an order needs a payer reference — " +
+			"the aggregator keys its customer record on it, and the phone number is not that key")
+	}
 
 	// order_id is our idempotency key, not a generated one. Cashfree rejects a
 	// duplicate order_id, so their uniqueness and ours become the same fact and
@@ -185,7 +190,7 @@ func (c *Cashfree) CreateOrder(ctx context.Context, req OrderRequest) (Order, er
 		"order_currency": orCurrency(req.Currency),
 		"order_note":     req.Reference,
 		"customer_details": map[string]any{
-			"customer_id":    req.PayerContact,
+			"customer_id":    customer,
 			"customer_name":  req.PayerName,
 			"customer_phone": req.PayerContact,
 		},
@@ -614,6 +619,25 @@ func minorFromRupees(n json.Number) (domain.Minor, error) {
 		return 0, fmt.Errorf("cashfree: %q: %w", n.String(), err)
 	}
 	return m, nil
+}
+
+// sanitiseCustomerID keeps what Cashfree accepts as a customer id — alphanumeric,
+// underscore, hyphen — and drops everything else rather than sending a value
+// their API will reject.
+//
+// It is not a general escaper and does not need to be: the input is our own
+// payer id, so the only characters this ever removes are the ones a malformed
+// caller passed. Anything that reduces to nothing is refused above rather than
+// silently becoming an order with no customer behind it.
+func sanitiseCustomerID(ref string) string {
+	var b strings.Builder
+	for _, r := range ref {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_', r == '-':
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func orCurrency(c string) string {

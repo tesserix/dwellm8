@@ -49,6 +49,16 @@ type OrderRequest struct {
 	PayerName string
 	// PayerContact is a phone or an email, whichever the method needs.
 	PayerContact string
+	// PayerRef is the module's own stable id for the payer — the payer_id from
+	// the payment, not anything a person would recognise.
+	//
+	// Aggregators keep their own customer record and want a key for it. Sending
+	// the phone number is the obvious choice and it is wrong twice: it hands a
+	// contact detail to a system that only needs an opaque key, and it breaks
+	// the moment a tenant changes number, which orphans every future collection
+	// from its history. Cashfree also rejects it outright — a customer id must
+	// be alphanumeric with underscores or hyphens, and a leading + is neither.
+	PayerRef string
 }
 
 // Order is what came back.
