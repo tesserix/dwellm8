@@ -16,6 +16,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The authorisation model ships from this repository (ADR-0020); a model that
+  # no longer answers its own test suite must not reach a store.
+  authz-model:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: OpenFGA model tests
+        run: |
+          curl -fsSL https://github.com/openfga/cli/releases/download/v0.7.19/fga_0.7.19_linux_amd64.tar.gz | tar -xz fga
+          ./fga model test --tests services/api/internal/platform/authz/model.fga.yaml
+
   test:
     runs-on: ubuntu-latest
     defaults:

@@ -1,0 +1,317 @@
+# ADR-0020. `fga model test --tests model.fga.yaml` — CI runs this.
+name: dwellm8-authz
+model_file: ./model.fga
+tuples:
+  # Asha Estates: an owner organisation with two properties.
+  - {user: user:asha, relation: owner, object: organisation:asha-estates}
+  - {user: user:arun, relation: co_owner, object: organisation:asha-estates}
+  - {user: user:meera, relation: accountant, object: organisation:asha-estates}
+  - {user: user:comm, relation: committee_member, object: organisation:asha-estates}
+  - {user: organisation:asha-estates, relation: org, object: property:sunrise}
+  - {user: organisation:asha-estates, relation: org, object: property:lakeview}
+  - {user: organisation:asha-estates, relation: org, object: property:oldgate}
+
+  # Keyline: a management firm. Its mandate covers sunrise, not lakeview;
+  # the one on oldgate has expired.
+  - {user: user:kiran, relation: manager, object: organisation:keyline}
+  - {user: user:farhan, relation: staff, object: organisation:keyline}
+  - user: organisation:keyline
+    relation: managed_by
+    object: property:sunrise
+    condition:
+      name: mandate_active
+      context: {valid_from: "2026-01-01T00:00:00Z", valid_until: "2027-01-01T00:00:00Z"}
+  - user: organisation:keyline
+    relation: managed_by
+    object: property:oldgate
+    condition:
+      name: mandate_active
+      context: {valid_from: "2025-06-01T00:00:00Z", valid_until: "2026-06-01T00:00:00Z"}
+  - {user: user:devi, relation: field_agent, object: property:sunrise}
+
+  # The tenancy on sunrise 3A, and the money that hangs off it.
+  - {user: property:sunrise, relation: property, object: unit:sunrise-3a}
+  - {user: unit:sunrise-3a, relation: unit, object: agreement:ag-3a}
+  - {user: user:ravi, relation: tenant, object: agreement:ag-3a}
+  - {user: agreement:ag-3a, relation: agreement, object: invoice:inv-aug}
+  - {user: unit:sunrise-3a, relation: unit, object: invoice:inv-aug}
+  - {user: invoice:inv-aug, relation: invoice, object: payment:pay-1}
+  - {user: organisation:asha-estates, relation: org, object: payout:po-1}
+
+  # Maintenance: ravi's ticket, dispatched to a vendor, one technician, one day.
+  - {user: unit:sunrise-3a, relation: unit, object: ticket:t-77}
+  - {user: user:ravi, relation: raised_by, object: ticket:t-77}
+  - {user: user:vikram, relation: firm_admin, object: vendor:pipefix}
+  - {user: user:tarun, relation: technician, object: vendor:pipefix}
+  - {user: ticket:t-77, relation: ticket, object: job:j-9}
+  - {user: vendor:pipefix, relation: vendor, object: job:j-9}
+  - user: user:tarun
+    relation: assigned_technician
+    object: job:j-9
+    condition:
+      name: job_window
+      context: {starts_at: "2026-08-15T00:00:00Z", ends_at: "2026-08-16T00:00:00Z"}
+
+  # Discovery: a public listing and a prospect's enquiry.
+  - {user: property:sunrise, relation: property, object: listing:l-1}
+  - {user: user:anita, relation: agent, object: listing:l-1}
+  - {user: "user:*", relation: public_viewer, object: listing:l-1}
+  - {user: listing:l-1, relation: listing, object: listing_enquiry:e-1}
+  - {user: user:priya, relation: prospect, object: listing_enquiry:e-1}
+
+  # Brightstay: a hostel. Ravi is staff HERE and a tenant at asha-estates.
+  - {user: user:ravi, relation: staff, object: organisation:brightstay}
+  - {user: organisation:brightstay, relation: org, object: property:hilltop}
+  - {user: user:wanda, relation: warden, object: property:hilltop}
+  - {user: user:gopi, relation: guard, object: property:hilltop}
+  - {user: property:hilltop, relation: property, object: unit:hh-u1}
+  - {user: unit:hh-u1, relation: unit, object: room:hh-r1}
+  - {user: room:hh-r1, relation: room, object: bed:hh-b1}
+  - {user: bed:hh-b1, relation: bed, object: occupancy:occ-1}
+  - {user: user:sana, relation: resident, object: occupancy:occ-1}
+  - {user: user:gopal, relation: guardian, object: occupancy:occ-1}
+
+  # Platform side: an admin with no tuple into any organisation, and support
+  # sessions - one live on asha-estates, one expired on brightstay.
+  - {user: user:pat, relation: platform_admin, object: platform:dwellm8}
+  - user: user:sam
+    relation: support
+    object: organisation:asha-estates
+    condition:
+      name: support_window
+      context: {expires_at: "2026-08-15T12:00:00Z"}
+  - user: user:sam
+    relation: support
+    object: organisation:brightstay
+    condition:
+      name: support_window
+      context: {expires_at: "2026-08-01T00:00:00Z"}
+  - {user: organisation:asha-estates, relation: org, object: document:kyc-ravi}
+  - {user: user:ravi, relation: subject, object: document:kyc-ravi}
+
+tests:
+  - name: owner and co-owner reach everything in their organisation
+    check:
+      - user: user:asha
+        object: property:sunrise
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_manage: true, can_view_financials: true}
+      - user: user:arun
+        object: payout:po-1
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true}
+      - user: user:arun
+        object: organisation:asha-estates
+        assertions: {can_approve_spend: true, can_administer: true}
+
+  - name: the mandate carries the firm onto the property it names, and no further
+    check:
+      - user: user:kiran
+        object: property:sunrise
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_manage: true, can_view: true}
+      - user: user:kiran
+        object: property:lakeview
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false, can_manage: false}
+      - user: user:farhan
+        object: unit:sunrise-3a
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_operate: true, can_manage: false}
+      - user: user:kiran
+        object: agreement:ag-3a
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_edit: true}
+      - user: user:kiran
+        object: invoice:inv-aug
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_adjust: true}
+
+  - name: an expired mandate confers nothing
+    check:
+      - user: user:kiran
+        object: property:oldgate
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false, can_manage: false}
+
+  - name: the manager does not see the owner's payout
+    check:
+      - user: user:kiran
+        object: payout:po-1
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false}
+
+  - name: a field agent works the property and never its money
+    check:
+      - user: user:devi
+        object: property:sunrise
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_collect: true, can_view_financials: false, can_manage: false}
+      - user: user:devi
+        object: agreement:ag-3a
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false}
+      - user: user:devi
+        object: invoice:inv-aug
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_record_collection: true, can_view: false, can_adjust: false}
+      - user: user:devi
+        object: ticket:t-77
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_work: true, can_approve_spend: false}
+
+  - name: the accountant sees money and does not operate
+    check:
+      - user: user:meera
+        object: invoice:inv-aug
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_adjust: false}
+      - user: user:meera
+        object: payout:po-1
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true}
+      - user: user:meera
+        object: property:sunrise
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_operate: false}
+
+  - name: the tenant holds their own agreement, invoice, payment and ticket
+    check:
+      - user: user:ravi
+        object: agreement:ag-3a
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_edit: false}
+      - user: user:ravi
+        object: invoice:inv-aug
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_adjust: false}
+      - user: user:ravi
+        object: payment:pay-1
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true}
+      - user: user:ravi
+        object: ticket:t-77
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_approve_spend: false}
+
+  - name: staff in one organisation is nobody in another
+    check:
+      - user: user:ravi
+        object: property:hilltop
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_operate: true}
+      - user: user:ravi
+        object: property:sunrise
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false, can_collect: false}
+      - user: user:ravi
+        object: payout:po-1
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false}
+
+  - name: hostel chain - warden operates, guard watches, resident and guardian see their occupancy
+    check:
+      - user: user:wanda
+        object: occupancy:occ-1
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true}
+      - user: user:wanda
+        object: property:hilltop
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_operate: true, can_view_financials: false}
+      - user: user:gopi
+        object: property:hilltop
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_operate: false, can_collect: false}
+      - user: user:sana
+        object: occupancy:occ-1
+        assertions: {can_view: true, can_edit: false}
+      - user: user:gopal
+        object: occupancy:occ-1
+        assertions: {can_view: true, can_edit: false}
+
+  - name: a technician exists for one job, for one day
+    check:
+      - user: user:tarun
+        object: job:j-9
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_complete: true}
+      - user: user:tarun
+        object: job:j-9
+        context: {now: "2026-08-16T10:00:00Z"}
+        assertions: {can_view: false, can_complete: false}
+      - user: user:tarun
+        object: ticket:t-77
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false}
+      - user: user:vikram
+        object: job:j-9
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_quote: true}
+
+  - name: a listing is public to read and nobody's to edit
+    check:
+      - user: user:rando
+        object: listing:l-1
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_edit: false}
+      - user: user:anita
+        object: listing:l-1
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_edit: true}
+      - user: user:priya
+        object: listing_enquiry:e-1
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_respond: false}
+      - user: user:rando
+        object: listing_enquiry:e-1
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false}
+      - user: user:anita
+        object: listing_enquiry:e-1
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_respond: true}
+
+  - name: platform admin holds the platform, not the customer
+    check:
+      - user: user:pat
+        object: platform:dwellm8
+        assertions: {can_manage_rule_tables: true, can_approve_onboarding: true}
+      - user: user:pat
+        object: organisation:asha-estates
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false, can_view_financials: false}
+      - user: user:pat
+        object: document:kyc-ravi
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false}
+
+  - name: support access is a window, and it closes
+    check:
+      - user: user:sam
+        object: organisation:asha-estates
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true}
+      - user: user:sam
+        object: document:kyc-ravi
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true}
+      - user: user:sam
+        object: organisation:asha-estates
+        context: {now: "2026-08-15T13:00:00Z"}
+        assertions: {can_view: false}
+      - user: user:sam
+        object: organisation:brightstay
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false}
+
+  - name: the subject of a document sees it
+    check:
+      - user: user:ravi
+        object: document:kyc-ravi
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true}
+      - user: user:kiran
+        object: document:kyc-ravi
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false}

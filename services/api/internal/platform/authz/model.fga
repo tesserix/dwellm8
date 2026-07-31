@@ -1,0 +1,181 @@
+model
+  # ADR-0020. Verbs are can_*; everything else is a relation somebody writes.
+  schema 1.1
+
+type user
+
+# Dwellm8's own surface. Holding platform_admin confers no relation to any
+# organisation's objects - customer data is reached only via organisation#support.
+type platform
+  relations
+    define platform_admin: [user]
+    define can_manage_rule_tables: platform_admin
+    define can_approve_onboarding: platform_admin
+    define can_run_dispute_desk: platform_admin
+
+type organisation
+  relations
+    define owner: [user]
+    define co_owner: [user]
+    define manager: [user]
+    define staff: [user]
+    define accountant: [user]
+    define committee_member: [user]
+    define support: [user with support_window]
+
+    define can_administer: owner or co_owner
+    define can_operate: manager or staff
+    define can_view: owner or co_owner or manager or staff or accountant or committee_member or support
+    define can_view_financials: owner or co_owner or accountant or committee_member or support
+    define can_approve_spend: owner or co_owner
+
+type property
+  relations
+    define org: [organisation]
+    define managed_by: [organisation with mandate_active]
+    define field_agent: [user]
+    define warden: [user]
+    define guard: [user]
+
+    define can_administer: can_administer from org
+    define can_manage: can_administer from org or manager from org or manager from managed_by
+    define can_operate: can_manage or staff from org or staff from managed_by or warden
+    define can_view: can_operate or field_agent or guard or accountant from org or accountant from managed_by or support from org
+    define can_collect: can_operate or field_agent
+    define can_view_financials: can_administer from org or accountant from org or accountant from managed_by or support from org
+
+type block
+  relations
+    define property: [property]
+    define can_manage: can_manage from property
+    define can_operate: can_operate from property
+    define can_view: can_view from property
+    define can_collect: can_collect from property
+    define can_view_financials: can_view_financials from property
+
+type unit
+  relations
+    define property: [property]
+    define block: [block]
+    define can_manage: can_manage from property or can_manage from block
+    define can_operate: can_operate from property or can_operate from block
+    define can_view: can_view from property or can_view from block
+    define can_collect: can_collect from property or can_collect from block
+    define can_view_financials: can_view_financials from property or can_view_financials from block
+
+type room
+  relations
+    define unit: [unit]
+    define can_manage: can_manage from unit
+    define can_operate: can_operate from unit
+    define can_view: can_view from unit
+
+type bed
+  relations
+    define room: [room]
+    define can_manage: can_manage from room
+    define can_operate: can_operate from room
+    define can_view: can_view from room
+
+type agreement
+  relations
+    define unit: [unit]
+    define tenant: [user]
+    define guardian: [user]
+    # Deliberate stop: can_view from unit would let a field agent read rent terms.
+    define can_view: tenant or guardian or can_manage from unit or can_view_financials from unit
+    define can_edit: can_manage from unit
+
+type occupancy
+  relations
+    define bed: [bed]
+    define resident: [user]
+    define guardian: [user]
+    define can_view: resident or guardian or can_operate from bed
+    define can_edit: can_manage from bed
+
+type invoice
+  relations
+    define agreement: [agreement]
+    define unit: [unit]
+    define payer: tenant from agreement or guardian from agreement
+    define can_view: payer or can_manage from unit or can_view_financials from unit
+    define can_record_collection: can_collect from unit
+    define can_adjust: can_manage from unit
+
+type payment
+  relations
+    define invoice: [invoice]
+    define can_view: can_view from invoice
+
+type payout
+  relations
+    define org: [organisation]
+    define can_view: can_view_financials from org
+    define can_hold: support from org
+
+type ticket
+  relations
+    define unit: [unit]
+    define raised_by: [user]
+    define can_view: raised_by or can_view from unit
+    define can_work: can_collect from unit
+    define can_approve_spend: can_manage from unit
+
+type vendor
+  relations
+    define firm_admin: [user]
+    define technician: [user]
+    define can_administer: firm_admin
+    define can_view: firm_admin or technician
+
+type job
+  relations
+    define ticket: [ticket]
+    define vendor: [vendor]
+    define assigned_technician: [user with job_window]
+    define can_view: assigned_technician or firm_admin from vendor or can_view from ticket
+    define can_complete: assigned_technician
+    define can_quote: firm_admin from vendor or assigned_technician
+
+type listing
+  relations
+    define property: [property]
+    define agent: [user]
+    define public_viewer: [user:*]
+    define can_view: public_viewer or agent or can_manage from property
+    define can_edit: agent or can_manage from property
+
+type listing_enquiry
+  relations
+    define listing: [listing]
+    define prospect: [user]
+    define can_view: prospect or agent from listing or can_edit from listing
+    define can_respond: agent from listing or can_edit from listing
+
+type inspection
+  relations
+    define unit: [unit]
+    define assigned: [user]
+    define participant: [user]
+    define can_view: assigned or participant or can_view from unit
+    define can_conduct: assigned or can_operate from unit
+
+type document
+  relations
+    define org: [organisation]
+    define subject: [user]
+    define can_view: subject or can_administer from org or support from org
+    define can_upload: subject or can_operate from org
+
+condition mandate_active(now: timestamp, valid_from: timestamp, valid_until: timestamp) {
+  now >= valid_from && now < valid_until
+}
+
+condition support_window(now: timestamp, expires_at: timestamp) {
+  now < expires_at
+}
+
+condition job_window(now: timestamp, starts_at: timestamp, ends_at: timestamp) {
+  now >= starts_at && now < ends_at
+}

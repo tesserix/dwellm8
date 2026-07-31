@@ -20,6 +20,7 @@ stays readable.
 | [0013](0013-kyc-data-handling.md) | KYC data handling: three tiers, a full identifier made unstorable, a column allowlist | Accepted |
 | [0015](0015-durable-workflow-standard.md) | Durable workflows: a rule that generates the list, the irreversible step last, keys from the workflow | Accepted |
 | [0019](0019-public-listing-surface.md) | Public listings: one table readable without a tenant, rows that opt in, read-only by construction | Accepted |
+| [0020](0020-openfga-authorisation-model.md) | OpenFGA authorisation: verbs from a relationship graph, rows from RLS, neither trusting the other | Accepted |
 | [0021](0021-demo-sandbox-architecture.md) | Demo sandbox: purgeable because nothing real originates in it, and vice versa | Accepted |
 | [0022](0022-mandates-and-the-cashfree-adapter.md) | Mandates: a standing authority is not a payment, and the seam that could not hold one | Accepted |
 | [0023](0023-statutory-rule-tables.md) | Statutory rule tables: a rate change is a row, a gap is an error | Accepted |
@@ -37,8 +38,7 @@ The other gaps mean something different — accepted out of order, not skipped. 
 number is reserved by an open planning issue and will be written when the work
 reaches it: 0014 database topology and RPO/RTO ([#25](https://github.com/tesserix/dwellm8/issues/25)),
 0016 mobile stack ([#118](https://github.com/tesserix/dwellm8/issues/118)),
-0018 web topology ([#120](https://github.com/tesserix/dwellm8/issues/120)),
-0020 OpenFGA authorisation ([#148](https://github.com/tesserix/dwellm8/issues/148)).
+0018 web topology ([#120](https://github.com/tesserix/dwellm8/issues/120)).
 The money spine was built first because everything else posts to it.
 
 ## Writing one
