@@ -189,16 +189,25 @@ func TestAFailedPublishLeavesTheRowUnpublished(t *testing.T) {
 func TestABackedOffRowIsNotReclaimedImmediately(t *testing.T) {
 	plat := platform(t)
 	tenant := seedOrg(t, plat)
-	appendEvent(t, plat, tenant, "money.payment.received")
+	e := appendEvent(t, plat, tenant, "money.payment.received")
 
 	rec := &recorder{fail: errors.New("broker is down")}
 	relay := events.NewRelay(plat, rec, discard(), events.RelayConfig{BaseBackoff: time.Minute})
 
-	if n, err := relay.Drain(context.Background()); err != nil || n != 1 {
-		t.Fatalf("first drain: n=%d err=%v, want 1 and no error", n, err)
+	if _, err := relay.Drain(context.Background()); err != nil {
+		t.Fatalf("first drain: %v", err)
 	}
-	if n, err := relay.Drain(context.Background()); err != nil || n != 0 {
-		t.Fatalf("second drain: n=%d err=%v, want 0 — the row is backed off", n, err)
+	if _, attempts, _ := published(t, plat, e.ID); attempts != 1 {
+		t.Fatalf("after one drain attempts = %d, want 1", attempts)
+	}
+
+	// The row is backed off a minute, so a drain a moment later must not touch
+	// it — that is what turns an outage into a quiet backlog, not a hot loop.
+	if _, err := relay.Drain(context.Background()); err != nil {
+		t.Fatalf("second drain: %v", err)
+	}
+	if _, attempts, _ := published(t, plat, e.ID); attempts != 1 {
+		t.Fatalf("the backed-off row was claimed again: attempts = %d, want 1", attempts)
 	}
 }
 
@@ -216,12 +225,14 @@ func TestAnExhaustedRowStopsBeingClaimed(t *testing.T) {
 	})
 
 	for i := range 3 {
-		if n, err := relay.Drain(context.Background()); err != nil || n != 1 {
-			t.Fatalf("drain %d: n=%d err=%v", i, n, err)
+		if _, err := relay.Drain(context.Background()); err != nil {
+			t.Fatalf("drain %d: %v", i, err)
 		}
 	}
-	if n, err := relay.Drain(context.Background()); err != nil || n != 0 {
-		t.Fatalf("drain after exhaustion: n=%d err=%v, want 0", n, err)
+	// A fourth drain must leave it alone: retry has stopped and a person has to
+	// look at it.
+	if _, err := relay.Drain(context.Background()); err != nil {
+		t.Fatalf("drain after exhaustion: %v", err)
 	}
 
 	done, attempts, _ := published(t, plat, e.ID)
@@ -342,20 +353,30 @@ func TestAppendIsIdempotentOnID(t *testing.T) {
 func TestThePayloadSurvivesTheRoundTrip(t *testing.T) {
 	plat := platform(t)
 	tenant := seedOrg(t, plat)
-	appendEvent(t, plat, tenant, "money.payment.received")
+	e := appendEvent(t, plat, tenant, "money.payment.received")
 
 	rec := &captor{}
 	relay := events.NewRelay(plat, rec, discard(), events.RelayConfig{})
 	if _, err := relay.Drain(context.Background()); err != nil {
 		t.Fatalf("draining: %v", err)
 	}
-	if len(rec.bodies) == 0 {
-		t.Fatal("nothing was published")
-	}
 
+	// The relay drains every organisation, so pick out the event this test
+	// wrote rather than whichever row happened to be published first.
 	var got events.Envelope
-	if err := json.Unmarshal(rec.bodies[0], &got); err != nil {
-		t.Fatalf("the published body is not an envelope: %v", err)
+	var found bool
+	for _, body := range rec.bodies {
+		var candidate events.Envelope
+		if err := json.Unmarshal(body, &candidate); err != nil {
+			t.Fatalf("a published body is not an envelope: %v", err)
+		}
+		if candidate.ID == e.ID {
+			got, found = candidate, true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("the appended event was not published; %d bodies went out", len(rec.bodies))
 	}
 	var data struct {
 		AmountMinor json.Number `json:"amount_minor"`

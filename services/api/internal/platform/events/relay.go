@@ -20,10 +20,6 @@ type Transport interface {
 	Publish(ctx context.Context, subject, id string, body []byte) error
 }
 
-// Pool is the platform-scoped access the relay needs. Draining is inherently
-// cross-tenant, and the outbox policy exempts the platform role rather than any
-// unscoped session, so a request pool passed here would simply see no rows.
-
 // RelayConfig tunes the drain loop. Zero values are replaced by the ADR's.
 type RelayConfig struct {
 	BatchSize   int
@@ -60,6 +56,10 @@ func (c RelayConfig) withDefaults() RelayConfig {
 }
 
 // Relay drains the outbox into the broker. ADR-0002 §4.
+//
+// It holds the platform pool because draining is inherently cross-tenant: the
+// outbox policy exempts the platform role rather than any unscoped session, so
+// a request pool would simply see no rows.
 type Relay struct {
 	pool      tenancy.PlatformPool
 	transport Transport
@@ -157,13 +157,13 @@ func claimBatch(ctx context.Context, tx pgx.Tx, cfg RelayConfig) ([]pending, err
 		)
 		UPDATE outbox o
 		SET attempts = o.attempts + 1,
-		    next_attempt_at = now() + $3::interval
+		    next_attempt_at = now() + make_interval(secs => $3)
 		FROM claimed c
 		WHERE o.id = c.id
 		RETURNING o.id, o.tenant_id, o.type, o.version, o.subject_kind, o.subject_id,
 		          o.correlation_id, coalesce(o.causation_id, ''), o.actor_kind,
 		          coalesce(o.actor_id::text, ''), o.occurred_at, o.payload, o.attempts`,
-		cfg.BatchSize, cfg.MaxAttempts, cfg.StuckAfter.String())
+		cfg.BatchSize, cfg.MaxAttempts, cfg.StuckAfter.Seconds())
 	if err != nil {
 		return nil, fmt.Errorf("events: claiming outbox rows: %w", err)
 	}
@@ -209,8 +209,8 @@ func (r *Relay) fail(ctx context.Context, p pending, cause error) {
 	err := tenancy.Platform(ctx, r.pool, "outbox relay: recording a publish failure",
 		func(ctx context.Context, tx pgx.Tx) error {
 			_, err := tx.Exec(ctx,
-				`UPDATE outbox SET last_error = $2, next_attempt_at = now() + $3::interval WHERE id = $1`,
-				p.env.ID, cause.Error(), backoff.String())
+				`UPDATE outbox SET last_error = $2, next_attempt_at = now() + make_interval(secs => $3) WHERE id = $1`,
+				p.env.ID, cause.Error(), backoff.Seconds())
 			return err
 		})
 	if err != nil {
