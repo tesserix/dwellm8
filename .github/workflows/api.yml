@@ -1261,6 +1261,15 @@ jobs:
       - name: Build
         run: go build ./...
 
+      # Known vulnerabilities in what is actually reachable, not in what happens
+      # to be in go.sum. govulncheck traces call paths, so a CVE in a dependency
+      # this service never calls does not stop a deploy — which is what keeps the
+      # gate believable enough to be acted on when it does fire.
+      - name: Known vulnerabilities
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
   image:
     needs: test
     # Manual dispatch builds an image too — otherwise re-running a build by hand
@@ -1291,3 +1300,16 @@ jobs:
             ghcr.io/tesserix/dwellm8/dwellm8-api:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Scanned after the push rather than before it, deliberately. A distroless
+      # image's CVEs are the base image's, and the base is rebuilt centrally —
+      # so a finding here is a "go and bump the base" signal, not a reason to
+      # withhold an image that the previous step already proved builds and tests.
+      # It fails the job on HIGH and CRITICAL, so the signal is not decorative.
+      - name: Scan the image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/tesserix/dwellm8/dwellm8-api:main-${{ github.sha }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
