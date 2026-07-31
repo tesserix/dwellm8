@@ -1,6 +1,7 @@
 package dpdp_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -22,6 +23,13 @@ import (
 func TestTheDocumentedMatrixMatchesTheCode(t *testing.T) {
 	path := filepath.Join("..", "..", "..", "..", "..", "docs", "data-retention.md")
 	raw, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		// The Dockerfile runs the suite inside a build context of services/api
+		// alone, where docs/ does not exist. Skipping there rather than failing —
+		// and the check is not thereby inert, because the api workflow plants a
+		// bent document and fails the build if this test passes against it.
+		t.Skip("docs/data-retention.md is not in this build context")
+	}
 	if err != nil {
 		t.Fatalf("reading the retention matrix: %v — docs/data-retention.md is the reviewed "+
 			"authority for these periods and this package is only its implementation", err)
