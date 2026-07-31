@@ -38,6 +38,14 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
       -ldflags "-s -w -X main.version=${VERSION}" \
       -o /out/jobs ./cmd/jobs
 
+# The Temporal worker, third entrypoint in the same image for the same reason:
+# it shares every domain package with the API that starts its workflows, and two
+# images would let the two drift to different commits of the same saga.
+RUN CGO_ENABLED=0 GOOS=linux go build \
+      -trimpath \
+      -ldflags "-s -w -X main.version=${VERSION}" \
+      -o /out/worker ./cmd/worker
+
 # The tests run in CI, but running them here means a broken build cannot produce
 # an image at all. The database-backed tests skip without their DSNs, so what
 # this catches is the compile-and-unit half — which is exactly the half that
@@ -48,6 +56,7 @@ RUN go vet ./... && go test ./...
 FROM ghcr.io/tesserix/base-distroless-static:latest@sha256:83a2fa25dfd831cb01ca3d45150df6ebf920ac48682face647a8397ce724e8b8
 COPY --from=build --chown=65532:65532 /out/api /api
 COPY --from=build --chown=65532:65532 /out/jobs /jobs
+COPY --from=build --chown=65532:65532 /out/worker /worker
 USER 65532:65532
 EXPOSE 8080
 ENTRYPOINT ["/api"]

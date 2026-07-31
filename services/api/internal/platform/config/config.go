@@ -8,6 +8,7 @@ package config
 import (
 	"fmt"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/workflow"
 	"os"
 	"sort"
 	"strconv"
@@ -47,6 +48,11 @@ type Config struct {
 
 	// Events is the ADR-0002 backbone.
 	Events Events
+
+	// Workflow is ADR-0015's engine. The API needs it to start an operation and
+	// the worker needs it to serve one; both refuse to run a money operation
+	// without it, rather than falling back to doing it inline.
+	Workflow workflow.Config
 }
 
 // Events configures the outbox relay and the broker it drains to. ADR-0002.
@@ -186,6 +192,12 @@ func Load() (Config, error) {
 	c.RateLimits = RateLimits{
 		Tenant:  httpx.Limit{Burst: envInt("RATE_LIMIT_TENANT_BURST", 120), Every: envDur("RATE_LIMIT_TENANT_EVERY_MS", 500)},
 		Webhook: httpx.Limit{Burst: envInt("RATE_LIMIT_WEBHOOK_BURST", 300), Every: envDur("RATE_LIMIT_WEBHOOK_EVERY_MS", 100)},
+	}
+
+	c.Workflow = workflow.Config{
+		HostPort:  os.Getenv("TEMPORAL_HOSTPORT"),
+		Namespace: get("TEMPORAL_NAMESPACE", workflow.Namespace),
+		TLS:       os.Getenv("TEMPORAL_TLS") == "true",
 	}
 
 	c.Events = Events{
