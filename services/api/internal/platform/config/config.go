@@ -16,12 +16,17 @@ import (
 
 // Config is the whole of the API's configuration.
 type Config struct {
-	Env             string        // dev, uat, prod
-	Port            int           // HTTP listen port
-	DatabaseURL     string        // PostgreSQL DSN, from the CNPG app secret
-	ShutdownGrace   time.Duration // how long in-flight requests get on SIGTERM
-	LogLevel        string
-	SandboxOrgSlugs []string // organisations that hold demonstration data (M19)
+	Env         string // dev, uat, prod
+	Port        int    // HTTP listen port
+	DatabaseURL string // PostgreSQL DSN as dwellm8_api, from the CNPG app secret
+	// PlatformDatabaseURL connects as dwellm8_platform — the role the policies
+	// exempt. One path needs it: the webhook inbox, which is written before
+	// anybody knows whose money the delivery concerns. Defaults to DatabaseURL
+	// in dev, where both are the same database and neither is privileged.
+	PlatformDatabaseURL string
+	ShutdownGrace       time.Duration // how long in-flight requests get on SIGTERM
+	LogLevel            string
+	SandboxOrgSlugs     []string // organisations that hold demonstration data (M19)
 
 	// PaymentProviders is the ADR-0011 chain, in preference order. Offline is
 	// appended if it is missing rather than being required of every deployment:
@@ -72,10 +77,11 @@ func (c Cashfree) IsSandbox() bool {
 // Load reads configuration from the environment.
 func Load() (Config, error) {
 	c := Config{
-		Env:           get("APP_ENV", "dev"),
-		LogLevel:      get("LOG_LEVEL", "info"),
-		DatabaseURL:   os.Getenv("DATABASE_URL"),
-		ShutdownGrace: 20 * time.Second,
+		Env:                 get("APP_ENV", "dev"),
+		LogLevel:            get("LOG_LEVEL", "info"),
+		DatabaseURL:         os.Getenv("DATABASE_URL"),
+		PlatformDatabaseURL: get("PLATFORM_DATABASE_URL", os.Getenv("DATABASE_URL")),
+		ShutdownGrace:       20 * time.Second,
 	}
 
 	port, err := strconv.Atoi(get("PORT", "8080"))

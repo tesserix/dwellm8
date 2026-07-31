@@ -30,13 +30,17 @@ import (
 // Payments is the collection service.
 type Payments struct {
 	store     *store.Payments
+	inbox     *store.Inbox
 	providers *provider.Registry
 	log       *slog.Logger
 	now       func() time.Time
 }
 
-func NewPayments(s *store.Payments, r *provider.Registry, log *slog.Logger) *Payments {
-	return &Payments{store: s, providers: r, log: log, now: time.Now}
+// NewPayments takes both pools' repositories: the tenant-scoped payments store
+// and the platform-scoped inbox. The asymmetry is ADR-0011 §5 — a delivery
+// arrives before anybody knows whose money it concerns.
+func NewPayments(s *store.Payments, inbox *store.Inbox, r *provider.Registry, log *slog.Logger) *Payments {
+	return &Payments{store: s, inbox: inbox, providers: r, log: log, now: time.Now}
 }
 
 // CollectRequest is one attempt to take money.
@@ -193,10 +197,45 @@ func (s *Payments) IngestWebhook(ctx context.Context, providerName string, w pro
 	}
 
 	decision := collect.Decide(d, current)
+
+	// Recorded before it is acted on, and recorded whatever the decision was.
+	// The unique index on (provider, provider_event_id) is what makes the fifth
+	// delivery a no-op; nothing here counts anything.
+	record := store.Delivery{
+		Provider: providerName, EventID: eventID, Type: string(claimed),
+		Verified: d.SignatureVerified, Payload: w.Body,
+	}
+	if decision.Disposition == collect.Park {
+		record.Reason = decision.Reason
+	}
+	// Attributed only when the signature held and the payment was found. An
+	// unverified delivery names nothing, which the schema also refuses.
+	if d.SignatureVerified && current != nil {
+		record.TenantID, record.PaymentID = current.TenantID, current.ID
+	}
+
+	deliveryID, err := s.inbox.Record(ctx, record)
+	if errors.Is(err, store.ErrAlreadySeen) {
+		// The redelivery case, settled by the index. Nothing further happens:
+		// whatever this event was going to do, it already did.
+		s.log.Debug("delivery already recorded", "provider", providerName, "event", eventID)
+		return collect.Decision{Disposition: collect.Ignore}, nil
+	}
+	if err != nil {
+		return collect.Decision{}, err
+	}
+
 	switch decision.Disposition {
 	case collect.Confirm:
 		if _, err := s.Confirm(ctx, *current); err != nil {
 			return decision, err
+		}
+		if err := s.inbox.MarkProcessed(ctx, deliveryID, current.TenantID, current.ID); err != nil {
+			// The money moved and the note about it did not. Worth an error line
+			// and not worth failing the delivery: a confirmed payment is the
+			// system of record, and the sweep can reconcile an unmarked event.
+			s.log.Error("could not mark a delivery processed",
+				"delivery", deliveryID, "payment", current.ID, "error", err)
 		}
 	case collect.Park:
 		s.log.Warn("webhook parked", "provider", providerName, "event", eventID,

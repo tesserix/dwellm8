@@ -23,6 +23,7 @@ import (
 	moneystore "github.com/tesserix/dwellm8/services/api/internal/money/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/config"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 )
 
 // version is stamped at build time: -ldflags "-X main.version=$(git rev-parse --short HEAD)"
@@ -67,7 +68,20 @@ func run() error {
 		return pool.Ping(ctx)
 	})
 
-	payments := moneyservice.NewPayments(moneystore.NewPayments(pool), providers, logger)
+	// The platform pool is a second connection as dwellm8_platform, and it is a
+	// distinct type so it cannot be passed where the request pool is expected.
+	// The webhook inbox is the only thing that gets it: a delivery arrives before
+	// anybody knows whose money it is about. ADR-0011 §5.
+	platformPool, err := pgxpool.New(context.Background(), cfg.PlatformDatabaseURL)
+	if err != nil {
+		return fmt.Errorf("platform database pool: %w", err)
+	}
+	defer platformPool.Close()
+
+	payments := moneyservice.NewPayments(
+		moneystore.NewPayments(pool),
+		moneystore.NewInbox(tenancy.NewPlatformPool(platformPool)),
+		providers, logger)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)
