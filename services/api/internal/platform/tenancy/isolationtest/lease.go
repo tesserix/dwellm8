@@ -44,3 +44,21 @@ func SeedLeaseTaxFactsAs(ctx context.Context, tx pgx.Tx, tenant, leaseID, from, 
 	}
 	return nil
 }
+
+// SeedConsent writes a consent artefact and returns its id.
+//
+// ADR-0026 gave kyc_verifications the foreign key its NOT NULL
+// consent_artefact_id column had been promising since ADR-0013, so a fixture can
+// no longer invent one. That is the constraint working: a verification with no
+// consent behind it is one that should not have happened.
+func SeedConsent(ctx context.Context, tx pgx.Tx, tenant, purpose string) (string, error) {
+	var id string
+	err := tx.QueryRow(ctx, `
+		INSERT INTO consent_artefacts (tenant_id, party_id, purpose, notice_version, language, channel)
+		VALUES ($1, gen_random_uuid(), $2, 'fixture-1', 'en', 'app')
+		RETURNING id`, tenant, purpose).Scan(&id)
+	if err != nil {
+		return "", fmt.Errorf("seeding a consent artefact: %w", err)
+	}
+	return id, nil
+}

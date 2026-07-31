@@ -23,12 +23,15 @@ func TestKYCVerificationsIsolation(t *testing.T) {
 	isolationtest.Run(t, p, isolationtest.Table{
 		Name: "kyc_verifications",
 		Insert: func(ctx context.Context, tx pgx.Tx, tenant tenancy.ID, token string) error {
-			_, err := tx.Exec(ctx, `
+			consent, err := isolationtest.SeedConsent(ctx, tx, tenant.String(), "kyc")
+			if err != nil {
+				return err
+			}
+			_, err = tx.Exec(ctx, `
 				INSERT INTO kyc_verifications (tenant_id, subject_party_id, kind, masked_reference,
 				                               result, provider, provider_txn_id, consent_artefact_id)
-				VALUES ($1, gen_random_uuid(), 'pan', 'XXXXXX234F', 'verified', 'nsdl', $2,
-				        gen_random_uuid())`,
-				tenant.String(), "txn-"+token+"-"+string(tenant)[:1])
+				VALUES ($1, gen_random_uuid(), 'pan', 'XXXXXX234F', 'verified', 'nsdl', $2, $3)`,
+				tenant.String(), "txn-"+token+"-"+string(tenant)[:1], consent)
 			return err
 		},
 		Count: func(ctx context.Context, tx pgx.Tx, token string) (int, error) {
@@ -50,12 +53,15 @@ func TestAFullIdentifierCannotBeWrittenByAnyPath(t *testing.T) {
 
 	write := func(kind, ref string) error {
 		return tenancy.Platform(ctx, plat, "writing a verification", func(ctx context.Context, tx pgx.Tx) error {
-			_, err := tx.Exec(ctx, `
+			consent, err := isolationtest.SeedConsent(ctx, tx, isolationtest.OrgA.String(), "kyc")
+			if err != nil {
+				return err
+			}
+			_, err = tx.Exec(ctx, `
 				INSERT INTO kyc_verifications (tenant_id, subject_party_id, kind, masked_reference,
 				                               result, provider, provider_txn_id, consent_artefact_id)
-				VALUES ($1, gen_random_uuid(), $2, $3, 'verified', 'digilocker', $4,
-				        gen_random_uuid())`,
-				isolationtest.OrgA.String(), kind, ref, "txn-"+randomToken(t))
+				VALUES ($1, gen_random_uuid(), $2, $3, 'verified', 'digilocker', $4, $5)`,
+				isolationtest.OrgA.String(), kind, ref, "txn-"+randomToken(t), consent)
 			return err
 		})
 	}
@@ -101,12 +107,15 @@ func TestADelegatedFirmCannotReadKYC(t *testing.T) {
 
 	tok := randomToken(t)
 	if err := tenancy.Platform(ctx, plat, "recording a verification", func(ctx context.Context, tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `
+		consent, err := isolationtest.SeedConsent(ctx, tx, isolationtest.OrgA.String(), "kyc")
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `
 			INSERT INTO kyc_verifications (tenant_id, subject_party_id, kind, masked_reference,
 			                               result, provider, provider_txn_id, consent_artefact_id)
-			VALUES ($1, gen_random_uuid(), 'passport', 'XXXXX567', 'verified', 'psk', $2,
-			        gen_random_uuid())`,
-			isolationtest.OrgA.String(), "txn-"+tok)
+			VALUES ($1, gen_random_uuid(), 'passport', 'XXXXX567', 'verified', 'psk', $2, $3)`,
+			isolationtest.OrgA.String(), "txn-"+tok, consent)
 		return err
 	}); err != nil {
 		t.Fatalf("recording: %v", err)
@@ -154,12 +163,16 @@ func TestASupportReadWithoutAGrantIsRefused(t *testing.T) {
 
 	var verificationID string
 	if err := tenancy.Platform(ctx, plat, "recording a verification", func(ctx context.Context, tx pgx.Tx) error {
+		consent, err := isolationtest.SeedConsent(ctx, tx, isolationtest.OrgA.String(), "kyc")
+		if err != nil {
+			return err
+		}
 		return tx.QueryRow(ctx, `
 			INSERT INTO kyc_verifications (tenant_id, subject_party_id, kind, masked_reference,
 			                               result, provider, provider_txn_id, consent_artefact_id)
-			VALUES ($1, gen_random_uuid(), 'pan', 'XXXXXX234F', 'verified', 'nsdl', $2,
-			        gen_random_uuid()) RETURNING id`,
-			isolationtest.OrgA.String(), "txn-"+randomToken(t)).Scan(&verificationID)
+			VALUES ($1, gen_random_uuid(), 'pan', 'XXXXXX234F', 'verified', 'nsdl', $2, $3)
+			RETURNING id`,
+			isolationtest.OrgA.String(), "txn-"+randomToken(t), consent).Scan(&verificationID)
 	}); err != nil {
 		t.Fatalf("recording: %v", err)
 	}

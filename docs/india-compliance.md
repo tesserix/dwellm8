@@ -355,11 +355,28 @@ against a bare act, are in [`tds-rate-verification.md`](tds-rate-verification.md
   routing to a named contact with a tracked SLA.
 - Erasure must be reconcilable with statutory retention: financial records, tax documents
   and executed agreements are retained for their statutory period, and the erasure flow
-  states this explicitly rather than failing silently. The retention matrix is a document
-  the backlog owns.
+  states this explicitly rather than failing silently.
+
+The posture is decided in [ADR-0026](adr/0026-dpdp-posture.md) and implemented in
+`internal/platform/dpdp`; the periods are in [`data-retention.md`](data-retention.md), and
+a contract test fails the build if that document and the code disagree. Three things to
+know before reading either:
+
+- **Not everything runs on consent.** Rent is processed to perform the agreement and a TDS
+  deduction because the Act requires it, so withdrawing consent does not stop them — and
+  the product says so rather than accepting the withdrawal in silence.
+- **Erasure has three answers**: erase, retain with the statute and the expiry named, or
+  defer because something is unresolved. An open dispute, unsettled money, or a Form 16A
+  or 16C the landlord is still owed each defer, and the deferral names what is blocking it.
+- **A request is scoped to one organisation.** The same person is a tenant of one and an
+  owner in another, and reaching across would be a tenancy breach dressed as a privacy
+  feature.
 - Children's data and verifiable-consent provisions are avoided by not onboarding minors
   as account holders; occupants who are minors are recorded with the minimum data.
-- Breach notification runbook with defined timelines, owners and communication templates.
+- Breach notification runbook with defined timelines: [`breach-runbook.md`](breach-runbook.md).
+  Every breach is notifiable under §8(6) — there is no severity threshold — and CERT-In's
+  clock is 6 hours. The owners and the grievance SLA are named as outstanding there, because
+  they are people to appoint rather than decisions to make.
 
 ---
 
