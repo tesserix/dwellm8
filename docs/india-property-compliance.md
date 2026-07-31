@@ -462,6 +462,7 @@ attached, and it must be made deliberately rather than arrived at by shipping a
 
 1. **Do we broker sales?** Everything in §9.1 and §9.2 follows from the answer.
    Owner: founders, before any MVP 5 scoping.
+   **Tracked as [#211](https://github.com/tesserix/dwellm8/issues/211).**
 2. **The 90-day PG test when the stay ends early** — is the exemption lost
    retrospectively, and who bears the tax? Owner: Compliance, with a CA.
 3. **Class changes mid-tenancy** — a residential unit converted to PG use, or a
@@ -471,10 +472,12 @@ attached, and it must be made deliberately rather than arrived at by shipping a
    the recipient's registration status alone.
 5. **Circle-rate data** — §50C and stamp duty both need it, it is per state, per
    locality, and there is no national source. Build, buy or ask the user?
+   **Tracked as [#214](https://github.com/tesserix/dwellm8/issues/214).**
 6. **E-commerce operator status** for vendor services and any facilitated
    booking — §9.3.
 7. **Retention matrix**, per artefact type, reconciled against DPDP erasure.
    Owner: Compliance; blocks the erasure endpoint.
+   **Tracked as [#213](https://github.com/tesserix/dwellm8/issues/213).**
 8. Every rate in §5–§8 needs a bare-Act or bare-notification reading before it
    enters a rule table with `enforcement = block`.
 

@@ -231,14 +231,17 @@ refusal, never a default, and never a zero.
    reported as removing SHCIL service charges; if they also close the SHCIL
    channel, our aggregator cannot stamp in Karnataka at all and the Go verdict
    above collapses to a manual Kaveri flow. Owner: Compliance, before any #61
-   work starts.
+   work starts. **Tracked as [#208](https://github.com/tesserix/dwellm8/issues/208).**
 2. **Coverage by instrument type per state, in writing, from Leegality and
    Digio** — specifically a residential lease instrument in Karnataka, Delhi and
    Telangana, at the denominations our duty table produces.
+   **[#209](https://github.com/tesserix/dwellm8/issues/209).**
 3. **The wallet model**: float mechanics, top-up latency, low-balance webhook,
    and whether an unused balance is recoverable. This determines the ledger
    accounts (ADR-0006) the stamping module needs.
+   **[#209](https://github.com/tesserix/dwellm8/issues/209).**
 4. **Cancellation and refund**, per state, with actual timelines and haircut.
+   **[#209](https://github.com/tesserix/dwellm8/issues/209).**
 5. **Whether the flat figures are lawful or merely tolerated** for Karnataka,
    Delhi, UP and West Bengal — a bare-act reading, not a blog. Until this closes,
    #60 ships the ad valorem computation with the flat amount as a floor.

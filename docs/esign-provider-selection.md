@@ -316,6 +316,10 @@ forged callback cannot mark a lease signed.
 
 ## 10. Open questions, to close with the vendor rather than from the spec
 
+Questions 1–4, 6 and 7 are vendor-facing and are tracked as
+[#209](https://github.com/tesserix/dwellm8/issues/209). The `docUrl` exposure this
+spike uncovered is tracked as [#212](https://github.com/tesserix/dwellm8/issues/212).
+
 1. **Which ESPs does the aggregator actually route to, and what happens on ESP
    outage** — silent failover, or a failed transaction we must retry?
 2. **Does the aggregator expose the raw `EsignResp` and the ESP's XML signature**,
