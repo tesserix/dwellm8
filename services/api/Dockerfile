@@ -7,7 +7,10 @@
 # a service pinning upstream images is a service nobody can patch in one place.
 # See tesserix-k8s/docs/distroless-migration.md.
 
-FROM ghcr.io/tesserix/base-go-builder:latest AS build
+# Pinned by digest, not by :latest. A base image that moves under a service is a
+# service whose build is not reproducible and whose rollback lands somewhere new;
+# Dependabot raises the bump, and the bump is a reviewable line.
+FROM ghcr.io/tesserix/base-go-builder:latest@sha256:26832d7a02b1cc85fd5f5848849cd51a32c7bf788e570622ef7cd48176cb5c95 AS build
 WORKDIR /src
 
 # Dependencies first, so a code change does not re-download the module cache.
@@ -29,7 +32,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 RUN go vet ./... && go test ./...
 
 # No shell, no package manager, nothing to exec into. uid 65532.
-FROM ghcr.io/tesserix/base-distroless-static:latest
+FROM ghcr.io/tesserix/base-distroless-static:latest@sha256:83a2fa25dfd831cb01ca3d45150df6ebf920ac48682face647a8397ce724e8b8
 COPY --from=build --chown=65532:65532 /out/api /api
 USER 65532:65532
 EXPOSE 8080

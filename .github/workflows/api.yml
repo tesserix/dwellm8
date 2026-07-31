@@ -1267,7 +1267,10 @@ jobs:
       # gate believable enough to be acted on when it does fire.
       - name: Known vulnerabilities
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          # Pinned, like every other tool this workflow installs: @latest means
+          # the gate itself changes without review, and a scanner that changed
+          # under you is a scanner whose result you cannot compare to yesterday's.
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
           govulncheck ./...
 
   image:
@@ -1289,7 +1292,31 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      # Built and loaded locally first, so the scan below happens *before*
+      # anything is published. Scanning a pushed image tells you what you have
+      # already given everyone else; the second build is a cache hit.
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: services/api
+          load: true
+          build-args: VERSION=${{ github.sha }}
+          tags: dwellm8-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan the image
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: dwellm8-api:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          # Unfixed findings are not actionable in this build — there is no
+          # version to move to — and failing on them would train everybody to
+          # ignore the gate. They are still reported, just not fatal.
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Push
         uses: docker/build-push-action@v6
         with:
           context: services/api
@@ -1299,17 +1326,3 @@ jobs:
             ghcr.io/tesserix/dwellm8/dwellm8-api:main-${{ github.sha }}
             ghcr.io/tesserix/dwellm8/dwellm8-api:latest
           cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # Scanned after the push rather than before it, deliberately. A distroless
-      # image's CVEs are the base image's, and the base is rebuilt centrally —
-      # so a finding here is a "go and bump the base" signal, not a reason to
-      # withhold an image that the previous step already proved builds and tests.
-      # It fails the job on HIGH and CRITICAL, so the signal is not decorative.
-      - name: Scan the image
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: ghcr.io/tesserix/dwellm8/dwellm8-api:main-${{ github.sha }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
