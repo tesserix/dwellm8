@@ -69,8 +69,23 @@ export DATABASE_URL="postgres://dwellm8_api:local@127.0.0.1:55433/dwellm8?sslmod
 export PLATFORM_DATABASE_URL="postgres://dwellm8_platform:local@127.0.0.1:55433/dwellm8?sslmode=disable"
 export APP_ENV=dev PORT=8080
 
+# Identity Platform is not provisioned yet (issue #229), so locally every
+# request impersonates one organisation. There is no default: without this the
+# process refuses to start, rather than quietly serving nobody.
+export AUTH_ENFORCE=false
+export DEV_IMPERSONATE_ORG="$(psql -h 127.0.0.1 -p 55433 -U postgres -d dwellm8 -tAc \
+  "SELECT id FROM organisations LIMIT 1")"
+
 go run ./cmd/api
 ```
+
+**The impersonation is dev-only and the process enforces that**: `AUTH_ENFORCE=false`
+outside `APP_ENV=dev` is a startup failure, because an API that forgot to authenticate
+does not fail — it works, for everybody. Every impersonated request logs a warning, once
+per request rather than once at boot, since a boot line scrolls away.
+
+Once [#229](https://github.com/tesserix/dwellm8/issues/229) lands, the apps send a real
+GIP token and both variables go away.
 
 `curl localhost:8080/healthz` answers when it is up.
 

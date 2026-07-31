@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
+	identitystore "github.com/tesserix/dwellm8/services/api/internal/identity/store"
 	leasehttp "github.com/tesserix/dwellm8/services/api/internal/lease/http"
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
 	leasestore "github.com/tesserix/dwellm8/services/api/internal/lease/store"
@@ -129,13 +131,29 @@ func run() error {
 	// else, and it is the one route rate limited without a key for exactly that
 	// reason.
 	moneyhttp.NewWebhooks(payments, logger).Routes(mux)
+	// The organisation a request acts for. Verification says who signed in;
+	// this says whose rows they may touch, and it is a database lookup rather
+	// than a token claim for the reason ADR-0027 §6 gives.
 	if cfg.Identity.Enforce {
-		mux.Handle("/", auth.Middleware(verifier, protected))
+		resolver := identityservice.NewResolver(identitystore.New(tenancy.NewPlatformPool(platformPool)), logger)
+		mux.Handle("/", auth.Middleware(verifier, resolver.Middleware(protected)))
 	} else {
 		// Dev only, and config.validate() refuses it anywhere else — an API that
 		// forgot to authenticate does not fail, it works for everybody.
-		logger.Warn("authentication is not enforced", "env", cfg.Env)
-		mux.Handle("/", protected)
+		//
+		// Impersonation makes the endpoints usable before the GIP tenants exist
+		// (issue #229). It needs an organisation named explicitly; without one the
+		// process does not start, rather than quietly serving nobody.
+		resolver, err := identityservice.NewImpersonatingResolver(identityservice.Impersonation{
+			TenantID: tenancy.ID(cfg.Identity.ImpersonateOrg),
+			PartyID:  "dev-impersonated",
+		}, logger)
+		if err != nil {
+			return fmt.Errorf("authentication is off and %w — set DEV_IMPERSONATE_ORG", err)
+		}
+		logger.Warn("authentication is not enforced; every request impersonates one organisation",
+			"env", cfg.Env, "organisation", cfg.Identity.ImpersonateOrg)
+		mux.Handle("/", resolver.Middleware(protected))
 	}
 
 	tenantLimiter := httpx.NewLimiter(cfg.RateLimits.Tenant, nil)

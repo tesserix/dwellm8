@@ -62,6 +62,15 @@ type Identity struct {
 	// a deployment that leaves it false outside dev — an API that forgot to
 	// authenticate is one that works perfectly for everybody.
 	Enforce bool
+
+	// ImpersonateOrg is the organisation every request acts as while
+	// authentication is off, so the apps and the endpoints can be built against
+	// each other before the GIP tenants exist (issue #229).
+	//
+	// No default, deliberately: a deployment must not acquire an impersonated
+	// organisation by forgetting to configure one, and with Enforce true this is
+	// ignored entirely.
+	ImpersonateOrg string
 }
 
 // RateLimits configures the two limiters. Issue #228.
@@ -148,9 +157,10 @@ func Load() (Config, error) {
 	}
 
 	c.Identity = Identity{
-		ProjectID:    os.Getenv("GIP_PROJECT_ID"),
-		TenantPrefix: get("GIP_TENANT_PREFIX", "dwellm8"),
-		Enforce:      get("AUTH_ENFORCE", "true") == "true",
+		ProjectID:      os.Getenv("GIP_PROJECT_ID"),
+		TenantPrefix:   get("GIP_TENANT_PREFIX", "dwellm8"),
+		Enforce:        get("AUTH_ENFORCE", "true") == "true",
+		ImpersonateOrg: os.Getenv("DEV_IMPERSONATE_ORG"),
 	}
 
 	c.RateLimits = RateLimits{
