@@ -36,6 +36,21 @@ type Residency struct {
 	State string
 }
 
+// residentStates are the lease states a renter is shown.
+//
+// Draft and lapsed are excluded, and everything else is included. A draft is the
+// landlord's working document — ADR-0010 permits two competing drafts on one
+// flat, so showing one would present an offer as a tenancy and would show a
+// prospect a document nobody has agreed to. A lapsed lease never was a tenancy:
+// it bills nothing, so there is nothing to show and nothing to prove.
+//
+// Terminated and settled are included, deliberately. A tenancy that ended is
+// still the person's own history, and a receipt that disappears the day they
+// move out is a receipt that is missing exactly when a deposit dispute needs it.
+var residentStates = []string{
+	"pending_signature", "active", "in_notice", "renewed", "terminated", "settled",
+}
+
 // Residencies returns every lease the party is a tenant of, most recent first.
 //
 // Retired rows are excluded and expired ones are not. A tenancy that ended is
@@ -61,7 +76,8 @@ func (s *Principals) Residencies(ctx context.Context, partyID string) ([]Residen
 				 WHERE lp.party_id = $1::uuid
 				   AND lp.role     = 'tenant'
 				   AND lp.retired_at IS NULL
-				 ORDER BY l.valid_from DESC, lp.lease_id`, partyID)
+				   AND l.state = ANY($2)
+				 ORDER BY l.valid_from DESC, lp.lease_id`, partyID, residentStates)
 			if err != nil {
 				return fmt.Errorf("identity: reading residencies: %w", err)
 			}
