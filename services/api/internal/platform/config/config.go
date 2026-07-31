@@ -44,7 +44,27 @@ type Config struct {
 	// numbers times the replica count, which is stated rather than discovered —
 	// see internal/platform/httpx on why the limiter is in process.
 	RateLimits RateLimits
+
+	// Events is the ADR-0002 backbone.
+	Events Events
 }
+
+// Events configures the outbox relay and the broker it drains to. ADR-0002.
+type Events struct {
+	// NATSURL is empty when there is no broker, which is a supported state: the
+	// outbox still collects and nothing a user does fails. Publishing resumes
+	// when a URL appears, because the backlog is in PostgreSQL rather than in
+	// a process's memory.
+	NATSURL string
+	// RelayEnabled runs the drain loop in this process. Off in the jobs binary,
+	// where a batch run has no business holding the broker connection.
+	RelayEnabled bool
+	RelayBatch   int
+	RelayEvery   time.Duration
+}
+
+// Configured reports whether a broker is reachable enough to try.
+func (e Events) Configured() bool { return e.NATSURL != "" }
 
 // Identity configures token verification. ADR-0027.
 //
@@ -166,6 +186,13 @@ func Load() (Config, error) {
 	c.RateLimits = RateLimits{
 		Tenant:  httpx.Limit{Burst: envInt("RATE_LIMIT_TENANT_BURST", 120), Every: envDur("RATE_LIMIT_TENANT_EVERY_MS", 500)},
 		Webhook: httpx.Limit{Burst: envInt("RATE_LIMIT_WEBHOOK_BURST", 300), Every: envDur("RATE_LIMIT_WEBHOOK_EVERY_MS", 100)},
+	}
+
+	c.Events = Events{
+		NATSURL:      os.Getenv("NATS_URL"),
+		RelayEnabled: get("EVENTS_RELAY_ENABLED", "true") == "true",
+		RelayBatch:   envInt("EVENTS_RELAY_BATCH", 100),
+		RelayEvery:   envDur("EVENTS_RELAY_EVERY_MS", 1000),
 	}
 
 	c.PaymentProviders = splitList(get("PAYMENT_PROVIDERS", "offline"))

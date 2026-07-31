@@ -29,6 +29,8 @@ import (
 	moneystore "github.com/tesserix/dwellm8/services/api/internal/money/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/auth"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/config"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/events"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/events/natsx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 )
@@ -84,6 +86,43 @@ func run() error {
 		return fmt.Errorf("platform database pool: %w", err)
 	}
 	defer platformPool.Close()
+
+	// The outbox relay, ADR-0002 §4. A goroutine in this process rather than its
+	// own deployment: the backlog lives in PostgreSQL, so a replica that dies
+	// mid-drain loses nothing and the survivors pick the rows up.
+	//
+	// No broker configured is a supported state — events accumulate and publish
+	// when one appears. A broker that is down must never fail a tenant's payment.
+	relayCtx, stopRelay := context.WithCancel(context.Background())
+	defer stopRelay()
+	if cfg.Events.Configured() && cfg.Events.RelayEnabled {
+		conn, err := natsx.Connect(natsx.Config{URL: cfg.Events.NATSURL, Name: "dwellm8-api"}, logger)
+		if err != nil {
+			return fmt.Errorf("events transport: %w", err)
+		}
+		defer conn.Close()
+
+		ensureCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		err = conn.EnsureStreams(ensureCtx)
+		cancel()
+		if err != nil {
+			return fmt.Errorf("events streams: %w", err)
+		}
+
+		relay := events.NewRelay(tenancy.NewPlatformPool(platformPool), conn, logger, events.RelayConfig{
+			BatchSize: cfg.Events.RelayBatch,
+			Interval:  cfg.Events.RelayEvery,
+		})
+		go func() {
+			if err := relay.Run(relayCtx); err != nil && !errors.Is(err, context.Canceled) {
+				logger.Error("outbox relay stopped", "error", err)
+			}
+		}()
+		logger.Info("outbox relay running", "nats", cfg.Events.NATSURL)
+	} else {
+		logger.Warn("outbox relay is off; events accumulate unpublished",
+			"nats_configured", cfg.Events.Configured(), "relay_enabled", cfg.Events.RelayEnabled)
+	}
 
 	payments := moneyservice.NewPayments(
 		moneystore.NewPayments(pool),
