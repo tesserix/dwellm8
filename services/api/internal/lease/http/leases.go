@@ -13,6 +13,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+
+	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"strings"
 
 	leasedomain "github.com/tesserix/dwellm8/services/api/internal/lease/domain"
@@ -38,10 +40,12 @@ func NewLeases(s *service.Leases, log *slog.Logger) *Leases {
 	return &Leases{leases: s, log: log}
 }
 
-// Routes mounts the module.
-func (h *Leases) Routes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /v1/leases", h.Create)
-	mux.HandleFunc("POST /v1/leases/{id}/activate", h.Activate)
+// Routes mounts the module. Each route names its ADR-0020 check.
+func (h *Leases) Routes(r *authz.Registrar) {
+	r.Handle("POST /v1/leases", authz.Check{
+		Relation: "can_operate", Object: authz.Organisation()}, h.Create)
+	r.Handle("POST /v1/leases/{id}/activate", authz.Check{
+		Relation: "can_edit", Object: authz.PathObject("agreement", "id")}, h.Activate)
 }
 
 // createRequest is the wire shape.

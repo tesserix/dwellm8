@@ -15,6 +15,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+
+	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"strings"
 
 	"github.com/tesserix/dwellm8/services/api/internal/money/domain/collect"
@@ -171,6 +173,8 @@ func cashfreeStatus(s string) (collect.Status, error) {
 // The webhook path is unauthenticated by design — Cashfree has no credential of
 // ours to present — and the signature is what authenticates it. That makes this
 // the one route where the handler's first action must be to distrust its input.
-func (h *Webhooks) Routes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /v1/webhooks/cashfree", h.Cashfree)
+func (h *Webhooks) Routes(r *authz.Registrar) {
+	r.Open("POST /v1/webhooks/cashfree",
+		"authenticated by the HMAC signature over the delivery's own bytes (ADR-0011); no user is involved and no tuple could name one",
+		h.Cashfree)
 }

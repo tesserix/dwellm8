@@ -53,6 +53,19 @@ type Config struct {
 	// the worker needs it to serve one; both refuse to run a money operation
 	// without it, rather than falling back to doing it inline.
 	Workflow workflow.Config
+
+	// Authz is ADR-0020's verb half: the OpenFGA endpoint and whether its
+	// answer is enforced. Configured-but-not-enforced is the rollout state —
+	// the store and model are bootstrapped and checks run dark.
+	Authz Authz
+}
+
+// Authz configures the OpenFGA guard. ADR-0020, dwellm8#150.
+type Authz struct {
+	URL      string
+	Store    string
+	Enforce  bool
+	CacheTTL time.Duration
 }
 
 // Events configures the outbox relay and the broker it drains to. ADR-0002.
@@ -227,6 +240,13 @@ func Load() (Config, error) {
 		RelayEvery:   envDur("EVENTS_RELAY_EVERY_MS", 1000),
 	}
 
+	c.Authz = Authz{
+		URL:      os.Getenv("AUTHZ_URL"),
+		Store:    get("AUTHZ_STORE", "dwellm8"),
+		Enforce:  os.Getenv("AUTHZ_ENFORCE") == "true",
+		CacheTTL: envDur("AUTHZ_CACHE_TTL_MS", 10000),
+	}
+
 	c.PaymentProviders = splitList(get("PAYMENT_PROVIDERS", "offline"))
 	if !contains(c.PaymentProviders, "offline") {
 		c.PaymentProviders = append(c.PaymentProviders, "offline")
@@ -259,6 +279,12 @@ func (c Config) validate() error {
 		}
 		if c.Identity.ProjectID == "" {
 			return fmt.Errorf("GIP_PROJECT_ID is required outside dev: without it no token can be verified")
+		}
+		// Enforcement with nowhere to ask would deny everything at boot — which
+		// is the fail-closed direction, but as a misconfiguration it should be
+		// named at startup, not discovered request by request.
+		if c.Authz.Enforce && c.Authz.URL == "" {
+			return fmt.Errorf("AUTHZ_ENFORCE is true but AUTHZ_URL is empty — every check would be refused")
 		}
 	}
 	return c.validateCashfree()

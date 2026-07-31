@@ -31,6 +31,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+
+	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"time"
 
 	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
@@ -84,12 +86,18 @@ func New(l *leaseservice.Leases, s *moneyservice.Statements, p *moneyservice.Pay
 // Every route is under one lease except the first, and that is the authorisation
 // model made visible: a receipt is reached through the tenancy it belongs to, so
 // there is no id in this API that can be incremented into somebody else's.
-func (h *Handler) Routes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /v1/resident/tenancies", h.Tenancies)
-	mux.HandleFunc("GET /v1/resident/tenancies/{lease}", h.Tenancy)
-	mux.HandleFunc("GET /v1/resident/tenancies/{lease}/history", h.History)
-	mux.HandleFunc("POST /v1/resident/tenancies/{lease}/payments", h.Pay)
-	mux.HandleFunc("GET /v1/resident/tenancies/{lease}/payments/{payment}/receipt", h.Receipt)
+func (h *Handler) Routes(r *authz.Registrar) {
+	r.Open("GET /v1/resident/tenancies",
+		"the list is the caller's own residencies, resolved from their sign-in and filtered in SQL — there is no object to check that is not already the subject",
+		h.Tenancies)
+	r.Handle("GET /v1/resident/tenancies/{lease}", authz.Check{
+		Relation: "can_view", Object: authz.PathObject("agreement", "lease")}, h.Tenancy)
+	r.Handle("GET /v1/resident/tenancies/{lease}/history", authz.Check{
+		Relation: "can_view", Object: authz.PathObject("agreement", "lease")}, h.History)
+	r.Handle("POST /v1/resident/tenancies/{lease}/payments", authz.Check{
+		Relation: "tenant", Object: authz.PathObject("agreement", "lease")}, h.Pay)
+	r.Handle("GET /v1/resident/tenancies/{lease}/payments/{payment}/receipt", authz.Check{
+		Relation: "can_view", Object: authz.PathObject("agreement", "lease")}, h.Receipt)
 }
 
 // tenancyResponse is one tenancy as the renter sees it.

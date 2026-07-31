@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+
+	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -65,7 +67,7 @@ func serve(t *testing.T) (*http.ServeMux, *pgxpool.Pool) {
 		moneyservice.NewPayments(payments, moneystore.NewInbox(tenancy.NewPlatformPool(plat)),
 			provider.NewRegistry(), log),
 		log, nil,
-	).Routes(mux)
+	).Routes(authz.NewRegistrar(mux, &authz.Guard{}))
 	return mux, pool
 }
 

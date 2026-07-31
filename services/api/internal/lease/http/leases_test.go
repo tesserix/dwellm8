@@ -6,6 +6,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+
+	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -63,7 +65,7 @@ func handler(t *testing.T) (*http.ServeMux, string) {
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	mux := http.NewServeMux()
-	leasehttp.NewLeases(service.NewLeases(store.New(req), log), log).Routes(mux)
+	leasehttp.NewLeases(service.NewLeases(store.New(req), log), log).Routes(authz.NewRegistrar(mux, &authz.Guard{}))
 	return mux, unit
 }
 

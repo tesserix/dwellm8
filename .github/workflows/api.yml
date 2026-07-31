@@ -27,6 +27,13 @@ jobs:
           curl -fsSL https://github.com/openfga/cli/releases/download/v0.7.19/fga_0.7.19_linux_amd64.tar.gz | tar -xz fga
           ./fga model test --tests services/api/internal/platform/authz/model.fga.yaml
 
+      # The binary embeds model.json; the reviewed artefact is model.fga. This
+      # fails the build if the two ever say different things.
+      - name: model.json is the transform of model.fga
+        run: |
+          ./fga model transform --file services/api/internal/platform/authz/model.fga > /tmp/model.json
+          diff /tmp/model.json services/api/internal/platform/authz/model.json
+
   test:
     runs-on: ubuntu-latest
     defaults:

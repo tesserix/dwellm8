@@ -28,6 +28,7 @@ import (
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	moneystore "github.com/tesserix/dwellm8/services/api/internal/money/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/auth"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/config"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/events"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/events/natsx"
@@ -164,9 +165,39 @@ func run() error {
 		Leeway:       30 * time.Second,
 	}
 
+	// The ADR-0020 guard. Configured-but-dark is the rollout state: the store
+	// and model bootstrap, every route's check is declared and compiled, and
+	// AUTHZ_ENFORCE=true is the day the answers start to count — after the
+	// tuple pipeline (#151) has something to answer with.
+	guard := &authz.Guard{
+		Enforce: cfg.Authz.Enforce,
+		Log:     logger,
+		Cache:   authz.NewCache(cfg.Authz.CacheTTL, 10_000),
+	}
+	if cfg.Authz.URL != "" {
+		fga := authz.NewClient(cfg.Authz.URL)
+		bctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		err := fga.Bootstrap(bctx, cfg.Authz.Store)
+		cancel()
+		if err != nil {
+			// Enforcing means the process is wrong without its checker; dark
+			// means the deploy that brings OpenFGA up will be the one that
+			// starts answering.
+			if cfg.Authz.Enforce {
+				return fmt.Errorf("authz bootstrap: %w", err)
+			}
+			logger.Warn("authz bootstrap failed; guard stays dark", "error", err)
+		}
+		guard.Checker = fga
+		logger.Info("authz ready", "store", cfg.Authz.Store, "enforce", cfg.Authz.Enforce)
+	} else {
+		logger.Warn("authz is not configured; route checks are declared but dark",
+			"set", "AUTHZ_URL")
+	}
+
 	// Routes that a person authenticates for.
 	protected := http.NewServeMux()
-	leasehttp.NewLeases(leases, logger).Routes(protected)
+	leasehttp.NewLeases(leases, logger).Routes(authz.NewRegistrar(protected, guard))
 
 	// The tenant view, on its own tree. Issue #51, ADR-0029.
 	//
@@ -176,7 +207,7 @@ func run() error {
 	// also carries its own surface check, so a genuine Ops token presented here
 	// is refused before any query runs.
 	residentMux := http.NewServeMux()
-	resident.New(leases, statements, payments, logger, nil).Routes(residentMux)
+	resident.New(leases, statements, payments, logger, nil).Routes(authz.NewRegistrar(residentMux, guard))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)
@@ -190,7 +221,7 @@ func run() error {
 	// It is not therefore unauthenticated — it is authenticated by something
 	// else, and it is the one route rate limited without a key for exactly that
 	// reason.
-	moneyhttp.NewWebhooks(payments, logger).Routes(mux)
+	moneyhttp.NewWebhooks(payments, logger).Routes(authz.NewRegistrar(mux, guard))
 	// The organisation a request acts for. Verification says who signed in;
 	// this says whose rows they may touch, and it is a database lookup rather
 	// than a token claim for the reason ADR-0027 §6 gives.
