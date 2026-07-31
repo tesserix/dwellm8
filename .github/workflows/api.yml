@@ -1342,16 +1342,12 @@ jobs:
           rm -f internal/money/http/planted_platform.go
 
           # The audit written outside the transaction, which is the version that
-          # records actions the database rolled back.
+          # records actions the database rolled back. sed rather than a heredoc:
+          # a nested heredoc inside a YAML run block does not survive the quoting,
+          # which this step learned the hard way.
           cp internal/platform/tenancy/support.go /tmp/support.go
-          python3 - <<'"'"'PLANT'"'"'
-          import pathlib
-          p = pathlib.Path("internal/platform/tenancy/support.go")
-          s = p.read_text()
-          s = s.replace("if err := fn(ctx, tx); err != nil {\n\t\treturn err\n\t}",
-                        "if err := fn(ctx, tx); err != nil {\n\t\t_ = tx.Commit(ctx)\n\t\treturn err\n\t}")
-          p.write_text(s)
-          PLANT
+          sed -i 's|if err := fn(ctx, tx); err != nil {|if err := fn(ctx, tx); err != nil {\n\t\t_ = tx.Commit(ctx)|' \
+            internal/platform/tenancy/support.go
           if go test -count=1 -run TestAnActionThatFailsLeavesNoAuditRow \
               ./internal/platform/tenancy/isolationtest/; then
             cp /tmp/support.go internal/platform/tenancy/support.go
@@ -1359,6 +1355,14 @@ jobs:
             exit 1
           fi
           cp /tmp/support.go internal/platform/tenancy/support.go
+
+          # Issue #228. The limiter is concurrent by definition, so it is the one
+          # place in this service where -race is not optional.
+          if ! go test -count=1 -race ./internal/platform/httpx/; then
+            echo "::error::the rate limiter does not hold under -race"
+            exit 1
+          fi
+
           echo "the support path caught both, as it should"
 
           # Issue #228. The limiter is concurrent by definition, so it is the one
