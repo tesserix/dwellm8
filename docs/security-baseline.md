@@ -93,7 +93,7 @@ which is exactly what `ENABLE` without `FORCE` did, and why assertion 1 exists.
 | `audit_events` is append-only and no-delete | Implemented |
 | Every KYC read is logged with actor, reason and grant | Implemented |
 | Delegation grants and their revocations survive | Implemented — no-delete policy |
-| **Platform (support) actions are logged** | **Not implemented** — `tenancy.Platform()` takes a reason and discards it. [#226](https://github.com/tesserix/dwellm8/issues/226) |
+| Platform (support) actions are logged | Implemented — `tenancy.Support()`, audited in the same transaction as the work, with two planted defects in CI |
 | Audit retention | 8 years — [`data-retention.md`](data-retention.md); an erasure request does not remove it |
 
 ---
@@ -103,7 +103,7 @@ which is exactly what `ENABLE` without `FORCE` did, and why assertion 1 exists.
 The honest list. Each of these is a sentence somebody has to remember rather than a build
 that fails:
 
-1. **Rate limiting** — nothing exists at any layer. [#228](https://github.com/tesserix/dwellm8/issues/228)
+1. ~~Rate limiting~~ — implemented per tenant and per route (`internal/platform/httpx`). What remains expected: it is **per replica**, so the fleet-wide limit is that number times the replica count.
 2. **Input validation at the edge** — handlers validate in the domain, which is the right
    place, but there is no request-size or payload-shape limit before the handler.
 3. **Security headers and CSP** on the web surfaces — the Expo apps do not set them, and

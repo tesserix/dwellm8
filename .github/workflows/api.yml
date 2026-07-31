@@ -1361,6 +1361,13 @@ jobs:
           cp /tmp/support.go internal/platform/tenancy/support.go
           echo "the support path caught both, as it should"
 
+          # Issue #228. The limiter is concurrent by definition, so it is the one
+          # place in this service where -race is not optional.
+          if ! go test -count=1 -race ./internal/platform/httpx/; then
+            echo "::error::the rate limiter does not hold under -race"
+            exit 1
+          fi
+
       - name: Build
         run: go build ./...
 

@@ -7,6 +7,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
 	"os"
 	"sort"
 	"strconv"
@@ -34,6 +35,27 @@ type Config struct {
 	// take rent when the aggregator is down.
 	PaymentProviders []string
 	Cashfree         Cashfree
+
+	// RateLimits are per replica, not per fleet. The effective limit is these
+	// numbers times the replica count, which is stated rather than discovered —
+	// see internal/platform/httpx on why the limiter is in process.
+	RateLimits RateLimits
+}
+
+// RateLimits configures the two limiters. Issue #228.
+//
+// Two, because they fail differently: a per-tenant limit stops one organisation
+// taking the service down for the rest, and a per-route one covers what is
+// reachable without a tenant at all — the webhook endpoint, where an attacker has
+// no identity to be limited by.
+type RateLimits struct {
+	// Tenant is the per-organisation allowance on the request path.
+	Tenant httpx.Limit
+	// Webhook is the unkeyed allowance on the provider callback route. Higher
+	// burst than the tenant limit and a faster refill: a real aggregator
+	// legitimately delivers in bursts, and shedding its retries is worse than
+	// the load.
+	Webhook httpx.Limit
 }
 
 // Cashfree is the aggregator's configuration. ADR-0022 §5.
@@ -101,6 +123,11 @@ func Load() (Config, error) {
 		APIVersion:         os.Getenv("CASHFREE_API_VERSION"),
 		WebhookSecret:      get("CASHFREE_WEBHOOK_SECRET", os.Getenv("CASHFREE_CLIENT_SECRET")),
 		AllowSandboxInProd: os.Getenv("CASHFREE_ALLOW_SANDBOX_IN_PROD") == "true",
+	}
+
+	c.RateLimits = RateLimits{
+		Tenant:  httpx.Limit{Burst: envInt("RATE_LIMIT_TENANT_BURST", 120), Every: envDur("RATE_LIMIT_TENANT_EVERY_MS", 500)},
+		Webhook: httpx.Limit{Burst: envInt("RATE_LIMIT_WEBHOOK_BURST", 300), Every: envDur("RATE_LIMIT_WEBHOOK_EVERY_MS", 100)},
 	}
 
 	c.PaymentProviders = splitList(get("PAYMENT_PROVIDERS", "offline"))
@@ -213,4 +240,24 @@ func get(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// envInt reads a positive integer, falling back rather than failing: a limit
+// typed wrongly in a values file must not stop the service booting, and a limit
+// that silently became zero would shed every request.
+func envInt(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 1 {
+		return fallback
+	}
+	return n
+}
+
+// envDur reads a refill interval in milliseconds.
+func envDur(key string, fallbackMillis int) time.Duration {
+	return time.Duration(envInt(key, fallbackMillis)) * time.Millisecond
 }

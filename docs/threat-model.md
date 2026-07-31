@@ -38,7 +38,7 @@ Controls that would be adequate for a customer are not automatically adequate fo
 | **T** | An invoice or posting is altered after the fact | `DELETE` and `UPDATE` revoked on the ledger; a correction is a reversing entry with a reason code | Implemented — ADR-0006 §3 |
 | **R** | A party denies authorising a debit | Mandates are a standing authority with their own lifecycle and provider reference | Implemented — ADR-0022 |
 | **I** | One organisation reads another's ledger | `tenant_id` + FORCE row-level security; the five-part isolation contract over every table | Implemented — ADR-0003 |
-| **D** | Webhook flood, or a rent-day thundering herd | Rate limiting at the edge and per tenant | **Not implemented** — [#228](https://github.com/tesserix/dwellm8/issues/228) |
+| **D** | Webhook flood, or a rent-day thundering herd | A token bucket per tenant, and an unkeyed one on the webhook route where an attacker has no identity to be limited by | Implemented — `internal/platform/httpx`, [#228](https://github.com/tesserix/dwellm8/issues/228) |
 | **E** | The request role gains the platform exemption | Separate PostgreSQL roles; `is_platform_session()` is a policy branch, not a role attribute; assertion 2 refuses `BYPASSRLS` on any application role | Implemented — ADR-0003 |
 
 ### 2.1 The one that actually worries me
@@ -82,10 +82,13 @@ an `audit_events` row. So today: every platform action states a reason to the co
 to nobody else.
 
 - **Owner**: Platform
-- **Control**: `Platform()` writes an `audit_events` row with actor, reason and subject
-- **Status**: **Not implemented** — [#226](https://github.com/tesserix/dwellm8/issues/226).
-  Not accepted as a risk, because a support path that is unlogged is the exact shape of the
-  incident that cannot be investigated afterwards.
+- **Control**: `tenancy.Support()` — it cannot be called without naming who, to what and
+  why, and it writes the `audit_events` row **in the same transaction as the work**, so the
+  trail cannot claim an action the database rolled back or miss one it committed.
+- **Status**: **Implemented** — [#226](https://github.com/tesserix/dwellm8/issues/226).
+  `Platform()` remains for machine paths with no human actor (the webhook inbox,
+  reconciliation, fixtures), and an arch test fails the build if a module's handlers take
+  it.
 
 ---
 
@@ -114,11 +117,12 @@ one-request evidence shredder.
 
 Named here so that "we have a threat model" cannot be mistaken for "we are covered".
 
-1. **No rate limiting anywhere** — [#228](https://github.com/tesserix/dwellm8/issues/228).
-   Not per tenant, not per route, not on the webhook endpoint, which is the one that
-   matters: verification is cheap but not free, and an unauthenticated flood costs database
-   round trips.
-2. **Platform actions are unlogged** — [#226](https://github.com/tesserix/dwellm8/issues/226), §3.1.
+1. **Rate limiting is per replica, not per fleet** — the effective limit is the configured
+   number times the replica count. Deliberate ([#228](https://github.com/tesserix/dwellm8/issues/228)):
+   a shared limiter in Redis is exact and is a dependency in the request path that fails at
+   exactly the moment load is high. Stated rather than discovered.
+2. ~~Platform actions are unlogged~~ — closed by [#226](https://github.com/tesserix/dwellm8/issues/226);
+   `tenancy.Support()` writes the row in the same transaction as the work.
 3. **No bank-detail change control** — [#227](https://github.com/tesserix/dwellm8/issues/227), the impersonated-owner path.
 4. **No ownership verification** for listings — [#67](https://github.com/tesserix/dwellm8/issues/67) neighbours it.
 5. **No secret rotation runbook.** Secrets are in GCP Secret Manager and reachable through
