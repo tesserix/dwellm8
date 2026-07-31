@@ -92,6 +92,10 @@ func ReversalReasons() []ReversalReason {
 	return out
 }
 
+// SourceLeaseCharge is the one source kind the schema checks: it must name a
+// lease, and the retrospective-termination trigger reads only these. ADR-0010 §7.
+const SourceLeaseCharge = "lease_charge"
+
 // Party is whose balance a posting moves.
 type Party struct {
 	Kind PartyKind
@@ -124,6 +128,9 @@ type Entry struct {
 	OccurredOn      time.Time
 	Property        string
 	Unit            string
+	// Lease is the tenancy this entry concerns — charges and the payments against
+	// them alike. Optional, and how a lease position is derived. ADR-0006 §5.
+	Lease           string
 	SourceKind      string
 	SourceID        string
 	IdempotencyKey  string
@@ -198,6 +205,10 @@ func (e Entry) Validate() error {
 	if e.Unit != "" && e.Property == "" {
 		return errors.New("money: an entry against a unit must name the unit's property")
 	}
+	// One-directional, as the schema's CHECK is: a payment names its lease too.
+	if e.SourceKind == SourceLeaseCharge && e.Lease == "" {
+		return errors.New("money: an entry that calls itself a lease charge must name the lease")
+	}
 	if (e.Kind == KindReversal) != (e.Reverses != "") {
 		return errors.New("money: a reversal names the entry it reverses, and nothing else does")
 	}
@@ -234,6 +245,7 @@ func Reverse(original Entry, originalID string, reason ReversalReason, key strin
 		OccurredOn:      original.OccurredOn,
 		Property:        original.Property,
 		Unit:            original.Unit,
+		Lease:           original.Lease,
 		SourceKind:      original.SourceKind,
 		SourceID:        original.SourceID,
 		IdempotencyKey:  key,

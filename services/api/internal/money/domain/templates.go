@@ -184,6 +184,7 @@ func apply(kind EventKind, amounts map[Role]Minor, place Place, parties Parties,
 		OccurredOn:      src.OccurredOn,
 		Property:        place.Property,
 		Unit:            place.Unit,
+		Lease:           src.Lease,
 		SourceKind:      src.Kind,
 		SourceID:        src.ID,
 		IdempotencyKey:  src.IdempotencyKey,
@@ -237,6 +238,9 @@ type Source struct {
 	IdempotencyKey string
 	OccurredOn     time.Time
 	Memo           string
+	// Lease is the tenancy the event concerns. On Source, not Place: Place is what
+	// the lines' RLS policy is judged against and a lease scopes nothing.
+	Lease string
 }
 
 // Invoice raises a charge. Net is the part that is income; Tax is the GST on it,

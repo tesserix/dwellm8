@@ -477,3 +477,52 @@ Two templates: one for a payment against an invoice, one for an advance.
   it is). The correction belongs in a superseding ADR rather than in an edit, and
   it changes that section's conclusion about how much the owner exemption would
   have cost.
+
+---
+
+## Amendment — the posting engine, and what a lease position is (issue #45)
+
+The engine this ADR called follow-up work now exists: `internal/money/store`
+`Ledger`, with `Post`, `Reverse`, `Balances` and `Position`. Three decisions were
+made building it that this ADR did not anticipate.
+
+### A. `lease_id` names the tenancy an entry *concerns*, not the one it bills
+
+ADR-0010 §7 added `journal_entries.lease_id` with a biconditional check:
+`source_kind = 'lease_charge'` if and only if a lease is named. That is correct
+about charges and wrong about everything else, because a tenancy's position is the
+charges **less what has been paid against them** — and a payment arrives with
+`source_kind = 'payment'`, so the rule forbade it from naming the lease it paid. A
+per-lease balance would have summed the invoices and none of the receipts.
+
+The check is now the implication only: a lease charge must name its lease, and
+anything else may. `source_kind` remains what says whether an entry is a charge,
+and ADR-0010 §7's trigger filters on it — without that filter the last receipt
+becomes the billed-through date, and a tenant who clears their arrears on 1 July
+makes a termination on 15 June look over-billed.
+
+The alternative — derive the position from unit and party rather than from
+`lease_id` — was rejected. It merges a renewal into its predecessor (same tenant,
+same flat, two leases, one position), and narrowing it by the lease's date range
+then drops the arrears payment that arrives after the term ends, which is the
+payment most worth showing.
+
+### B. Balances are read from the postings, not from `ledger_balances`
+
+The view has no date, and every question worth asking of a ledger is asked as of
+one. `Balances` joins `ledger_postings` to `journal_entries` and bounds on
+`occurred_on` — the accounting date, so a backdated entry lands in the period it
+belongs to rather than the period it was typed in. Both run under the same
+policies; the view remains correct for the undated case and is what §5's
+measurements were taken against.
+
+No materialised projection is used, so §5's sanctioned fix — the rebuildable
+period-close snapshot, issue #190 — is still the answer when the portfolio-wide
+aggregate stops being fast enough. Nothing here stores a balance.
+
+### C. What is not wired yet
+
+`payments` carries no `lease_id`, so the collection path cannot yet name the lease
+a receipt pays. Until it does — issues #37 and #42 — a lease position contains its
+charges and any payment posted directly through the engine, and not the payments
+raised by the gateway path. The engine supports it; the caller does not exist.

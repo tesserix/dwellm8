@@ -205,6 +205,13 @@ An entry cannot call itself a lease charge without naming the lease, and cannot 
 lease without saying so. Both directions are refused by name in the isolation test,
 because the moment either becomes optional the trigger goes inert again.
 
+> **Superseded in part by ADR-0006's issue-#45 amendment.** The second direction was
+> withdrawn: it forbade a payment from naming the lease it paid, so a per-lease position
+> summed the charges and none of the receipts. The check is now the implication only,
+> and the trigger above filters `source_kind = 'lease_charge'` so a receipt cannot move
+> the billed-through date. The first direction — a charge names its lease — is unchanged
+> and is still asserted by name.
+
 `lease_id` is nullable in general because most entries have no tenancy — a GST
 remittance, a payout, a settlement — and it is added by a migration rather than in the
 `CREATE TABLE`, because `journal_entries` has existed since ADR-0006 and

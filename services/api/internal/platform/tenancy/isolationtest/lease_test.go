@@ -254,37 +254,25 @@ func TestARetrospectiveTerminationIsRefusedByAskingTheLedger(t *testing.T) {
 	}
 	t.Logf("refused: %v", err)
 
-	// The pairing is enforced in both directions, which is what stops the trigger going
-	// inert again: an entry cannot call itself a lease charge without naming the lease,
-	// and cannot name a lease without saying so.
-	for _, tc := range []struct {
-		name       string
-		sourceKind string
-		leaseID    any
-	}{
-		{"a lease charge that names no lease", "lease_charge", nil},
-		{"an entry that names a lease and calls itself something else", "adjustment", id},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tenancy.Platform(ctx, plat, "a mispaired entry", func(ctx context.Context, tx pgx.Tx) error {
-				_, err := tx.Exec(ctx, `
-					INSERT INTO journal_entries (tenant_id, entry_kind, occurred_on, source_kind,
-					                             source_id, lease_id, idempotency_key, memo)
-					VALUES ($1, 'invoice', '2026-06-01', $2, $3, $4, $5, 'x')`,
-					isolationtest.OrgA.String(), tc.sourceKind, id, tc.leaseID,
-					"mispaired-"+tc.sourceKind+"-"+id)
-				return err
-			})
-			if err == nil {
-				t.Fatalf("accepted: %s — the trigger goes inert again the moment this pairing is "+
-					"optional", tc.name)
-			}
-			if !strings.Contains(err.Error(), "journal_entries_lease_charge_shape") {
-				t.Errorf("refused, but not by the pairing constraint: %v", err)
-			}
-			t.Logf("refused: %v", err)
+	// The half of the pairing that is enforced: a charge names its lease, or the
+	// trigger goes inert again.
+	t.Run("a lease charge that names no lease", func(t *testing.T) {
+		err := tenancy.Platform(ctx, plat, "a mispaired entry", func(ctx context.Context, tx pgx.Tx) error {
+			_, err := tx.Exec(ctx, `
+				INSERT INTO journal_entries (tenant_id, entry_kind, occurred_on, source_kind,
+				                             source_id, lease_id, idempotency_key, memo)
+				VALUES ($1, 'invoice', '2026-06-01', 'lease_charge', $2, NULL, $3, 'x')`,
+				isolationtest.OrgA.String(), id, "mispaired-"+id)
+			return err
 		})
-	}
+		if err == nil {
+			t.Fatal("accepted a lease charge naming no lease — the trigger goes inert again the " +
+				"moment that pairing is optional")
+		}
+		if !strings.Contains(err.Error(), "journal_entries_lease_charge_shape") {
+			t.Errorf("refused, but not by the pairing constraint: %v", err)
+		}
+	})
 
 	// With a decision it is accepted, because somebody has now decided.
 	if err := tenancy.Platform(ctx, plat, "ending with a decision", func(ctx context.Context, tx pgx.Tx) error {
@@ -297,6 +285,92 @@ func TestARetrospectiveTerminationIsRefusedByAskingTheLedger(t *testing.T) {
 	}); err != nil {
 		t.Errorf("a termination with an explicit refund decision was refused: %v", err)
 	}
+}
+
+// ADR-0006 §5 amendment: a receipt names the lease it pays, and the guard reads
+// charges only.
+//
+// The defect this exists to catch is a quiet one. Drop the source_kind filter and
+// the last payment becomes the billed-through date, so a tenant who clears their
+// arrears on the 1st of July makes a termination on the 15th of June look
+// over-billed — a refusal nobody can explain, on a lease that owes nothing.
+func TestTheRetrospectiveGuardReadsChargesNotReceipts(t *testing.T) {
+	ctx := context.Background()
+	plat := platformPool(t)
+	seedOrganisations(t, plat)
+	prop, unit := seedLeaseUnit(t, plat)
+
+	var id string
+	if err := tenancy.Platform(ctx, plat, "letting", func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `
+			INSERT INTO leases (tenant_id, property_id, unit_id, state, valid_from, valid_to)
+			VALUES ($1, $2, $3, 'active', '2025-07-01', '2026-07-01') RETURNING id`,
+			isolationtest.OrgA.String(), prop, unit).Scan(&id)
+	}); err != nil {
+		t.Fatalf("letting: %v", err)
+	}
+
+	// Charged for June, paid on the first of July.
+	charge := leaseEntry{kind: "invoice", source: "lease_charge", on: "2026-06-01",
+		lines: [2]string{"tenant_receivable:debit", "rent_income:credit"}}
+	receipt := leaseEntry{kind: "payment", source: "payment", on: "2026-07-01",
+		lines: [2]string{"gateway_clearing:debit", "tenant_receivable:credit"}}
+	for _, e := range []leaseEntry{charge, receipt} {
+		if err := e.write(ctx, plat, id, prop, unit); err != nil {
+			t.Fatalf("writing the %s: %v", e.kind, err)
+		}
+	}
+
+	// Ending after the last charge and before the receipt. Nothing is over-billed.
+	if err := tenancy.Platform(ctx, plat, "ending after the last charge", func(ctx context.Context, tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			UPDATE leases SET state = 'terminated', ended_on = '2026-06-15',
+			                  terminated_by = 'tenant', terminated_reason = 'moved',
+			                  settlement_decision = 'none'
+			 WHERE id = $1`, id)
+		return err
+	}); err != nil {
+		t.Fatalf("a termination after the last charge was refused: %v — the guard is reading "+
+			"receipts as if they were charges", err)
+	}
+}
+
+// leaseEntry is one two-line entry against a lease, for the guard's fixtures.
+type leaseEntry struct {
+	kind, source, on string
+	lines            [2]string
+}
+
+func (e leaseEntry) write(ctx context.Context, plat tenancy.PlatformPool, lease, prop, unit string) error {
+	return tenancy.Platform(ctx, plat, "writing a lease entry", func(ctx context.Context, tx pgx.Tx) error {
+		var entry string
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO journal_entries (tenant_id, entry_kind, occurred_on, source_kind, source_id,
+			                             lease_id, idempotency_key)
+			VALUES ($1, $2, $3::date, $4, $5, $6::uuid, $7) RETURNING id`,
+			isolationtest.OrgA.String(), e.kind, e.on, e.source, lease, lease,
+			e.source+"-"+e.on+"-"+lease).Scan(&entry); err != nil {
+			return err
+		}
+		for _, line := range e.lines {
+			account, side, _ := strings.Cut(line, ":")
+			party, partyID := "tenant", "aaaaaaaa-0000-4000-8000-00000000000a"
+			switch account {
+			case "rent_income":
+				party, partyID = "owner", "bbbbbbbb-0000-4000-8000-00000000000b"
+			case "gateway_clearing":
+				party, partyID = "platform", "00000000-0000-0000-0000-0000000000d8"
+			}
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO ledger_postings (entry_id, tenant_id, property_id, unit_id, account_code,
+				                             side, amount_minor, party_kind, party_id)
+				VALUES ($1, $2, $3, $4, $5, $6, 2500000, $7, $8)`,
+				entry, isolationtest.OrgA.String(), prop, unit, account, side, party, partyID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // Renewal is a new lease that names its predecessor and starts exactly where it ends.
