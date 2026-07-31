@@ -103,8 +103,11 @@ the deposit cap — see [`e-stamping-by-state.md`](e-stamping-by-state.md).
   IP, consent artefact). The audit trail is part of the record, not a by-product.
 - Aadhaar-based eSign uses the number transiently in the ESP flow; **Dwellm8 never stores
   the Aadhaar number** — only the ESP's transaction reference and the signed artefact.
-- A non-Aadhaar eSign path (OTP/email-verified electronic signature) must exist for
-  signers who decline Aadhaar, with its weaker evidentiary weight recorded on the lease.
+- The non-Aadhaar path is **not** automatically weaker. eSign 3.x issues the same
+  Second Schedule certificate from a bank, PAN or offline-Aadhaar eKYC account; a plain
+  OTP/email-verified electronic signature is the third choice, not the second, and its
+  weaker evidentiary weight is recorded on the lease. Tiers, artefacts, boundaries and
+  provider route: [`esign-provider-selection.md`](esign-provider-selection.md).
 
 ### Registration
 
