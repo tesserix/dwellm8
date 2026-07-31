@@ -88,6 +88,8 @@ still GitHub issues and the org project board.
 | **Running it locally** | [`SETUP_LOCAL.md`](SETUP_LOCAL.md) |
 | **Changing the database schema** | [`docs/schema-changes.md`](docs/schema-changes.md) — it is not in this repository |
 | Architecture decisions | [`docs/adr/`](docs/adr/README.md) |
+| **Threat model & security baseline** | [`docs/threat-model.md`](docs/threat-model.md), [`docs/security-baseline.md`](docs/security-baseline.md) |
+| Privacy: retention, breach | [`docs/data-retention.md`](docs/data-retention.md), [`docs/breach-runbook.md`](docs/breach-runbook.md) |
 | Product & architecture brief | [`docs/product-brief.md`](docs/product-brief.md) |
 | India regulatory, payments & tax model | [`docs/india-compliance.md`](docs/india-compliance.md) |
 | Backlog conventions & taxonomy | [`docs/backlog.md`](docs/backlog.md) |
