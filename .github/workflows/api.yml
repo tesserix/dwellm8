@@ -1286,15 +1286,16 @@ jobs:
           # and the drift that matters is the quiet one — the document amended
           # after a review, the code left behind, every answer citing a period
           # nobody agreed to.
-          cp docs/data-retention.md /tmp/data-retention.md
-          sed -i 's/| `kyc` | \*\*5\*\* |/| `kyc` | **7** |/' docs/data-retention.md
+          # ../../docs, because this job's working directory is services/api.
+          cp ../../docs/data-retention.md /tmp/data-retention.md
+          sed -i 's/| `kyc` | \*\*5\*\* |/| `kyc` | **7** |/' ../../docs/data-retention.md
           if go test -count=1 -run TestTheDocumentedMatrixMatchesTheCode \
               ./internal/platform/dpdp/; then
             echo "::error::the retention matrix drifted from its own documentation and nothing noticed"
-            cp /tmp/data-retention.md docs/data-retention.md
+            cp /tmp/data-retention.md ../../docs/data-retention.md
             exit 1
           fi
-          cp /tmp/data-retention.md docs/data-retention.md
+          cp /tmp/data-retention.md ../../docs/data-retention.md
 
           # A KYC verification citing a consent artefact that does not exist.
           psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
