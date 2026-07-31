@@ -12,14 +12,30 @@ import (
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 )
 
 // The run's own behaviour, without a database: what it does when one tenancy in
 // the middle of the list cannot be billed.
 
-type tenancies struct{ leases []leasedomain.Lease }
+// orgs is the enumeration a run starts from.
+type orgs struct{ ids []tenancy.ID }
 
-func (t *tenancies) Billable(context.Context, int) ([]leasedomain.Lease, error) {
+func (o *orgs) Active(context.Context) ([]tenancy.ID, error) { return o.ids, nil }
+
+// tenancies answers per organisation, so the run's loop is observable: it
+// records which organisation each call was scoped to.
+type tenancies struct {
+	leases []leasedomain.Lease
+	seen   []tenancy.ID
+}
+
+func (t *tenancies) Billable(ctx context.Context, _ int) ([]leasedomain.Lease, error) {
+	id, ok := tenancy.From(ctx)
+	if !ok {
+		return nil, errors.New("the run did not scope this call to an organisation")
+	}
+	t.seen = append(t.seen, id)
 	return t.leases, nil
 }
 
@@ -43,21 +59,30 @@ func (b *biller) Bill(_ context.Context, cs []leaseservice.Charge) (moneyservice
 func TestOneUnbillableTenancyDoesNotStopTheRun(t *testing.T) {
 	list := &tenancies{leases: []leasedomain.Lease{{ID: "a"}, {ID: "broken"}, {ID: "c"}}}
 	b := &biller{}
-	run := e2e.NewBillingRun(list, &charges{failFor: "broken"}, b,
+	run := e2e.NewBillingRun(&orgs{ids: []tenancy.ID{"org-1", "org-2"}}, list, &charges{failFor: "broken"}, b,
 		slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	out, err := run.Run(context.Background(), effective.Day(2029, 9, 30), 0)
 	if err != nil {
 		t.Fatalf("the run stopped: %v", err)
 	}
-	if out.Tenancies != 3 {
-		t.Errorf("the run considered %d tenancies, want all three", out.Tenancies)
+	// Two organisations, each with the three tenancies the fixture returns.
+	if out.Organisations != 2 || out.Tenancies != 6 {
+		t.Errorf("the run covered %d organisations and %d tenancies, want 2 and 6",
+			out.Organisations, out.Tenancies)
 	}
-	if out.Raised != 2 || out.Failed != 1 {
-		t.Errorf("the run produced %+v, want two raised and one failed — a month's rent must not "+
+	if out.Raised != 4 || out.Failed != 2 {
+		t.Errorf("the run produced %+v, want four raised and two failed — a month's rent must not "+
 			"go unbilled because of one bad row", out)
 	}
-	if b.billed != 2 {
+	if b.billed != 4 {
 		t.Errorf("the biller saw %d charges", b.billed)
+	}
+
+	// Every read happened inside an organisation's session, and each was its own.
+	// A run that read across the boundary would be a run where one wrong join is
+	// an invoice in somebody else's ledger.
+	if len(list.seen) != 2 || list.seen[0] == list.seen[1] {
+		t.Errorf("the run scoped its reads to %v, want one session per organisation", list.seen)
 	}
 }

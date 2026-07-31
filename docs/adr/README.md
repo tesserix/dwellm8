@@ -27,6 +27,7 @@ stays readable.
 | [0025](0025-payee-level-rate-overrides.md) | Payee-level rate overrides: the rate deducted is not the rate the section says | Accepted |
 | [0026](0026-dpdp-posture.md) | DPDP posture: consent as an artefact, and erasure as a partition | Accepted |
 | [0027](0027-identity-gip-tenants.md) | Identity: a GIP tenant per app, a bearer token per request, and a membership lookup between them | Accepted |
+| [0028](0028-periodic-jobs.md) | Periodic jobs: a CronJob per organisation, and when not to use a workflow | Accepted |
 
 0004 is missing on purpose: the identity and authorisation decision it was
 reserved for was closed as not planned, and the numbers are not reused.

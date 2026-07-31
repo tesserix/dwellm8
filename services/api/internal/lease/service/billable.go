@@ -103,8 +103,21 @@ func (s *Leases) Billable(ctx context.Context, l domain.Lease, through effective
 			From: p.From.Time(), To: p.To.Time(), DueOn: p.DueOn.Time(),
 			FullAmountMinor: terms.RentMinor,
 			Days:            p.Days, InPeriod: p.InPeriod,
-			Reference: fmt.Sprintf("Rent, %s", p.From.Time().Format("January 2006")),
+			Reference: reference(p.From.Time(), p.To.Time(), p.Days != p.InPeriod),
 		})
 	}
 	return out, nil
+}
+
+// reference is what the tenant reads on the invoice.
+//
+// A part period names its days. Two invoices in one month is the ordinary case —
+// a tenancy starting on the 1st with rent due on the 5th owes four days and then
+// a month — and two lines both saying "Rent, July 2026" on the same statement is
+// the kind of thing that generates a support ticket rather than a payment.
+func reference(from, to time.Time, partial bool) string {
+	if !partial {
+		return fmt.Sprintf("Rent, %s", from.Format("January 2006"))
+	}
+	return fmt.Sprintf("Rent, %s to %s", from.Format("2 January"), to.Format("2 January 2006"))
 }
