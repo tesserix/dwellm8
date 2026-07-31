@@ -97,6 +97,7 @@ func run() error {
 	// when one appears. A broker that is down must never fail a tenant's payment.
 	relayCtx, stopRelay := context.WithCancel(context.Background())
 	defer stopRelay()
+	var eventsConn *natsx.Conn
 	if cfg.Events.Configured() && cfg.Events.RelayEnabled {
 		conn, err := natsx.Connect(natsx.Config{URL: cfg.Events.NATSURL, Name: "dwellm8-api"}, logger)
 		if err != nil {
@@ -121,6 +122,7 @@ func run() error {
 			}
 		}()
 		logger.Info("outbox relay running", "nats", cfg.Events.NATSURL)
+		eventsConn = conn
 	} else {
 		logger.Warn("outbox relay is off; events accumulate unpublished",
 			"nats_configured", cfg.Events.Configured(), "relay_enabled", cfg.Events.RelayEnabled)
@@ -190,6 +192,29 @@ func run() error {
 		}
 		guard.Checker = fga
 		logger.Info("authz ready", "store", cfg.Authz.Store, "enforce", cfg.Authz.Enforce)
+
+		// The tuple projector, #151: relationship-bearing facts drain from the
+		// lease stream into the graph. Durable, so a dead replica resumes where
+		// it stopped; idempotent, because delivery is at-least-once.
+		if eventsConn != nil {
+			ensureCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			cons, err := eventsConn.EnsureConsumer(ensureCtx, natsx.ConsumerSpec{
+				Name:     "authz-tupler",
+				Stream:   "DWELLM8_LEASE",
+				Subjects: []string{"dwellm8.lease.tenancy.>"},
+			})
+			cancel()
+			if err != nil {
+				return fmt.Errorf("authz projector consumer: %w", err)
+			}
+			proj := &authz.Projector{FGA: fga, Log: logger}
+			go func() {
+				if err := natsx.Consume(relayCtx, cons, proj.Handle, logger); err != nil && !errors.Is(err, context.Canceled) {
+					logger.Error("authz projector stopped", "error", err)
+				}
+			}()
+			logger.Info("authz projector running", "consumer", "authz-tupler")
+		}
 	} else {
 		logger.Warn("authz is not configured; route checks are declared but dark",
 			"set", "AUTHZ_URL")

@@ -45,6 +45,7 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/money/provider"
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	moneystore "github.com/tesserix/dwellm8/services/api/internal/money/store"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/config"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
@@ -88,9 +89,113 @@ func run(args []string) error {
 		return bill(ctx, args[1:], cfg, pool, logger)
 	case "poll":
 		return poll(ctx, args[1:], cfg, pool, logger)
+	case "authz":
+		return authzJob(ctx, args[1:], cfg, pool, logger)
 	default:
-		return fmt.Errorf("%q is not a job — try `bill` or `poll`", args[0])
+		return fmt.Errorf("%q is not a job — try `bill`, `poll` or `authz`", args[0])
 	}
+}
+
+// authzJob compares the graph with the domain database. dwellm8#151.
+//
+// reconcile reports divergence and exits non-zero, so the CronJob's failure is
+// the alert — it never repairs, because a silent repair is a bug that stops
+// being investigated. rebuild is the repair, and the replay path: it writes
+// what is missing and removes what should not be there, through the same
+// AgreementEdges mapping the event projector uses, so a rebuilt store is the
+// projected store by construction.
+func authzJob(ctx context.Context, args []string, cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) error {
+	fs := flag.NewFlagSet("authz", flag.ContinueOnError)
+	mode := fs.String("mode", "reconcile", "reconcile reports divergence; rebuild repairs it")
+	limit := fs.Int("limit", 5000, "how many tenancies to compare per organisation")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if cfg.Authz.URL == "" {
+		return errors.New("AUTHZ_URL is not set — there is no graph to compare")
+	}
+
+	fga := authz.NewClient(cfg.Authz.URL)
+	if err := fga.Bootstrap(ctx, cfg.Authz.Store); err != nil {
+		return fmt.Errorf("authz bootstrap: %w", err)
+	}
+
+	platformPool, err := pgxpool.New(ctx, cfg.PlatformDatabaseURL)
+	if err != nil {
+		return fmt.Errorf("platform database pool: %w", err)
+	}
+	defer platformPool.Close()
+
+	orgs, err := identitystore.NewOrganisations(tenancy.NewPlatformPool(platformPool)).Active(ctx)
+	if err != nil {
+		return fmt.Errorf("listing organisations: %w", err)
+	}
+
+	leases := leasestore.New(pool)
+	var tenancies, diverged, repaired int
+	for _, org := range orgs {
+		octx := tenancy.With(ctx, org)
+		active, err := leases.ActiveTenancies(octx, *limit)
+		if err != nil {
+			return fmt.Errorf("organisation %s: %w", org, err)
+		}
+		for _, t := range active {
+			tenancies++
+			parties := make([]authz.Party, len(t.Parties))
+			for i, p := range t.Parties {
+				parties[i] = authz.Party{PartyID: p.PartyID, Role: p.Role}
+			}
+			expected := authz.AgreementEdges(t.ID, t.UnitID, parties)
+			actual, err := fga.ReadTuples(ctx, "agreement:"+t.ID)
+			if err != nil {
+				return err
+			}
+			missing, extra := diffTuples(expected, actual)
+			if len(missing) == 0 && len(extra) == 0 {
+				continue
+			}
+			diverged++
+			log.Warn("authz divergence",
+				"organisation", org, "lease", t.ID, "missing", missing, "extra", extra)
+			if *mode == "rebuild" {
+				// Extra edges first: access more permissive than the domain is
+				// the state that must not outlive this run.
+				if err := fga.WriteTuples(ctx, missing, extra); err != nil {
+					return fmt.Errorf("repairing lease %s: %w", t.ID, err)
+				}
+				repaired++
+			}
+		}
+	}
+
+	log.Info("authz "+*mode+" finished",
+		"version", version, "organisations", len(orgs), "tenancies", tenancies,
+		"diverged", diverged, "repaired", repaired)
+	if *mode == "reconcile" && diverged > 0 {
+		return fmt.Errorf("%d tenancies diverge from the graph — run `jobs authz --mode rebuild` after understanding why", diverged)
+	}
+	return nil
+}
+
+// diffTuples is set difference in both directions.
+func diffTuples(expected, actual []authz.Tuple) (missing, extra []authz.Tuple) {
+	want := map[authz.Tuple]bool{}
+	for _, t := range expected {
+		want[t] = true
+	}
+	have := map[authz.Tuple]bool{}
+	for _, t := range actual {
+		have[t] = true
+		if !want[t] {
+			extra = append(extra, t)
+		}
+	}
+	for _, t := range expected {
+		if !have[t] {
+			missing = append(missing, t)
+		}
+	}
+	return missing, extra
 }
 
 // bill raises the invoices falling due inside the horizon.

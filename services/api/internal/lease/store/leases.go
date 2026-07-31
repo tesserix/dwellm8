@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/tesserix/dwellm8/services/api/internal/lease/domain"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/events"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 )
@@ -148,7 +149,15 @@ func (s *Leases) Activate(ctx context.Context, id string, by domain.Actor) error
 		if tag.RowsAffected() == 0 {
 			return ErrNoLease
 		}
-		return nil
+		// The fact, in the same transaction as the state it reports (ADR-0002).
+		// It carries the parties because its consumers — the authz projector
+		// first (#151) — must not have to read a table that a later revision
+		// may have re-dated by the time the event is handled.
+		env, err := startedEvent(ctx, tx, tenant.String(), id, by)
+		if err != nil {
+			return err
+		}
+		return events.Append(ctx, tx, env)
 	})
 
 	switch {
@@ -164,6 +173,90 @@ func (s *Leases) Activate(ctx context.Context, id string, by domain.Actor) error
 	default:
 		return err
 	}
+}
+
+// ActiveTenancy is what the authz reconciliation compares against the graph:
+// the lease, its unit, and the resident-side parties still on it. dwellm8#151.
+type ActiveTenancy struct {
+	ID      string
+	UnitID  string
+	Parties []struct{ PartyID, Role string }
+}
+
+// ActiveTenancies lists every active lease with its live parties, scoped to
+// the organisation in the context like every other read here.
+func (s *Leases) ActiveTenancies(ctx context.Context, limit int) ([]ActiveTenancy, error) {
+	if limit <= 0 {
+		limit = 5000
+	}
+	var out []ActiveTenancy
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT l.id::text, l.unit_id::text, p.party_id::text, p.role
+			  FROM leases l
+			  JOIN lease_parties p ON p.lease_id = l.id AND p.retired_at IS NULL
+			 WHERE l.state = 'active'
+			 ORDER BY l.id
+			 LIMIT $1`, limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		byLease := map[string]int{}
+		for rows.Next() {
+			var leaseID, unit, party, role string
+			if err := rows.Scan(&leaseID, &unit, &party, &role); err != nil {
+				return err
+			}
+			i, ok := byLease[leaseID]
+			if !ok {
+				i = len(out)
+				byLease[leaseID] = i
+				out = append(out, ActiveTenancy{ID: leaseID, UnitID: unit})
+			}
+			out[i].Parties = append(out[i].Parties, struct{ PartyID, Role string }{party, role})
+		}
+		return rows.Err()
+	})
+	return out, err
+}
+
+// startedEvent builds lease.tenancy.started with the unit and every party on
+// the lease, read inside the activating transaction.
+func startedEvent(ctx context.Context, tx pgx.Tx, tenant, id string, by domain.Actor) (events.Envelope, error) {
+	var unit string
+	if err := tx.QueryRow(ctx, `SELECT unit_id FROM leases WHERE id = $1`, id).Scan(&unit); err != nil {
+		return events.Envelope{}, fmt.Errorf("reading the unit for the event: %w", err)
+	}
+	rows, err := tx.Query(ctx, `SELECT party_id, role FROM lease_parties WHERE lease_id = $1`, id)
+	if err != nil {
+		return events.Envelope{}, fmt.Errorf("reading the parties for the event: %w", err)
+	}
+	defer rows.Close()
+
+	type party struct {
+		PartyID string `json:"party_id"`
+		Role    string `json:"role"`
+	}
+	data := struct {
+		UnitID  string  `json:"unit_id"`
+		Parties []party `json:"parties"`
+	}{UnitID: unit}
+	for rows.Next() {
+		var p party
+		if err := rows.Scan(&p.PartyID, &p.Role); err != nil {
+			return events.Envelope{}, err
+		}
+		data.Parties = append(data.Parties, p)
+	}
+	if err := rows.Err(); err != nil {
+		return events.Envelope{}, err
+	}
+
+	return events.New(string(domain.EventStarted), tenant,
+		events.Subject{Kind: "lease", ID: id},
+		events.Actor{Kind: events.ActorUser, ID: string(by)}, data)
 }
 
 // conflicting finds the tenancy that blocked an activation, so the refusal can

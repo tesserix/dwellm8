@@ -14,6 +14,7 @@ type fakeFGA struct {
 	models      []json.RawMessage
 	modelWrites int
 	allowed     bool
+	tuples      map[Tuple]bool
 }
 
 func (f *fakeFGA) handler() http.Handler {
@@ -59,6 +60,60 @@ func (f *fakeFGA) handler() http.Handler {
 	})
 	mux.HandleFunc("POST /stores/{id}/check", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]bool{"allowed": f.allowed})
+	})
+	mux.HandleFunc("POST /stores/{id}/read", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			TupleKey struct {
+				Object string `json:"object"`
+			} `json:"tuple_key"`
+		}
+		json.NewDecoder(r.Body).Decode(&in)
+		var out struct {
+			Tuples []struct {
+				Key Tuple `json:"key"`
+			} `json:"tuples"`
+		}
+		for t := range f.tuples {
+			if t.Object == in.TupleKey.Object {
+				out.Tuples = append(out.Tuples, struct {
+					Key Tuple `json:"key"`
+				}{t})
+			}
+		}
+		json.NewEncoder(w).Encode(out)
+	})
+	mux.HandleFunc("POST /stores/{id}/write", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Writes struct {
+				TupleKeys []Tuple `json:"tuple_keys"`
+			} `json:"writes"`
+			Deletes struct {
+				TupleKeys []Tuple `json:"tuple_keys"`
+			} `json:"deletes"`
+		}
+		json.NewDecoder(r.Body).Decode(&in)
+		if f.tuples == nil {
+			f.tuples = map[Tuple]bool{}
+		}
+		refuse := func(msg string) {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"code": "write_failed_due_to_invalid_input", "message": msg})
+		}
+		for _, t := range in.Writes.TupleKeys {
+			if f.tuples[t] {
+				refuse("cannot write a tuple which already exists")
+				return
+			}
+			f.tuples[t] = true
+		}
+		for _, t := range in.Deletes.TupleKeys {
+			if !f.tuples[t] {
+				refuse("cannot delete a tuple which does not exist")
+				return
+			}
+			delete(f.tuples, t)
+		}
+		json.NewEncoder(w).Encode(struct{}{})
 	})
 	return mux
 }
