@@ -16,6 +16,49 @@ import (
 // Go refuses the same thing in lease/domain, and this is the half that holds when
 // the write did not come through Go — a backfill, a support fix, an import.
 
+// The five-part contract, on the table that now holds a tenant's tax position. A
+// leak here tells one organisation what another's landlords declared about their
+// residency, which is a statement about a person's tax affairs and not merely a
+// row.
+func TestLeaseTaxFactsIsolation(t *testing.T) {
+	p := pool(t)
+	plat := platformPool(t)
+	seedOrganisations(t, plat)
+	seedCollectionProperties(t, plat)
+
+	isolationtest.Run(t, p, isolationtest.Table{
+		Name: "lease_tax_facts",
+		Insert: func(ctx context.Context, tx pgx.Tx, tenant tenancy.ID, token string) error {
+			// A unit and a lease per organisation per run, for the reason the leases
+			// harness gives: the no-double-let constraint would otherwise refuse the
+			// second insert and the isolation would pass for the wrong reason.
+			unit, err := leaseUnit(ctx, tx, tenant, token)
+			if err != nil {
+				return err
+			}
+			var lease string
+			if err := tx.QueryRow(ctx, `
+				INSERT INTO leases (tenant_id, property_id, unit_id, state, valid_from, valid_to)
+				VALUES ($1, $2, $3, 'draft', '2030-01-01', '2031-01-01') RETURNING id`,
+				tenant.String(), collectionProperty(tenant), unit).Scan(&lease); err != nil {
+				return err
+			}
+			_, err = tx.Exec(ctx, `
+				INSERT INTO lease_tax_facts (tenant_id, lease_id, deductor_class, landlord_residency,
+				                             source, valid_from)
+				VALUES ($1, $2, 'business', 'resident', $3, '2030-01-01')`,
+				tenant.String(), lease, "harness-"+token)
+			return err
+		},
+		Count: func(ctx context.Context, tx pgx.Tx, token string) (int, error) {
+			var n int
+			err := tx.QueryRow(ctx,
+				`SELECT count(*) FROM lease_tax_facts WHERE source = $1`, "harness-"+token).Scan(&n)
+			return n, err
+		},
+	})
+}
+
 // The story's failure scenario, in the database. A tenancy whose deductor class and
 // landlord residency nobody recorded cannot go live, because every payment made
 // under it would be a deduction nobody computed.
