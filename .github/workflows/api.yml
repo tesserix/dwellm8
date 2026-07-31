@@ -1318,6 +1318,49 @@ jobs:
           fi
           echo "the posture caught both, as it should"
 
+      # Issue #226. The audit is written inside the same transaction as the work,
+      # and both plants attack that: one records an action that was rolled back,
+      # the other lets a handler take the path that names nobody.
+      - name: Prove a support action cannot happen unaudited
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+
+          # A handler on the unaudited path. The file is removed either way — see
+          # the .gitignore note about planted_* escaping once already.
+          mkdir -p internal/money/http
+          printf 'package http\n\n// planted: tenancy.Platform(\n' > internal/money/http/planted_platform.go
+          if go test -count=1 -run TestNoHandlerTakesTheUnauditedPlatformPath ./internal/platform/arch/; then
+            rm -f internal/money/http/planted_platform.go
+            echo "::error::a handler can take the privileged path without naming who, to what or why"
+            exit 1
+          fi
+          rm -f internal/money/http/planted_platform.go
+
+          # The audit written outside the transaction, which is the version that
+          # records actions the database rolled back.
+          cp internal/platform/tenancy/support.go /tmp/support.go
+          python3 - <<'"'"'PLANT'"'"'
+          import pathlib
+          p = pathlib.Path("internal/platform/tenancy/support.go")
+          s = p.read_text()
+          s = s.replace("if err := fn(ctx, tx); err != nil {\n\t\treturn err\n\t}",
+                        "if err := fn(ctx, tx); err != nil {\n\t\t_ = tx.Commit(ctx)\n\t\treturn err\n\t}")
+          p.write_text(s)
+          PLANT
+          if go test -count=1 -run TestAnActionThatFailsLeavesNoAuditRow \
+              ./internal/platform/tenancy/isolationtest/; then
+            cp /tmp/support.go internal/platform/tenancy/support.go
+            echo "::error::an audit row survived an action that was rolled back"
+            exit 1
+          fi
+          cp /tmp/support.go internal/platform/tenancy/support.go
+          echo "the support path caught both, as it should"
+
       - name: Build
         run: go build ./...
 
