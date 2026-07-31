@@ -4,6 +4,11 @@ What Dwellm8 must implement because of where it operates. Every rule below is
 **state- and date-scoped in code**: rates, thresholds and slabs live in versioned rule
 tables with an owner and a review date, never as constants in a service.
 
+**Scope.** This document is the operating detail for a **residential tenancy**. Other
+asset classes (commercial, hostel/PG, short-stay), other transactions (buying, selling,
+investing), the obligations that bind Dwellm8 itself, and the rule-registry governance
+model are in [`india-property-compliance.md`](india-property-compliance.md).
+
 > **Standing rule for the backlog.** No figure in this document is authoritative for
 > production. Each rule table entry must cite its source and be confirmed with counsel or
 > a practising CA before the feature that depends on it ships. Tax rates, GST slabs and
