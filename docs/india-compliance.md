@@ -2,7 +2,8 @@
 
 What Dwellm8 must implement because of where it operates. Every rule below is
 **state- and date-scoped in code**: rates, thresholds and slabs live in versioned rule
-tables with an owner and a review date, never as constants in a service.
+tables with an owner and a review date, never as constants in a service — that is
+`statutory_rules`, decided in [ADR-0023](adr/0023-statutory-rule-tables.md).
 
 **Scope.** This document is the operating detail for a **residential tenancy**. Other
 asset classes (commercial, hostel/PG, short-stay), other transactions (buying, selling,
@@ -352,3 +353,8 @@ Every issue touching money, documents or identity must answer:
    retrievable years later?
 
 A feature that cannot answer all five is not ready, regardless of test coverage.
+
+Questions 1 and 2 have a standing answer:
+[ADR-0023](adr/0023-statutory-rule-tables.md). The rule lives in
+`statutory_rules`, scoped to a state and a date, and the computation records the
+row it used.

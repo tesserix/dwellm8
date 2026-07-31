@@ -122,9 +122,15 @@ func TestSchemaAudit(t *testing.T) {
 	//
 	// An enquiry is the first row in that funnel that does belong to somebody, and it has
 	// an ordinary tenant_id — which is the line this exemption stops at.
+	//
+	// ADR-0023's two are the first three's shape exactly: a statutory rate is the
+	// rule rather than the data, a tenant does not get a private idea of what the
+	// TDS rate is, and the application cannot write one — assertion 18 fails the
+	// bootstrap if the privilege ever comes back.
 	p := pool(t)
 	isolationtest.SchemaAudit(t, p,
 		"ledger_accounts", "posting_templates", "posting_template_lines",
 		"settlement_batches", "reconciliation_runs",
-		"prospects", "prospect_shortlist")
+		"prospects", "prospect_shortlist",
+		"statutory_rules", "statutory_rule_slabs")
 }

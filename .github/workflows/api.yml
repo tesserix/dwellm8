@@ -1036,6 +1036,102 @@ jobs:
           fi
           echo "the raw-bytes test caught it, as it should"
 
+      # ADR-0023. Four plants, and the third is the one this table exists for: a
+      # rate that can be written at runtime is a rate with no citation and no
+      # review, and nothing about the resulting invoice looks wrong.
+      - name: Prove the statutory registry still bites
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+          awk '/^-- tenancy assertions/{f=1} f' /tmp/dwellm8.sql > /tmp/assertions.sql
+
+          # The registry answers as-of, so a rule with no end date resolves for
+          # every later date too. Ending the old 194-I threshold on the day the
+          # Finance Act 2025 raised it is what makes March reproduce; removing that
+          # bound makes the two rows overlap and the answer depend on which sorted
+          # first. The exclusion constraint refuses it — so the constraint goes
+          # first, which is the defect this is really about.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            ALTER TABLE statutory_rules DROP CONSTRAINT statutory_rules_no_overlap;
+            UPDATE statutory_rules SET valid_to = NULL
+             WHERE rule_key = 'tds.194i_annual' AND valid_from = DATE '2020-04-01';" >/dev/null
+          if go test -count=1 -run TestTheThresholdInForceIsTheOneOnTheDate \
+              ./internal/platform/statutory/store/; then
+            echo "::error::two thresholds were live on the same day and the registry still answered"
+            exit 1
+          fi
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 13 accepted a registry with no exclusion constraint"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            UPDATE statutory_rules SET valid_to = DATE '2025-04-01'
+             WHERE rule_key = 'tds.194i_annual' AND valid_from = DATE '2020-04-01';" >/dev/null
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          # A rate the application can write. The GRANT is plausible — it is what a
+          # blanket "GRANT ALL ON ALL TABLES" does — and it is why assertion 18
+          # asserts the privilege rather than trusting the REVOKE three sections up.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "GRANT INSERT ON statutory_rules TO dwellm8_app" >/dev/null
+          if go test -count=1 -run TestARequestCannotWriteARule ./internal/platform/statutory/store/; then
+            echo "::error::a request wrote a statutory rule — an organisation can now decide its own tax rate"
+            exit 1
+          fi
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 18 accepted a runtime-writable rule table"
+            exit 1
+          fi
+          # The planted test's insert succeeded, which is the point. The row is this
+          # step's own and goes before the registry is read again.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "DELETE FROM statutory_rules WHERE rule_key = 'tds.mine'" >/dev/null
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          # An unverified rule set to block. The CHECK refuses it, so the plant has
+          # to remove the CHECK — which is exactly the case assertion 18's second
+          # clause exists for: a CHECK inside CREATE TABLE IF NOT EXISTS never
+          # reaches a database that already has the table.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            ALTER TABLE statutory_rules DROP CONSTRAINT statutory_rules_unverified_cannot_block;
+            UPDATE statutory_rules SET enforcement = 'block'
+             WHERE jurisdiction = 'KA' AND verification_status = 'unverified';" >/dev/null
+          if psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/assertions.sql; then
+            echo "::error::assertion 18 accepted an unverified rule set to block — a cap enforced from a blog post"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            UPDATE statutory_rules SET enforcement = 'record_only'
+             WHERE jurisdiction = 'KA' AND verification_status = 'unverified';" >/dev/null
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          # And the review report, which is the only guard here that fires on time
+          # rather than on a defect. The seed's review dates are months out, so the
+          # report is legitimately empty — which means an empty report proves
+          # nothing until a row is actually due.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            UPDATE statutory_rules SET review_due = current_date - 10
+             WHERE rule_key = 'tds.194ib_monthly';" >/dev/null
+          overdue=$(psql -h localhost -U dwellm8 -d dwellm8 -Atc \
+            "SELECT count(*) FROM statutory_rules_review_due WHERE days_overdue >= 10")
+          if [ "$overdue" != "1" ]; then
+            echo "::error::a rule ten days past its review date is not in the review report ($overdue rows)"
+            exit 1
+          fi
+          if ! go test -count=1 -run TestTheReviewReportAgreesWithTheRegistry \
+              ./internal/platform/statutory/store/; then
+            echo "::error::the registry and the review view disagree about what is due"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -c "
+            UPDATE statutory_rules SET review_due = DATE '2026-10-31'
+             WHERE rule_key = 'tds.194ib_monthly';" >/dev/null
+          echo "the registry caught all four, as it should"
+
       - name: Build
         run: go build ./...
 

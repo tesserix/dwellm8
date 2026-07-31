@@ -29,6 +29,11 @@ Compliance content decays. A platform that encodes it as code, constants or pros
 is wrong within a year and does not know it. So every statutory parameter Dwellm8
 depends on is a **row in a rule registry**, not a line in a service.
 
+The registry is built. [ADR-0023](adr/0023-statutory-rule-tables.md) is the
+decision, `statutory_rules` and `statutory_rule_slabs` are the tables, and
+`internal/platform/statutory` resolves against them. What follows describes the
+columns; the ADR describes what the database refuses.
+
 ### 1.1 The registry entry
 
 Every rule table in the platform — stamp duty, deposit caps, GST rates, TDS
