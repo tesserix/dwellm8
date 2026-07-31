@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -234,4 +235,111 @@ func isExclusionViolation(err error, constraint string) bool {
 	// because a schema with two exclusion constraints on one table would
 	// otherwise report the wrong one.
 	return pg.Code == "23P01" && strings.Contains(pg.ConstraintName, constraint)
+}
+
+// Parties returns the tenant and the owner a posting is kept per.
+//
+// The tenant comes from lease_parties — the first one liable, which for a joint
+// tenancy is a simplification this returns honestly rather than hides: a
+// receivable is kept per party, and splitting one across co-tenants is a
+// decision nobody has made yet.
+//
+// Both are read **as at a date** rather than as at today, and that is not a
+// nicety: a tenancy starting next month has no party today, so a billing run
+// preparing its first invoice would find nobody and refuse a lease that is
+// perfectly well formed. Ownership is effective-dated for the same reason in the
+// other direction — the owner who was paid last March is the one who owned it
+// then, not whoever owns it now.
+func (s *Leases) Parties(ctx context.Context, id string, on effective.Date) (tenant, owner string, err error) {
+	err = tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `
+			SELECT party_id::text
+			  FROM lease_parties
+			 WHERE lease_id = $1 AND role = 'tenant' AND retired_at IS NULL
+			   AND validity @> $2::date
+			 ORDER BY valid_from
+			 LIMIT 1`, id, on.Time()).Scan(&tenant); err != nil {
+			return fmt.Errorf("no tenant on lease %s: %w", id, err)
+		}
+		err := tx.QueryRow(ctx, `
+			SELECT o.owner_party_id::text
+			  FROM property_ownership o
+			  JOIN leases l ON l.unit_id = o.unit_id OR (o.unit_id IS NULL AND l.property_id = o.property_id)
+			 WHERE l.id = $1 AND o.retired_at IS NULL AND o.validity @> l.valid_from
+			 ORDER BY o.unit_id NULLS LAST, o.share_bps DESC
+			 LIMIT 1`, id).Scan(&owner)
+		if errors.Is(err, pgx.ErrNoRows) {
+			// A tenancy on a unit whose ownership nobody has recorded. Refused
+			// rather than defaulted: an invoice credits rent income to an owner,
+			// and inventing one puts somebody else's money on a statement.
+			return fmt.Errorf("%w: lease %s has no recorded owner, so there is nobody to credit "+
+				"the rent to", ErrNoLease, id)
+		}
+		return err
+	})
+	return tenant, owner, err
+}
+
+// Billable returns the tenancies a billing run should consider.
+//
+// Active and in-notice only: notice announces an ending and does not perform it,
+// so a tenancy under notice still owes rent — stopping the invoices when notice
+// is served is a month of rent the owner never sees and the tenant never
+// disputes (ADR-0010 §4).
+//
+// Ordered by id so a run that is interrupted and restarted covers the same
+// leases in the same order, which makes a partial run's effect describable.
+func (s *Leases) Billable(ctx context.Context, limit int) ([]domain.Lease, error) {
+	if limit <= 0 {
+		limit = 500
+	}
+	var out []domain.Lease
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT id::text, tenant_id::text, property_id::text, unit_id::text, state,
+			       valid_from, valid_to, ended_on, notice_days
+			  FROM leases
+			 WHERE state IN ('active', 'in_notice')
+			 ORDER BY id
+			 LIMIT $1`, limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				l         domain.Lease
+				state     string
+				from      time.Time
+				to, ended *time.Time
+			)
+			if err := rows.Scan(&l.ID, &l.TenantID, &l.Property, &l.Unit, &state,
+				&from, &to, &ended, &l.NoticeDays); err != nil {
+				return err
+			}
+			l.State = domain.State(state)
+			if l.Term, err = interval(from, to); err != nil {
+				return fmt.Errorf("lease %s: %w", l.ID, err)
+			}
+			if ended != nil {
+				l.EndedOn = effective.Day(ended.Year(), ended.Month(), ended.Day())
+			}
+			out = append(out, l)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, fmt.Errorf("lease: reading billable tenancies: %w", err)
+	}
+	return out, nil
+}
+
+// interval rebuilds the agreed term from its two columns.
+func interval(from time.Time, to *time.Time) (effective.Interval, error) {
+	f := effective.Day(from.Year(), from.Month(), from.Day())
+	if to == nil {
+		return effective.Since(f)
+	}
+	return effective.Between(f, effective.Day(to.Year(), to.Month(), to.Day()))
 }
