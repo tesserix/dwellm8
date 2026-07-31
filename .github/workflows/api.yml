@@ -64,8 +64,12 @@ jobs:
           PGPASSWORD: bootstrap
         run: |
           set -euo pipefail
-          curl -fsSL -o /tmp/dwellm8.sql \
-            https://raw.githubusercontent.com/tesserix/tesserix-k8s/main/charts/apps/db-schema-bootstrap/schemas/dwellm8/dwellm8/dwellm8.sql
+          # Cache-busted, because raw.githubusercontent.com is a CDN with a
+          # minutes-long TTL: a schema change pushed to tesserix-k8s and an app
+          # change pushed straight after it race, and the loser is a run that
+          # fails with "relation does not exist" against a schema that does.
+          curl -fsSL -H 'Cache-Control: no-cache' -o /tmp/dwellm8.sql \
+            "https://raw.githubusercontent.com/tesserix/tesserix-k8s/main/charts/apps/db-schema-bootstrap/schemas/dwellm8/dwellm8/dwellm8.sql?run=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           psql -h localhost -U postgres -c "CREATE ROLE dwellm8 LOGIN CREATEROLE PASSWORD 'ci'"
           psql -h localhost -U postgres -c "CREATE DATABASE dwellm8 OWNER dwellm8"
           PGPASSWORD=ci psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql
