@@ -70,8 +70,13 @@ var unitCodes = map[string]string{
 // SeedPropertyTree writes the owner's tree. Idempotent, and a platform act for
 // the same reason seeding organisations is: the tests act as the firm, and the
 // firm is precisely who must not be able to create these rows.
+//
+// It seeds the organisations first because the tree hangs off them. Leaving that
+// to the caller passes on a database that already has them — every developer
+// machine — and fails only on a fresh one, which is CI.
 func SeedPropertyTree(t *testing.T, p tenancy.PlatformPool) {
 	t.Helper()
+	seedDelegationOrgs(t, p)
 
 	err := tenancy.Platform(context.Background(), p, "seeding the property-scope contract",
 		func(ctx context.Context, tx pgx.Tx) error {
