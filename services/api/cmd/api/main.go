@@ -14,10 +14,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	leasehttp "github.com/tesserix/dwellm8/services/api/internal/lease/http"
+	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
+	leasestore "github.com/tesserix/dwellm8/services/api/internal/lease/store"
 	moneyhttp "github.com/tesserix/dwellm8/services/api/internal/money/http"
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	moneystore "github.com/tesserix/dwellm8/services/api/internal/money/store"
@@ -83,15 +87,31 @@ func run() error {
 		moneystore.NewInbox(tenancy.NewPlatformPool(platformPool)),
 		providers, logger)
 
+	leases := leaseservice.NewLeases(leasestore.New(pool), logger)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)
 	mux.HandleFunc("GET /readyz", health.Readyz)
 	// Module routes mount here as each module lands, one line per module.
 	moneyhttp.NewWebhooks(payments, logger).Routes(mux)
+	leasehttp.NewLeases(leases, logger).Routes(mux)
+
+	// Rate limiting, issue #228. Two limiters because they fail differently: the
+	// per-tenant one stops one organisation taking the service down for the rest,
+	// and the webhook route is limited unkeyed because its caller is
+	// unauthenticated by definition and has no identity to be limited by.
+	//
+	// Health is outside both. A readiness probe shed as "too many requests" takes
+	// the pod out of rotation at exactly the moment it is busiest, which turns a
+	// load spike into an outage.
+	tenantLimiter := httpx.NewLimiter(cfg.RateLimits.Tenant, nil)
+	webhookLimiter := httpx.NewLimiter(cfg.RateLimits.Webhook, nil)
+	handler := httpx.Limited(webhookLimiter, webhookRoutes,
+		httpx.Limited(tenantLimiter, httpx.ByTenant("X-Dwellm8-Org"), mux))
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,
@@ -148,4 +168,14 @@ func newLogger(cfg config.Config) *slog.Logger {
 		return slog.New(slog.NewJSONHandler(os.Stdout, opts))
 	}
 	return slog.New(slog.NewTextHandler(os.Stdout, opts))
+}
+
+// webhookRoutes keys the unauthenticated surface, and only that surface. A
+// KeyFunc returning "" means "not limited by this one", so everything else falls
+// through to the per-tenant limiter rather than being counted twice.
+func webhookRoutes(r *http.Request) string {
+	if strings.HasPrefix(r.URL.Path, "/v1/webhooks/") {
+		return "webhooks"
+	}
+	return ""
 }
