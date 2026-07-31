@@ -326,8 +326,22 @@ Product requirements:
 - The obligation stays with the deductor. Dwellm8's role is documented as facilitation,
   in the terms of service and in the UI, in one set of words.
 
-Not yet modelled: lower or nil deduction certificates under §197, which are the common
-NRI answer to §195 and are a per-landlord rate override with their own validity window.
+The rate deducted is **not** the section's rate. Four provisions move it, all turning on a
+fact about the landlord rather than the payment — [ADR-0025](adr/0025-payee-level-rate-overrides.md):
+
+| Provision | Turns on | Effect |
+|---|---|---|
+| **§197** | A certificate the Assessing Officer issued | Replaces the rate, downwards, possibly to nil. This is what makes a §195 deduction computable |
+| **§206AA** | Whether a PAN has been furnished | Floors it at 20%. Rule 37BC exempts a non-resident who furnishes TRC, TIN and contact details |
+| **§206AB** | Being a specified non-filer | Floored at twice the rate or 5% — and **the section was omitted from 1 October 2024**, so it applies only to deductions before then |
+| **Surcharge and cess** | Being a non-resident, and how much they receive | Raises it: 10% at ₹80,000 a month becomes 11.44% for an NRI over the surcharge threshold |
+
+A payee whose PAN status is unknown is deducted at the §206AA floor, not at the section
+rate: an over-deduction is a refund claim for the landlord, an under-deduction is interest
+and penalty for the tenant.
+
+Open questions the platform has taken a position on, and the rows that are not yet verified
+against a bare act, are in [`tds-rate-verification.md`](tds-rate-verification.md).
 
 ---
 

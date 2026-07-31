@@ -501,7 +501,9 @@ func (s Section) Statute() string {
 
 // ruleTypes ties the matrix back to the registry's vocabulary, so a rename in
 // statutory that this package did not follow fails a test rather than a payout.
-var ruleTypes = struct{ Rate, Threshold statutory.Type }{
+var ruleTypes = struct{ Rate, Threshold, Surcharge, Cess statutory.Type }{
 	Rate:      statutory.TDSRate,
 	Threshold: statutory.TDSThreshold,
+	Surcharge: statutory.TDSSurchargeRate,
+	Cess:      statutory.TDSCessRate,
 }

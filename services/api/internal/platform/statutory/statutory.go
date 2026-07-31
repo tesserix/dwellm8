@@ -45,6 +45,8 @@ const (
 	GSTRegistrationThreshold      Type = "gst_registration_threshold"
 	TDSRate                       Type = "tds_rate"
 	TDSThreshold                  Type = "tds_threshold"
+	TDSSurchargeRate              Type = "tds_surcharge_rate"
+	TDSCessRate                   Type = "tds_cess_rate"
 	DepositCapMonths              Type = "deposit_cap_months"
 	AdvanceCapMonths              Type = "advance_cap_months"
 	StampDutyRate                 Type = "stamp_duty_rate"
@@ -57,7 +59,7 @@ const (
 func Types() []Type {
 	return []Type{
 		GSTRate, GSTExemptionAmount, GSTRegistrationThreshold,
-		TDSRate, TDSThreshold,
+		TDSRate, TDSThreshold, TDSSurchargeRate, TDSCessRate,
 		DepositCapMonths, AdvanceCapMonths,
 		StampDutyRate, StampDutyCapAmount,
 		RegistrationFeeRate, RegistrationTermTriggerMonths,
@@ -258,7 +260,12 @@ func (r Rule) validateSlabs() error {
 	}
 	var next int64
 	for i, s := range r.Slabs {
-		if s.RateBps == 0 && s.FlatMinor == 0 {
+		// A nil bottom band is legitimate and common: a surcharge scale begins with
+		// a threshold below which nothing is charged, and that is a zero rate rather
+		// than a missing row, so an amount under it resolves to nil instead of to
+		// nothing. Anywhere else a zero band is a mistyped bound, because a scale
+		// does not stop charging half way up.
+		if s.RateBps == 0 && s.FlatMinor == 0 && !(i == 0 && s.LowerMinor == 0) {
 			return fmt.Errorf("statutory: band %d of %s/%s/%s charges nothing",
 				i, r.Type, r.Jurisdiction, r.Key)
 		}

@@ -24,6 +24,7 @@ stays readable.
 | [0022](0022-mandates-and-the-cashfree-adapter.md) | Mandates: a standing authority is not a payment, and the seam that could not hold one | Accepted |
 | [0023](0023-statutory-rule-tables.md) | Statutory rule tables: a rate change is a row, a gap is an error | Accepted |
 | [0024](0024-tds-decision-matrix.md) | The TDS decision matrix: two facts at lease creation, and a section that cannot be guessed | Accepted |
+| [0025](0025-payee-level-rate-overrides.md) | Payee-level rate overrides: the rate deducted is not the rate the section says | Accepted |
 
 0004 is missing on purpose: the identity and authorisation decision it was
 reserved for was closed as not planned, and the numbers are not reused.

@@ -24,6 +24,10 @@ func New(rules *statutory.Table) (*Matrix, error) {
 	return &Matrix{rules: rules}, nil
 }
 
+// Registry is the table this matrix resolves against, for an admin listing and
+// for a caller that needs to show which rows a deduction rested on.
+func (m *Matrix) Registry() *statutory.Table { return m.rules }
+
 // Rent is what the threshold is tested against.
 //
 // Both figures, because which one matters is the path's business and the caller
@@ -51,9 +55,17 @@ type Assessment struct {
 	Facts Facts
 	On    effective.Date
 
-	// RateBps is the rate in basis points: ten per cent is 1000.
+	// RateBps is the rate actually deducted at, in basis points: ten per cent is
+	// 1000. Not always the section's rate — see Rate for what moved it and why.
 	RateBps    int
 	RateRuleID string
+
+	// Rate is the section's rate and every payee-level step applied to it:
+	// §197, §206AA, §206AB, surcharge and cess. ADR-0025.
+	Rate EffectiveRate
+
+	// Payee is the profile the rate was resolved against.
+	Payee PayeeProfile
 
 	// ThresholdMinor is the figure the basis is tested against, in paise, and
 	// ThresholdRuleID the row it came from. Both zero on a path with no threshold.
@@ -89,7 +101,7 @@ func (a Assessment) Deductible() bool { return a.Crossed }
 // that bites and where it is meant to: the rate is the Act's, or a treaty's, read
 // with the landlord's tax residency certificate, and a platform that filled in a
 // plausible number would be wrong with authority.
-func (m *Matrix) Assess(f Facts, rent Rent, on effective.Date) (Assessment, error) {
+func (m *Matrix) Assess(f Facts, payee PayeeProfile, rent Rent, on effective.Date) (Assessment, error) {
 	p, err := Select(f)
 	if err != nil {
 		return Assessment{}, err
@@ -104,20 +116,23 @@ func (m *Matrix) Assess(f Facts, rent Rent, on effective.Date) (Assessment, erro
 
 	// Income tax is union legislation: there is no state override to look for, and
 	// resolving against a state would invite somebody to add one.
-	rate, err := m.rules.Resolve(ruleTypes.Rate, statutory.National, p.RateKey, on)
-	if err != nil {
-		return Assessment{}, fmt.Errorf("tds: section %s has no rate to deduct at: %w", p.Section, err)
-	}
-	rateBps, err := rate.Rule.Rate()
+	effRate, err := m.effectiveRate(p, f, payee, rent, on)
 	if err != nil {
 		return Assessment{}, err
 	}
 
 	a := Assessment{
-		Path: p, Facts: f, On: on,
-		RateBps: rateBps, RateRuleID: rate.Rule.ID,
-		Verification: rate.Rule.Verification,
-		Enforcement:  rate.Rule.Enforcement,
+		Path: p, Facts: f, On: on, Payee: payee,
+		RateBps: effRate.Bps, Rate: effRate,
+	}
+	// The governance of the section's own rate row, where one answered. A rate that
+	// came from a certificate has no registry row and no verification status: it is
+	// an officer's determination, and the certificate number is its provenance.
+	if rate, err := m.rules.Resolve(ruleTypes.Rate, statutory.National, p.RateKey, on); err == nil {
+		a.RateRuleID = rate.Rule.ID
+		a.Verification, a.Enforcement = rate.Rule.Verification, rate.Rule.Enforcement
+	} else {
+		a.Verification, a.Enforcement = statutory.Unverified, statutory.RecordOnly
 	}
 
 	if p.Basis == BasisNone {
@@ -174,6 +189,11 @@ type Payee struct {
 	ShareBps     int
 	MonthlyMinor int64
 	AnnualMinor  int64
+
+	// Profile is this co-owner's own PAN, certificate and filer status. Per payee
+	// like the residency, and for the same reason: one co-owner's certificate does
+	// not lower the deduction on the other's share.
+	Profile PayeeProfile
 }
 
 // ErrShares is an apportionment that does not add up.
@@ -236,7 +256,11 @@ func (m *Matrix) Apportion(f Facts, rent Rent, payees []Payee, on effective.Date
 	for _, p := range payees {
 		facts := f
 		facts.Residency = p.Residency
-		a, err := m.Assess(facts, Rent{MonthlyMinor: p.MonthlyMinor, AnnualMinor: p.AnnualMinor}, on)
+		profile := p.Profile
+		if profile.Ref == "" {
+			profile.Ref = p.Ref
+		}
+		a, err := m.Assess(facts, profile, Rent{MonthlyMinor: p.MonthlyMinor, AnnualMinor: p.AnnualMinor}, on)
 		if err != nil {
 			return nil, fmt.Errorf("tds: %s: %w", p.Ref, err)
 		}

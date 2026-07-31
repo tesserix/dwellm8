@@ -1207,6 +1207,57 @@ jobs:
           fi
           echo "the matrix caught all three, as it should"
 
+      # ADR-0025. The overrides fail in the direction nobody audits: a deduction
+      # that is too small looks like an ordinary one, and the tenant finds out
+      # from the assessing officer. Both plants remove a floor rather than break
+      # a test, so both leave a service that runs and computes the wrong number.
+      - name: Prove the payee-level rate overrides still bite
+        env:
+          PGPASSWORD: ci
+          TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
+        run: |
+          set -uo pipefail
+
+          # A certificate that never expires. It would go on lowering a deduction
+          # for years after the officer's determination lapsed, and the row would
+          # look exactly like a correct low rate.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "ALTER TABLE tds_certificates ALTER COLUMN valid_to DROP NOT NULL"
+          if go test -count=1 -run TestACertificateCannotBeOpenEnded \
+              ./internal/platform/statutory/tds/store/; then
+            echo "::error::a section 197 certificate can now be open-ended"
+            exit 1
+          fi
+          # Restored by hand, not by the replay: CREATE TABLE IF NOT EXISTS skips a
+          # table that already exists, so the schema file cannot repair a column
+          # somebody altered. Every other plant here changes something the file
+          # re-creates — a function, a constraint, a policy — and this one does not.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "ALTER TABLE tds_certificates ALTER COLUMN valid_to SET NOT NULL"
+
+          # Two live certificates for one landlord and section: two rates for one
+          # deduction, and whichever sorted first wins.
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 \
+            -c "ALTER TABLE tds_certificates DROP CONSTRAINT tds_certificates_no_overlap"
+          if go test -count=1 -run TestOneLiveCertificatePerPayeePerSection \
+              ./internal/platform/statutory/tds/store/; then
+            echo "::error::a landlord can hold two live certificates for one section"
+            exit 1
+          fi
+          psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql >/dev/null
+
+          # And the Go half, which needs no database: the zero profile must deduct
+          # at the section 206AA floor, and section 206AB must stay dead after the
+          # date it was omitted.
+          if ! go test -count=1 -run 'TestNoPANDeductsAtTheSection206AAFloor|TestSection206ABAppliesOnlyWhileItExisted|TestTheSection206AAFloorDoesNotRescueAMissingSectionRate' \
+              ./internal/platform/statutory/tds/; then
+            echo "::error::the payee-level floors no longer hold"
+            exit 1
+          fi
+          echo "the overrides caught both, as they should"
+
       - name: Build
         run: go build ./...
 

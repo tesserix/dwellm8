@@ -36,6 +36,26 @@ func registry(t *testing.T) *tds.Matrix {
 		return r
 	}
 
+	// Cess is its own rule type, not a tds_rate: a resolution asks for the type it
+	// wants, so a cess row filed as a rate is invisible to the code that needs it
+	// and — worse — visible to code that does not.
+	cess := func(key string, bps int, iv effective.Interval) statutory.Rule {
+		r := rule(statutory.TDSCessRate, key, iv)
+		r.Kind, r.RateBps = statutory.KindRate, bps
+		return r
+	}
+	slabs := func(typ statutory.Type, key string, iv effective.Interval, bands ...statutory.Slab) statutory.Rule {
+		r := rule(typ, key, iv)
+		r.Kind, r.Slabs = statutory.KindSlabs, bands
+		return r
+	}
+	band := func(seq int, lower, upper int64, bps int) statutory.Slab {
+		return statutory.Slab{Seq: seq, LowerMinor: lower, UpperMinor: upper, RateBps: bps}
+	}
+	top := func(seq int, lower int64, bps int) statutory.Slab {
+		return statutory.Slab{Seq: seq, LowerMinor: lower, Top: true, RateBps: bps}
+	}
+
 	table, err := statutory.NewTable([]statutory.Rule{
 		rate("tds.194i_land_and_building", 1000, since(t, 2020, 4, 1)),
 		amount("tds.194i_annual", 24_000_00, between(t, 2020, 4, 1, 2025, 4, 1)),
@@ -43,6 +63,25 @@ func registry(t *testing.T) *tds.Matrix {
 		rate("tds.194ib_individual_huf", 500, between(t, 2020, 4, 1, 2024, 10, 1)),
 		rate("tds.194ib_individual_huf", 200, since(t, 2024, 10, 1)),
 		amount("tds.194ib_monthly", 50_000_00, since(t, 2020, 4, 1)),
+
+		// The payee-level floors. Section 206AB is bounded because the Finance
+		// (No. 2) Act 2024 omitted the section itself with effect from 1 October
+		// 2024, which is the case effective dating exists for and could not be
+		// invented.
+		rate("tds.206aa_no_pan_floor", 2000, since(t, 2020, 4, 1)),
+		rate("tds.206ab_non_filer_floor", 500, between(t, 2021, 7, 1, 2024, 10, 1)),
+
+		cess("tds.cess.health_and_education", 400, since(t, 2018, 4, 1)),
+		slabs(statutory.TDSSurchargeRate, "tds.surcharge.non_resident_individual", since(t, 2023, 4, 1),
+			band(0, 0, 50_00_000_00, 0),
+			band(1, 50_00_000_00, 1_00_00_000_00, 1000),
+			band(2, 1_00_00_000_00, 2_00_00_000_00, 1500),
+			band(3, 2_00_00_000_00, 5_00_00_000_00, 2500),
+			top(4, 5_00_00_000_00, 3700)),
+		slabs(statutory.TDSSurchargeRate, "tds.surcharge.foreign_company", since(t, 2023, 4, 1),
+			band(0, 0, 1_00_00_000_00, 0),
+			band(1, 1_00_00_000_00, 10_00_00_000_00, 200),
+			top(2, 10_00_00_000_00, 500)),
 	})
 	if err != nil {
 		t.Fatalf("building the registry: %v", err)
@@ -72,6 +111,14 @@ func between(t *testing.T, fy int, fm time.Month, fd, ty int, tm time.Month, td 
 	return iv
 }
 
+// onFile is the ordinary payee: PAN furnished, a filer, no certificate. Named
+// rather than inlined because the zero PayeeProfile deliberately means "no PAN on
+// file", which deducts at section 206AA's floor — right as a default and wrong as
+// a test fixture for everything that is not about section 206AA.
+func onFile(ref string) tds.PayeeProfile {
+	return tds.PayeeProfile{Ref: ref, Form: tds.FormIndividual, HasPAN: true}
+}
+
 func facts(d tds.DeductorClass, r tds.Residency, y int, m time.Month, day int) tds.Facts {
 	return tds.Facts{Deductor: d, Residency: r, From: effective.Day(y, m, day), Source: "tenant declaration"}
 }
@@ -84,6 +131,7 @@ func TestACompanyTenantAndAResidentLandlordAreSection194I(t *testing.T) {
 
 	a, err := m.Assess(
 		facts(tds.Business, tds.Resident, 2026, 4, 1),
+		onFile("owner:resident"),
 		tds.Rent{MonthlyMinor: 80_000_00, AnnualMinor: 9_60_000_00},
 		effective.Day(2026, 5, 7),
 	)
@@ -156,7 +204,7 @@ func TestANonResidentLandlordPutsEveryDeductorOnSection195(t *testing.T) {
 	// One rupee of rent, and it is still deductible: there is no small-value
 	// exemption to fall below.
 	f := facts(tds.IndividualNoAudit, tds.NonResident, 2026, 4, 1)
-	if _, err := m.Assess(f, tds.Rent{MonthlyMinor: 100, AnnualMinor: 1200}, effective.Day(2026, 5, 1)); err == nil {
+	if _, err := m.Assess(f, onFile("owner:x"), tds.Rent{MonthlyMinor: 100, AnnualMinor: 1200}, effective.Day(2026, 5, 1)); err == nil {
 		t.Fatal("assessed a section 195 deduction at some rate — there is no verified rate in the " +
 			"registry, so this had to fail rather than pick one")
 	} else if !errors.Is(err, statutory.ErrNoRule) {
@@ -219,7 +267,7 @@ func TestTheThresholdIsExceededRatherThanReached(t *testing.T) {
 		{"a rupee above", 50_001_00, true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			a, err := m.Assess(f, tds.Rent{MonthlyMinor: c.monthly, AnnualMinor: c.monthly * 12},
+			a, err := m.Assess(f, onFile("owner:x"), tds.Rent{MonthlyMinor: c.monthly, AnnualMinor: c.monthly * 12},
 				effective.Day(2026, 5, 1))
 			if err != nil {
 				t.Fatalf("assessing: %v", err)
@@ -263,7 +311,7 @@ func TestAnAssessmentUsesTheRuleInForceOnItsOwnDate(t *testing.T) {
 			facts(tds.Business, tds.Resident, 2020, 4, 1), 1000, 6_00_000_00},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			a, err := m.Assess(c.f, tds.Rent{MonthlyMinor: 40_000_00, AnnualMinor: 4_80_000_00}, c.on)
+			a, err := m.Assess(c.f, onFile("owner:x"), tds.Rent{MonthlyMinor: 40_000_00, AnnualMinor: 4_80_000_00}, c.on)
 			if err != nil {
 				t.Fatalf("assessing: %v", err)
 			}
@@ -340,13 +388,13 @@ func TestJointOwnersAreAssessedOnTheirOwnSharesAndOnlyOnAnExactSplit(t *testing.
 
 	half := []tds.Payee{
 		{Ref: "owner:a", Residency: tds.Resident, ShareBps: 5000,
-			MonthlyMinor: 45_000_00, AnnualMinor: 5_40_000_00},
+			MonthlyMinor: 45_000_00, AnnualMinor: 5_40_000_00, Profile: onFile("owner:a")},
 		{Ref: "owner:b", Residency: tds.Resident, ShareBps: 5000,
-			MonthlyMinor: 45_000_00, AnnualMinor: 5_40_000_00},
+			MonthlyMinor: 45_000_00, AnnualMinor: 5_40_000_00, Profile: onFile("owner:b")},
 	}
 
 	// The whole rent is over the six-lakh threshold and each half is under it.
-	whole, err := m.Assess(f, rent, effective.Day(2026, 5, 1))
+	whole, err := m.Assess(f, onFile("owner:whole"), rent, effective.Day(2026, 5, 1))
 	if err != nil {
 		t.Fatalf("assessing the whole: %v", err)
 	}
@@ -472,7 +520,7 @@ func TestEveryPathResolvesAgainstTheRegistry(t *testing.T) {
 		if s == tds.Section194IB {
 			f.Deductor = tds.IndividualNoAudit
 		}
-		a, err := m.Assess(f, tds.Rent{MonthlyMinor: 40_000_00, AnnualMinor: 4_80_000_00}, on)
+		a, err := m.Assess(f, onFile("owner:x"), tds.Rent{MonthlyMinor: 40_000_00, AnnualMinor: 4_80_000_00}, on)
 		if err != nil {
 			t.Fatalf("section %s does not resolve: %v", s, err)
 		}
