@@ -240,9 +240,13 @@ func startedEvent(ctx context.Context, tx pgx.Tx, tenant, id string, by domain.A
 		Role    string `json:"role"`
 	}
 	data := struct {
-		UnitID  string  `json:"unit_id"`
-		Parties []party `json:"parties"`
-	}{UnitID: unit}
+		UnitID string `json:"unit_id"`
+		// Which side started the tenancy. The actor below is system until the
+		// request principal carries a party uuid (#229): a role label is not an
+		// id, and the outbox's actor_id column rightly refused one.
+		ActivatedBy string  `json:"activated_by"`
+		Parties     []party `json:"parties"`
+	}{UnitID: unit, ActivatedBy: string(by)}
 	for rows.Next() {
 		var p party
 		if err := rows.Scan(&p.PartyID, &p.Role); err != nil {
@@ -256,7 +260,7 @@ func startedEvent(ctx context.Context, tx pgx.Tx, tenant, id string, by domain.A
 
 	return events.New(string(domain.EventStarted), tenant,
 		events.Subject{Kind: "lease", ID: id},
-		events.Actor{Kind: events.ActorUser, ID: string(by)}, data)
+		events.Actor{Kind: events.ActorSystem}, data)
 }
 
 // conflicting finds the tenancy that blocked an activation, so the refusal can
