@@ -3,7 +3,7 @@ module github.com/tesserix/dwellm8/services/api
 go 1.26
 
 require (
-	github.com/jackc/pgx/v5 v5.9.2
+	github.com/jackc/pgx/v5 v5.10.0
 	github.com/nats-io/nats.go v1.52.0
 	go.temporal.io/api v1.63.4
 	go.temporal.io/sdk v1.47.0
