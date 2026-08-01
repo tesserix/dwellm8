@@ -43,7 +43,9 @@ func TestTheHeadlineFee(t *testing.T) {
 // The invariant, over a wide spread of amounts and rates. This is the test that
 // would catch a second rounding creeping into the vendor leg.
 func TestTheLegsAlwaysAddBackToTheGross(t *testing.T) {
-	rates := []domain.Rate{0, 1, 50, 299, 390, 1000, 9999}
+	// Rates stay below 100% minus the tax: above that the fee legitimately
+	// exceeds the collection and Charge refuses it, which is a separate test.
+	rates := []domain.Rate{0, 1, 50, 299, 390, 1000, 5000}
 	taxes := []domain.Rate{0, 500, 1200, 1800}
 	amounts := []domain.Minor{1, 7, 99, 100, 333, 2_500_000, 2_500_001, 999_999_999}
 
