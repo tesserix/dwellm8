@@ -81,19 +81,23 @@ jobs:
       - name: Load the dwellm8 schema
         env:
           PGPASSWORD: bootstrap
+          # Authenticated, so tesserix-k8s stays private: the unauthenticated
+          # raw fetch this replaced only ever worked while that repo happened
+          # to be public, and failed the first midnight it was not.
+          SCHEMA_TOKEN: ${{ secrets.SCHEMA_READ_TOKEN }}
         run: |
           set -euo pipefail
-          # The schema ships as ordered chapters (000_… through 230_…); their
-          # lexical concatenation is the schema, exactly as the bootstrap's
-          # combineInto applies it. The listing comes from the API rather than
-          # the raw CDN so a chapter pushed a minute ago is already visible;
-          # each fetch stays cache-busted for the same reason the single file
-          # was.
+          # The schema ships as ordered chapters; their lexical concatenation
+          # is the schema, exactly as the bootstrap's combineInto applies it.
+          # Everything goes through the contents API: visible a second after a
+          # push, private-repo capable, and vnd.github.raw returns the bytes.
           mkdir -p /tmp/schema-chapters
-          for f in $(curl -fsSL "https://api.github.com/repos/tesserix/tesserix-k8s/contents/charts/apps/db-schema-bootstrap/schemas/dwellm8/dwellm8?ref=main" \
+          base="https://api.github.com/repos/tesserix/tesserix-k8s/contents/charts/apps/db-schema-bootstrap/schemas/dwellm8/dwellm8"
+          for f in $(curl -fsSL -H "Authorization: Bearer ${SCHEMA_TOKEN}" "${base}?ref=main" \
                      | jq -r '.[].name | select(endswith(".sql"))' | sort); do
-            curl -fsSL -H 'Cache-Control: no-cache' -o "/tmp/schema-chapters/$f" \
-              "https://raw.githubusercontent.com/tesserix/tesserix-k8s/main/charts/apps/db-schema-bootstrap/schemas/dwellm8/dwellm8/$f?run=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            curl -fsSL -H "Authorization: Bearer ${SCHEMA_TOKEN}" \
+              -H 'Accept: application/vnd.github.raw' -H 'Cache-Control: no-cache' \
+              -o "/tmp/schema-chapters/$f" "${base}/$f?ref=main"
           done
           cat /tmp/schema-chapters/*.sql > /tmp/dwellm8.sql
           echo "assembled $(ls /tmp/schema-chapters | wc -l) chapters, $(wc -c < /tmp/dwellm8.sql) bytes"
