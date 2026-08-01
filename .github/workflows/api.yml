@@ -1532,7 +1532,7 @@ jobs:
       # anything is published. Scanning a pushed image tells you what you have
       # already given everyone else; the second build is a cache hit.
       - name: Build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: services/api
           load: true
@@ -1553,7 +1553,7 @@ jobs:
           exit-code: '1'
 
       - name: Push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: services/api
           push: true
