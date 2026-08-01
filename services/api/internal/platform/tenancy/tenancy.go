@@ -170,7 +170,7 @@ func Scoped(ctx context.Context, p Pool, fn func(context.Context, pgx.Tx) error)
 // This is not a bypass. The connection is the ordinary request role, every
 // policy still applies, and an unscoped session matches only the public branch
 // on listings — live, published rows — and sees nothing anywhere else. The
-// settings are still written, to '', for Scoped's reason: a pooled connection
+// settings are still written, to empty, for Scoped's reason: a pooled connection
 // must not carry the previous request's tenant into this one, which here would
 // turn an anonymous search into somebody's scoped read.
 //
