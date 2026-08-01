@@ -52,8 +52,10 @@ func (s *runnerStore) Save(_ context.Context, k automation.Key, o automation.Ove
 	s.saved = append(s.saved, o)
 	return nil
 }
-func (s *runnerStore) Recorded(context.Context, automation.Key, string) (bool, error) { return false, nil }
-func (s *runnerStore) Record(context.Context, automation.Record) (bool, error)        { return true, nil }
+func (s *runnerStore) Recorded(context.Context, automation.Key, string) (bool, error) {
+	return false, nil
+}
+func (s *runnerStore) Record(context.Context, automation.Record) (bool, error) { return true, nil }
 func (s *runnerStore) Requested(context.Context, automation.Key, string) (bool, error) {
 	return false, nil
 }
