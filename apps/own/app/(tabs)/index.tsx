@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { activities, approvals, inr, properties, statements, upNext } from '../../src/data/mock';
+import { inr } from '../../src/data/mock';
+import { useOwnerData } from '../../src/data/source';
 import {
   ActivityRow,
   AppHeader,
@@ -33,13 +34,35 @@ import {
 export default function Home() {
   const router = useRouter();
   const [filter, setFilter] = useState('All');
-  const [scope] = useState(properties[0]);
+  const { loading, error, properties, statements, activities, approvals, upNext } = useOwnerData();
+  const scope = properties[0];
 
   const showMaint = filter === 'All' || filter === 'Maintenance';
   const showInsp = filter === 'All' || filter === 'Inspections';
   const feed = activities.filter((a) =>
     a.kind === 'inspection' ? showInsp : showMaint,
   );
+
+  if (loading || !scope) {
+    return (
+      <>
+        <AppHeader title="Dwellm8" left={<AvatarButton onPress={() => router.push('/profile')} />} />
+        <Screen>
+          {loading ? (
+            <View style={{ paddingTop: 120, alignItems: 'center' }}>
+              <ActivityIndicator />
+            </View>
+          ) : (
+            <EmptyState
+              art={<HouseArt size={190} />}
+              title={error ? 'Could not reach Dwellm8' : 'No properties yet'}
+              body={error ?? 'Your portfolio appears here once a property is added.'}
+            />
+          )}
+        </Screen>
+      </>
+    );
+  }
 
   return (
     <>
@@ -53,11 +76,15 @@ export default function Home() {
         <Card padded={false} style={{ overflow: 'hidden', marginTop: space(3) }}>
           <View style={s.agencyPill}>
             <Text style={s.agencyName}>{scope.agency}</Text>
-            <View style={s.agencyDivider} />
-            <View style={s.pmDot}>
-              <Text style={s.pmDotText}>{scope.manager.split(' ').map((x) => x[0]).join('')}</Text>
-            </View>
-            <Text style={s.pmName}>{scope.manager}</Text>
+            {scope.manager ? (
+              <>
+                <View style={s.agencyDivider} />
+                <View style={s.pmDot}>
+                  <Text style={s.pmDotText}>{scope.manager.split(' ').map((x) => x[0]).join('')}</Text>
+                </View>
+                <Text style={s.pmName}>{scope.manager}</Text>
+              </>
+            ) : null}
           </View>
 
           <View style={s.art}>
@@ -119,7 +146,7 @@ export default function Home() {
         />
 
         <CollapsibleHeader title="Up Next" />
-        {showMaint ? (
+        {showMaint && upNext ? (
           <Card>
             <View style={s.upNextTop}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>

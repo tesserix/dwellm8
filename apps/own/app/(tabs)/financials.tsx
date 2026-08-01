@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import {
-  balance, chart, chartMax, expenseBreakdown, inr, properties, statements,
-} from '../../src/data/mock';
+import { inr } from '../../src/data/mock';
+import { useOwnerData, type OwnerData } from '../../src/data/source';
 import {
   ActivityRow,
   AppHeader,
@@ -29,12 +28,13 @@ import {
 export default function Financials() {
   const router = useRouter();
   const [tab, setTab] = useState('Dashboard');
-  const scope = properties[0];
+  const data = useOwnerData();
+  const scope = data.properties[0];
 
   return (
     <>
       <AppHeader
-        title={scope.address}
+        title={scope?.address ?? 'Financials'}
         onTitlePress={() => router.push('/switcher')}
         left={<AvatarButton onPress={() => router.push('/profile')} />}
       />
@@ -43,18 +43,27 @@ export default function Financials() {
       </View>
 
       <Screen>
-        {tab === 'Dashboard' ? <Dashboard /> : null}
-        {tab === 'Statements' ? <Statements /> : null}
-        {tab === 'Transactions' ? <Transactions /> : null}
+        {data.loading ? (
+          <View style={{ paddingTop: 120, alignItems: 'center' }}>
+            <ActivityIndicator />
+          </View>
+        ) : (
+          <>
+            {tab === 'Dashboard' ? <Dashboard data={data} /> : null}
+            {tab === 'Statements' ? <Statements data={data} /> : null}
+            {tab === 'Transactions' ? <Transactions data={data} /> : null}
+          </>
+        )}
       </Screen>
     </>
   );
 }
 
-function Dashboard() {
+function Dashboard({ data }: { data: OwnerData }) {
   const router = useRouter();
-  const current = chart[chart.length - 1];
-  const totalExpense = expenseBreakdown.reduce((a, b) => a + b.paise, 0);
+  const { balance, chart, chartMax, expenseBreakdown } = data;
+  const current = chart[chart.length - 1] ?? { label: '', income: 0, expense: 0 };
+  const totalExpense = Math.max(1, expenseBreakdown.reduce((a, b) => a + b.paise, 0));
 
   return (
     <>
@@ -79,13 +88,13 @@ function Dashboard() {
 
       <SectionTitle>Income vs Expenses</SectionTitle>
       <Card>
-        <Text style={s.monthLabel}>July 2026</Text>
+        <Text style={s.monthLabel}>{current.label ? `${current.label} ${new Date().getFullYear()}` : 'This month'}</Text>
         <View style={{ flexDirection: 'row', gap: 14, marginTop: 3, marginBottom: space(4) }}>
           <Text style={[s.legend, { color: color.positive }]}>Income: {inr(current.income)}</Text>
           <Text style={[s.legend, { color: color.negative }]}>Expenses: {inr(current.expense)}</Text>
         </View>
         <BarChart data={chart} max={chartMax} />
-        <Text style={s.year}>2026</Text>
+        <Text style={s.year}>{String(new Date().getFullYear())}</Text>
       </Card>
 
       <SectionTitle>Expenses Breakdown</SectionTitle>
@@ -126,15 +135,19 @@ function Dashboard() {
   );
 }
 
-function Statements() {
+function Statements({ data }: { data: OwnerData }) {
+  const { statements, properties } = data;
   const byMonth = statements.reduce<Record<string, typeof statements>>((acc, st) => {
     (acc[st.month] ||= []).push(st);
     return acc;
   }, {});
 
+  if (!statements.length) {
+    return <SectionTitle>No statements yet</SectionTitle>;
+  }
   return (
     <>
-      <SectionTitle>2026</SectionTitle>
+      <SectionTitle>{String(new Date().getFullYear())}</SectionTitle>
       {Object.entries(byMonth).map(([month, list]) => (
         <View key={month}>
           <Text style={s.monthHeading}>{month}</Text>
@@ -165,7 +178,8 @@ function Statements() {
   );
 }
 
-function Transactions() {
+function Transactions({ data }: { data: OwnerData }) {
+  const { statements } = data;
   return (
     <>
       <SectionTitle>Recent transactions</SectionTitle>

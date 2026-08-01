@@ -5,7 +5,8 @@ import {
   BackHeader, Card, Screen, ListRow, SearchBar, Segmented, DocIcon, Button,
   color, font, space,
 } from '@dwellm8/mobile-shared';
-import { documents, taxPack } from '../src/data/mock';
+import { taxPack } from '../src/data/mock';
+import { useOwnerDocuments } from '../src/data/source';
 
 /** Everything on file for the properties, in one place a phone can open. */
 
@@ -28,6 +29,7 @@ export default function Documents() {
   const router = useRouter();
   const [tab, setTab] = useState('Statements');
   const [q, setQ] = useState('');
+  const { documents } = useOwnerDocuments();
 
   const set =
     tab === 'Statements' ? documents
