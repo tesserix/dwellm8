@@ -46,6 +46,11 @@ const (
 	EventEnquiryReceived  Event = "discovery.enquiry.received"
 	EventEnquiryResponded Event = "discovery.enquiry.responded"
 	EventConverted        Event = "discovery.prospect.converted"
+
+	EventInspectionBooked      Event = "discovery.inspection.booked"
+	EventInspectionRescheduled Event = "discovery.inspection.rescheduled"
+	EventInspectionCancelled   Event = "discovery.inspection.cancelled"
+	EventInspectionCompleted   Event = "discovery.inspection.completed"
 )
 
 var (

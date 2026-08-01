@@ -122,13 +122,17 @@ func TestThePeriodCloseStory(t *testing.T) {
 		t.Fatalf("a posting into the reopened month refused: %v", err)
 	}
 
-	// The history holds the whole story, oldest first.
+	// The history holds the whole story, oldest first. The tail rather than
+	// the whole: the period key is (tenant, month) and history is append-only
+	// audit, so on a persistent local database each run adds its own
+	// close-reopen pair — asserting a total length made the test single-use.
 	state, err := periods.State(f.ctx, month)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.Closed || len(state.History) != 2 ||
-		state.History[0].Action != "closed" || state.History[1].Action != "reopened" {
+	n := len(state.History)
+	if state.Closed || n < 2 ||
+		state.History[n-2].Action != "closed" || state.History[n-1].Action != "reopened" {
 		t.Fatalf("state: closed=%v history=%+v", state.Closed, state.History)
 	}
 }

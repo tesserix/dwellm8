@@ -412,10 +412,16 @@ func run() error {
 	}
 	prospects := discoveryservice.NewProspects(prospectsStore, phoneVerifier, logger)
 
+	// The viewing loop, #139–#141: slots, bookings, changes and outcomes.
+	inspections := discoveryservice.NewInspections(
+		discoverystore.NewInspections(pool, tenancy.NewPlatformPool(platformPool)),
+		prospectsStore, logger)
+
 	// Routes that a person authenticates for.
 	protected := http.NewServeMux()
 	leasehttp.NewLeases(leases, logger).Routes(authz.NewRegistrar(protected, guard))
 	discoveryhttp.NewListings(listings, enquiries, logger).Routes(authz.NewRegistrar(protected, guard))
+	discoveryhttp.NewInspections(inspections, logger).OwnerRoutes(authz.NewRegistrar(protected, guard))
 	maintenancehttp.NewChecklists(checklists, logger).Routes(authz.NewRegistrar(protected, guard))
 	automationsurface.New(automations, automationStore, logger).Routes(authz.NewRegistrar(protected, guard))
 
@@ -466,6 +472,7 @@ func run() error {
 	// the verification point, a verified phone. ADR-0019.
 	discoveryhttp.NewPublic(listings, prospects, enquiries, logger).
 		Routes(authz.NewRegistrar(mux, guard))
+	discoveryhttp.NewInspections(inspections, logger).PublicRoutes(authz.NewRegistrar(mux, guard))
 
 	// The eSign docUrl fetch, #212 — outside authentication for the webhook's
 	// reason: the caller is a signer following an ESP's hyperlink, not a
