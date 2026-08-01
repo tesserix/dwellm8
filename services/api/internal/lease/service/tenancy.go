@@ -25,6 +25,13 @@ func (s *Leases) Tenancy(ctx context.Context, leaseID string, on effective.Date)
 	return s.store.Tenancy(ctx, leaseID, on)
 }
 
+// ActiveOnProperty reads the property's current tenancy, if it has one. The
+// bool reports whether it does — a vacant property is a normal answer, not
+// store.ErrNoLease.
+func (s *Leases) ActiveOnProperty(ctx context.Context, propertyID string, on effective.Date) (Tenancy, bool, error) {
+	return s.store.ActiveOnProperty(ctx, propertyID, on)
+}
+
 // Residents is the identity module's seam, as this module needs it: a verified
 // mobile number, and the party it identifies. ADR-0001 §3 — a service
 // interface, never identity's store.

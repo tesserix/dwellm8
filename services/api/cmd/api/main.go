@@ -34,10 +34,14 @@ import (
 	moneyhttp "github.com/tesserix/dwellm8/services/api/internal/money/http"
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	moneystore "github.com/tesserix/dwellm8/services/api/internal/money/store"
+	propertyservice "github.com/tesserix/dwellm8/services/api/internal/property/service"
+	propertystore "github.com/tesserix/dwellm8/services/api/internal/property/store"
+
 	"github.com/tesserix/dwellm8/services/api/internal/platform/activity"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/auth"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/automation"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/blob"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/config"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/docurl"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/events"
@@ -47,6 +51,7 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 	"github.com/tesserix/dwellm8/services/api/internal/routine"
 	automationsurface "github.com/tesserix/dwellm8/services/api/internal/surface/automations"
+	ownersurface "github.com/tesserix/dwellm8/services/api/internal/surface/owner"
 	"github.com/tesserix/dwellm8/services/api/internal/surface/resident"
 )
 
@@ -441,6 +446,31 @@ func run() error {
 	// are the checklist, the history, and the audit pack.
 	moneyhttp.NewPeriods(moneystore.NewPeriods(pool), logger).Routes(authz.NewRegistrar(protected, guard))
 
+	// The owner's view — the Own app's surface (#55). Composition only: the
+	// property module's read, the lease's active tenancy, money's owner
+	// statement, and the GCS-backed documents. The blob store is optional the
+	// way DocURLKey is: unset serves everything except uploads.
+	var blobStore *blob.Store
+	if cfg.Blob.Configured() {
+		blobStore, err = blob.New(context.Background(), cfg.Blob.BucketPrefix, cfg.Blob.SignerServiceAccount)
+		if err != nil {
+			return fmt.Errorf("blob store: %w", err)
+		}
+		defer blobStore.Close()
+		logger.Info("blob store ready", "buckets", cfg.Blob.BucketPrefix+"-<surface>-assets",
+			"signer", cfg.Blob.SignerServiceAccount)
+	} else {
+		logger.Warn("no GCS signer; document upload and download URLs are off",
+			"set", "GCS_SIGNER_SA_EMAIL")
+	}
+	ownerMux := http.NewServeMux()
+	ownersurface.New(
+		propertyservice.New(propertystore.New(pool)),
+		leases, statements,
+		identityservice.NewOrganisations(identitystore.NewOrganisations(tenancy.NewPlatformPool(platformPool))),
+		feed, blobStore, logger, nil).
+		Routes(authz.NewRegistrar(ownerMux, guard))
+
 	// The tenant view, on its own tree. Issue #51, ADR-0029.
 	//
 	// Separate because it resolves a sign-in differently: the ordinary resolver
@@ -504,6 +534,11 @@ func run() error {
 		mux.Handle("/", auth.Middleware(verifier, resolver.Middleware(protected)))
 		mux.Handle("/v1/resident/", auth.Middleware(verifier,
 			auth.RequireSurface(auth.SurfaceLive, residents.Middleware(residentMux))))
+		// The owner surface admits only the Own app's sign-ins, the resident
+		// surface's reasoning in the other direction: a genuine Ops token
+		// presented here is refused before any query runs.
+		mux.Handle("/v1/owner/", auth.Middleware(verifier,
+			auth.RequireSurface(auth.SurfaceOwn, resolver.Middleware(ownerMux))))
 	} else {
 		// The renter every tenant-surface request acts as while authentication is
 		// off. Unset is a supported state and answers 503 per request rather than
@@ -533,6 +568,9 @@ func run() error {
 		logger.Warn("authentication is not enforced; every request impersonates one organisation",
 			"env", cfg.Env, "organisation", cfg.Identity.ImpersonateOrg)
 		mux.Handle("/", resolver.Middleware(protected))
+		// Dev only, like everything in this branch: the Own app pointed at a
+		// local API reads the impersonated organisation's portfolio.
+		mux.Handle("/v1/owner/", resolver.Middleware(ownerMux))
 	}
 
 	tenantLimiter := httpx.NewLimiter(cfg.RateLimits.Tenant, nil)

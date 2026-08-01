@@ -190,6 +190,10 @@ type BalanceQuery struct {
 	Unit     string
 	Account  string
 	Party    domain.Party
+	// From bounds the same column from below, inclusive — set alongside AsOf to
+	// turn a cumulative balance into one period's movement, which is what a
+	// statement for a single month needs and a running balance does not.
+	From time.Time
 	// AsOf bounds by journal_entries.occurred_on — the accounting date, not the
 	// row's timestamp — so a backdated entry lands in the period it belongs to.
 	AsOf time.Time
@@ -199,6 +203,7 @@ type BalanceQuery struct {
 // stores this.
 type Balance struct {
 	Account     string
+	AccountName string
 	AccountType domain.AccountType
 	Party       domain.Party
 	Amount      domain.Minor
@@ -237,6 +242,9 @@ func (l *Ledger) Balances(ctx context.Context, q BalanceQuery) ([]Balance, error
 	if q.Party.Kind != "" {
 		add("p.party_kind = $%d", string(q.Party.Kind))
 	}
+	if !q.From.IsZero() {
+		add("e.occurred_on >= $%d::date", q.From)
+	}
 	if !q.AsOf.IsZero() {
 		add("e.occurred_on <= $%d::date", q.AsOf)
 	}
@@ -244,7 +252,7 @@ func (l *Ledger) Balances(ctx context.Context, q BalanceQuery) ([]Balance, error
 	var out []Balance
 	err := tenancy.Scoped(ctx, l.pool, func(ctx context.Context, tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-			SELECT p.account_code, a.account_type, p.party_kind, coalesce(p.party_id::text,''),
+			SELECT p.account_code, a.name, a.account_type, p.party_kind, coalesce(p.party_id::text,''),
 			       sum(p.signed_minor),
 			       coalesce(sum(p.amount_minor) FILTER (WHERE p.side = 'debit'), 0),
 			       coalesce(sum(p.amount_minor) FILTER (WHERE p.side = 'credit'), 0),
@@ -253,7 +261,7 @@ func (l *Ledger) Balances(ctx context.Context, q BalanceQuery) ([]Balance, error
 			  JOIN journal_entries e ON e.id = p.entry_id AND e.tenant_id = p.tenant_id
 			  JOIN ledger_accounts a ON a.code = p.account_code
 			 WHERE `+strings.Join(where, " AND ")+`
-			 GROUP BY p.account_code, a.account_type, p.party_kind, p.party_id
+			 GROUP BY p.account_code, a.name, a.account_type, p.party_kind, p.party_id
 			 ORDER BY p.account_code, p.party_kind`, args...)
 		if err != nil {
 			return err
@@ -262,7 +270,7 @@ func (l *Ledger) Balances(ctx context.Context, q BalanceQuery) ([]Balance, error
 		for rows.Next() {
 			var b Balance
 			var kind, accountType string
-			if err := rows.Scan(&b.Account, &accountType, &kind, &b.Party.ID,
+			if err := rows.Scan(&b.Account, &b.AccountName, &accountType, &kind, &b.Party.ID,
 				&b.Amount, &b.Debits, &b.Credits, &b.Postings); err != nil {
 				return err
 			}

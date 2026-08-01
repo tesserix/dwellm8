@@ -65,7 +65,30 @@ type Config struct {
 	// DocURLKey signs the eSign document URLs (#212). Unset leaves the fetch
 	// route unregistered — no key, no URLs, nothing to serve.
 	DocURLKey string
+
+	// Blob configures GCS-backed document and photo storage, per-app bucket
+	// isolation (internal/platform/blob).
+	Blob Blob
 }
+
+// Blob configures per-app GCS storage. One bucket per auth.Surface —
+// "{BucketPrefix}-{surface}-assets" — so a compromise of one app's upload
+// path cannot read another app's files; see the bucket-provisioning commands
+// this feature shipped with.
+type Blob struct {
+	// BucketPrefix names the bucket family; "dwellm8" gives dwellm8-own-assets,
+	// dwellm8-live-assets, and so on, one per auth.Surface.
+	BucketPrefix string
+	// SignerServiceAccount is the GCS signer SA this process impersonates (via
+	// IAM SignBlob) to mint V4 upload/download URLs. No exported key ever
+	// touches this process — Workload Identity is what lets it impersonate.
+	SignerServiceAccount string
+}
+
+// Configured reports whether GCS storage is reachable enough to try. Unset
+// disables the feature rather than the process, same rule as DocURLKey: a
+// deployment with no signer SA serves everything except uploads.
+func (b Blob) Configured() bool { return b.SignerServiceAccount != "" }
 
 // Authz configures the OpenFGA guard. ADR-0020, dwellm8#150.
 type Authz struct {
@@ -262,6 +285,11 @@ func Load() (Config, error) {
 	// The docUrl signing key (#212), under the same rule as the fingerprint
 	// key: unset disables the feature rather than the process.
 	c.DocURLKey = os.Getenv("DOCURL_KEY")
+
+	c.Blob = Blob{
+		BucketPrefix:         get("GCS_BUCKET_PREFIX", "dwellm8"),
+		SignerServiceAccount: os.Getenv("GCS_SIGNER_SA_EMAIL"),
+	}
 
 	c.PaymentProviders = splitList(get("PAYMENT_PROVIDERS", "offline"))
 	if !contains(c.PaymentProviders, "offline") {

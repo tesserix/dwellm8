@@ -130,3 +130,72 @@ func (s *Leases) Tenancy(ctx context.Context, leaseID string, on effective.Date)
 	}
 	return t, nil
 }
+
+// ActiveOnProperty reads the current tenancy on a property, for the owner's
+// side of the same question Tenancy answers for the renter's: "who lives here
+// and until when". A vacant property has none, which is not an error — an
+// owner's home screen shows a vacancy card for that, not a failure.
+//
+// Ordered by valid_from DESC and capped at one: a property can carry more than
+// one active lease across its units (a building with several flats), and this
+// answers for the property as a whole the way the mobile card does — one
+// headline tenancy — not a list. A caller needing every unit's tenancy reads
+// units individually instead.
+func (s *Leases) ActiveOnProperty(ctx context.Context, propertyID string, on effective.Date) (Tenancy, bool, error) {
+	var (
+		t      Tenancy
+		state  string
+		from   time.Time
+		to     *time.Time
+		ended  *time.Time
+		lockIn *time.Time
+		rent   *int64
+		dueDay *int
+	)
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `
+			SELECT l.id::text, l.state, l.valid_from, l.valid_to, l.ended_on,
+			       l.notice_days, l.lock_in_until,
+			       l.property_id::text, l.unit_id::text,
+			       p.name, p.locality, p.city, u.code::text,
+			       r.amount_minor, r.due_day
+			  FROM leases l
+			  JOIN properties p ON p.id = l.property_id AND p.tenant_id = l.tenant_id
+			  JOIN units u      ON u.id = l.unit_id     AND u.tenant_id = l.tenant_id
+			  LEFT JOIN rent_schedule r
+			         ON r.lease_id = l.id AND r.tenant_id = l.tenant_id
+			        AND r.retired_at IS NULL AND r.validity @> $2::date
+			 WHERE l.property_id = $1::uuid AND l.state IN ('active', 'in_notice')
+			 ORDER BY l.valid_from DESC
+			 LIMIT 1`, propertyID, on.Time(),
+		).Scan(&t.LeaseID, &state, &from, &to, &ended, &t.NoticeDays, &lockIn,
+			&t.PropertyID, &t.UnitID,
+			&t.PropertyName, &t.Locality, &t.City, &t.UnitCode, &rent, &dueDay)
+	})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return Tenancy{}, false, nil
+	case err != nil:
+		return Tenancy{}, false, fmt.Errorf("lease: reading the active tenancy on property %s: %w", propertyID, err)
+	}
+
+	t.State = domain.State(state)
+	start := effective.DateOf(from, time.UTC)
+	if to != nil {
+		if t.Term, err = effective.Between(start, effective.DateOf(*to, time.UTC)); err != nil {
+			return Tenancy{}, false, err
+		}
+	} else if t.Term, err = effective.Since(start); err != nil {
+		return Tenancy{}, false, err
+	}
+	if ended != nil {
+		t.EndedOn = effective.DateOf(*ended, time.UTC)
+	}
+	if lockIn != nil {
+		t.LockInUntil = effective.DateOf(*lockIn, time.UTC)
+	}
+	if rent != nil {
+		t.RentMinor, t.DueDay = *rent, *dueDay
+	}
+	return t, true, nil
+}

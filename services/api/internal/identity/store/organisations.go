@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -57,4 +58,31 @@ func (o *Organisations) Active(ctx context.Context) ([]tenancy.ID, error) {
 		return nil, fmt.Errorf("identity: listing organisations: %w", err)
 	}
 	return out, nil
+}
+
+// ErrNoOrganisation is no organisation with that id.
+var ErrNoOrganisation = errors.New("identity: no such organisation")
+
+// Name returns an organisation's display name and kind ("agency", "owner",
+// "society", ...), for a caller that only has its id from a foreign key on
+// another module's row — a property's tenant_id, say.
+//
+// The platform pool, and for the same reason as Active: organisations_tenant_
+// isolation only lets a session read its own row, so a request-scoped read of
+// someone else's organisation — the agency managing a delegated property, for
+// instance — has nothing to select from.
+func (o *Organisations) Name(ctx context.Context, id tenancy.ID) (name, kind string, err error) {
+	err = tenancy.Platform(ctx, o.platform, "resolving an organisation's display name",
+		func(ctx context.Context, tx pgx.Tx) error {
+			return tx.QueryRow(ctx,
+				`SELECT name, kind FROM organisations WHERE id = $1::uuid`, id.String(),
+			).Scan(&name, &kind)
+		})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return "", "", ErrNoOrganisation
+	case err != nil:
+		return "", "", fmt.Errorf("identity: resolving organisation %s: %w", id, err)
+	}
+	return name, kind, nil
 }
