@@ -228,6 +228,18 @@ func (c *Cashfree) CreateOrder(ctx context.Context, req OrderRequest) (Order, er
 		},
 	}
 
+	// Easy Split. The vendor's leg is stated and the remainder is ours, so the
+	// two always add back to order_amount — ADR-0031 §3.
+	if req.Split != nil {
+		if err := req.Split.Validate(req.Amount); err != nil {
+			return Order{}, err
+		}
+		body["order_splits"] = []map[string]any{{
+			"vendor_id": req.Split.VendorID,
+			"amount":    rupees(req.Split.Amount),
+		}}
+	}
+
 	var out struct {
 		OrderID     string `json:"order_id"`
 		PaymentSess string `json:"payment_session_id"`

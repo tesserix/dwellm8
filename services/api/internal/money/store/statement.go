@@ -209,7 +209,7 @@ func (s *Payments) ByLease(ctx context.Context, leaseID string, limit int) ([]co
 			if err := rows.Scan(&p.ID, &p.TenantID, &p.Property, &p.Unit, &p.MandateID, &p.Lease,
 				&kind, &p.PayerID, &p.Amount, &method, &p.Provider,
 				&p.ProviderOrderID, &p.ProviderPaymentID, &status, &p.FailureCode,
-				&p.IdempotencyKey, &p.EntryID, &p.CreatedAt); err != nil {
+				&p.IdempotencyKey, &p.EntryID, &p.CreatedAt, &p.Bearer); err != nil {
 				return err
 			}
 			p.PayerKind, p.Method, p.Status = domain.PartyKind(kind), collect.Method(method), collect.Status(status)

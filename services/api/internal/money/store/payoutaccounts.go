@@ -170,3 +170,35 @@ func (s *PayoutAccounts) Payable(ctx context.Context, ownerPartyID string) (Paya
 	})
 	return p, err
 }
+
+// ErrNoVendor is a payable account that the aggregator has never been told
+// about. ADR-0031: without a vendor there is nothing to split to, and the fee
+// accrues instead of being skipped.
+var ErrNoVendor = errors.New("no aggregator vendor for the payout account")
+
+// Vendor returns the aggregator's identifier for the account a payout would
+// currently reach.
+//
+// Reuses payout_account_payable(), so a held account has no vendor: the cool-off
+// that stops a payout must also stop a split, or the hold is bypassed by every
+// collection.
+func (s *PayoutAccounts) Vendor(ctx context.Context, ownerPartyID string) (string, error) {
+	var vendor string
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		var id *string
+		if err := tx.QueryRow(ctx, `
+			SELECT provider_beneficiary_id FROM payout_accounts
+			 WHERE id = payout_account_payable($1)`, ownerPartyID).Scan(&id); err != nil {
+			return err
+		}
+		if id == nil || *id == "" {
+			return ErrNoVendor
+		}
+		vendor = *id
+		return nil
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNoVendor
+	}
+	return vendor, err
+}

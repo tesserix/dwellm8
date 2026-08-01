@@ -138,11 +138,17 @@ func TestSchemaAudit(t *testing.T) {
 	// after the blanket grant, and only dwellm8_identity holds it. Without that
 	// revoke the table would be a list of every verified phone number on the
 	// platform, readable by every module.
+	// ADR-0031's is ADR-0023's shape again, and the exemption is the same
+	// sentence: the platform fee is the rule rather than the data. There is one
+	// price for the platform, a tenant does not get a private idea of what
+	// Dwellm8 charges, and an organisation that could write this row would price
+	// itself at zero effective last April. Assertion 18 now covers it too.
 	p := pool(t)
 	isolationtest.SchemaAudit(t, p,
 		"ledger_accounts", "posting_templates", "posting_template_lines",
 		"settlement_batches", "reconciliation_runs",
 		"prospects", "prospect_shortlist",
 		"statutory_rules", "statutory_rule_slabs",
+		"platform_fee_rules",
 		"identity_principals")
 }

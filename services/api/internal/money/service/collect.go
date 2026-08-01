@@ -34,6 +34,17 @@ type Payments struct {
 	providers *provider.Registry
 	log       *slog.Logger
 	now       func() time.Time
+
+	// fees is optional. Nil means no platform fee is charged, which is how this
+	// service worked before ADR-0031 and is still how a test wires it.
+	fees *Fees
+}
+
+// WithFees returns a copy that prices the platform fee onto each collection.
+func (s *Payments) WithFees(f *Fees) *Payments {
+	out := *s
+	out.fees = f
+	return &out
 }
 
 // NewPayments takes both pools' repositories: the tenant-scoped payments store
@@ -77,6 +88,10 @@ type CollectRequest struct {
 	Method         collect.Method
 	Reference      string
 	IdempotencyKey string
+	// Bearer is the party the platform fee comes out of — the manager where one
+	// is in force, the owner otherwise. Empty charges no fee, which is visible
+	// in the log rather than silent. Resolution is #179's.
+	Bearer string
 }
 
 // Collect creates the payment, then asks a provider to set up the collection.
@@ -95,6 +110,7 @@ func (s *Payments) Collect(ctx context.Context, req CollectRequest) (collect.Pay
 		PayerKind: domain.Tenant, PayerID: req.PayerID,
 		Amount: req.Amount, Method: req.Method,
 		Provider: adapter.Name(), Status: collect.StatusCreated,
+		Bearer:         req.Bearer,
 		IdempotencyKey: req.IdempotencyKey,
 	}
 
@@ -110,7 +126,13 @@ func (s *Payments) Collect(ctx context.Context, req CollectRequest) (collect.Pay
 		return collect.Payment{}, provider.Order{}, err
 	}
 
+	// Priced before the provider is called, because the split has to be on the
+	// order. Never fatal: a fee we could not arrange is not a reason to refuse a
+	// tenant's rent.
+	quote := s.quote(ctx, created)
+
 	order, err := adapter.CreateOrder(ctx, provider.OrderRequest{
+		Split:          quote.Split,
 		IdempotencyKey: req.IdempotencyKey,
 		Amount:         req.Amount,
 		Currency:       domain.Currency,
@@ -171,6 +193,7 @@ func (s *Payments) Confirm(ctx context.Context, p collect.Payment) (collect.Paym
 	}
 
 	at := s.now()
+	quote := s.quote(ctx, p)
 	updated, err := s.store.ApplyConfirmedAndPost(ctx, p.ID, conf.Status, at,
 		func(p collect.Payment, outstanding domain.Minor) (domain.Entry, error) {
 			return receipt(p, outstanding, at)
@@ -182,7 +205,48 @@ func (s *Payments) Confirm(ctx context.Context, p collect.Payment) (collect.Paym
 			"payment", p.ID, "from", p.Status, "claimed", conf.Status)
 		return p, nil
 	}
-	return updated, err
+	if err != nil {
+		return updated, err
+	}
+
+	// The fee is posted only once money has arrived, and keyed on the payment,
+	// so a redelivered confirmation posts one fee however many times it comes.
+	// A fee that fails to post does not un-capture the payment: the money is
+	// real, and the sweep can post the fee that did not.
+	if s.fees != nil && posts(updated.Status) {
+		if err := s.fees.Post(ctx, quote, updated, bearerOf(updated), at); err != nil {
+			s.log.Error("the payment captured and its platform fee did not post",
+				"payment", updated.ID, "error", err)
+		}
+	}
+	return updated, nil
+}
+
+// quote prices the fee for a payment, or returns an empty quote when there is no
+// fee service, no bearer, or the rule cannot be read. Never returns an error:
+// every caller's alternative is to fail a collection over our own invoice.
+func (s *Payments) quote(ctx context.Context, p collect.Payment) Quote {
+	bearer := bearerOf(p)
+	if s.fees == nil || bearer == "" {
+		return Quote{}
+	}
+	q, err := s.fees.Quote(ctx, p.Amount, bearer, p.Method, p.CreatedAt)
+	if err != nil {
+		s.log.Error("could not price the platform fee", "payment", p.ID, "error", err)
+		return Quote{}
+	}
+	return q
+}
+
+// bearerOf is the party the fee comes out of. A placeholder for #179's
+// resolution, and deliberately one line so replacing it is one line.
+func bearerOf(p collect.Payment) string { return p.Bearer }
+
+// posts reports whether a status means money arrived. Mirrors the store's own
+// list; the schema's payments_captured_has_entry is the third copy and the one
+// that bites.
+func posts(s collect.Status) bool {
+	return s == collect.StatusCaptured || s == collect.StatusSettled
 }
 
 // IngestWebhook is the whole of the delivery path. ADR-0011 §4.

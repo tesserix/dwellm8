@@ -214,6 +214,10 @@ type Payment struct {
 	// is what puts a receipt into the lease position. ADR-0006 §5.
 	Lease string
 
+	// Bearer is the party the platform fee comes out of. Empty charges no fee.
+	// ADR-0031; resolution is #179's.
+	Bearer string
+
 	// IdempotencyKey is the caller's key, unique within the organisation.
 	IdempotencyKey string
 

@@ -31,6 +31,7 @@ stays readable.
 | [0028](0028-periodic-jobs.md) | Periodic jobs: a CronJob per organisation, and when not to use a workflow | Accepted |
 | [0029](0029-the-resident-scope.md) | The resident scope: a renter is not a small organisation | Accepted |
 | [0030](0030-the-stay-model.md) | The stay model: a guest is not a tenant, and one flat cannot be twice occupied | Accepted |
+| [0031](0031-platform-fee-and-split-settlement.md) | The platform fee: retained at capture, priced by a row, accrued when it cannot be split | Accepted |
 
 0004 is missing on purpose: the identity and authorisation decision it was
 reserved for was closed as not planned, and the numbers are not reused.

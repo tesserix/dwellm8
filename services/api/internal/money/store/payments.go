@@ -51,13 +51,14 @@ func (s *Payments) Create(ctx context.Context, p collect.Payment) (collect.Payme
 		return tx.QueryRow(ctx, `
 			INSERT INTO payments (tenant_id, property_id, unit_id, mandate_id, lease_id,
 			                      payer_kind, payer_id, amount_minor, method,
-			                      provider, provider_order_id, status, idempotency_key)
+			                      provider, provider_order_id, status, idempotency_key,
+			                      fee_bearer_party_id)
 			VALUES ($1, $2, nullif($3,'')::uuid, nullif($4,'')::uuid, nullif($5,'')::uuid,
-			        $6, $7, $8, $9, $10, nullif($11,''), $12, $13)
+			        $6, $7, $8, $9, $10, nullif($11,''), $12, $13, nullif($14,'')::uuid)
 			RETURNING id, created_at`,
 			p.TenantID, p.Property, p.Unit, p.MandateID, p.Lease,
 			string(p.PayerKind), p.PayerID, int64(p.Amount), string(p.Method),
-			p.Provider, p.ProviderOrderID, string(p.Status), p.IdempotencyKey,
+			p.Provider, p.ProviderOrderID, string(p.Status), p.IdempotencyKey, p.Bearer,
 		).Scan(&p.ID, &p.CreatedAt)
 	})
 	if err != nil {
@@ -93,7 +94,8 @@ const paymentColumns = `
 	p.payer_kind, p.payer_id, p.amount_minor,
 	p.method, p.provider, coalesce(p.provider_order_id,''),
 	coalesce(p.provider_payment_id,''), p.status, coalesce(p.failure_code,''),
-	p.idempotency_key, coalesce(p.entry_id::text,''), p.created_at`
+	p.idempotency_key, coalesce(p.entry_id::text,''), p.created_at,
+	coalesce(p.fee_bearer_party_id::text,'')`
 
 func (s *Payments) one(ctx context.Context, where string, args ...any) (collect.Payment, error) {
 	var p collect.Payment
@@ -104,7 +106,7 @@ func (s *Payments) one(ctx context.Context, where string, args ...any) (collect.
 		).Scan(&p.ID, &p.TenantID, &p.Property, &p.Unit, &p.MandateID, &p.Lease,
 			&kind, &p.PayerID, &p.Amount, &method, &p.Provider,
 			&p.ProviderOrderID, &p.ProviderPaymentID, &status, &p.FailureCode,
-			&p.IdempotencyKey, &p.EntryID, &p.CreatedAt)
+			&p.IdempotencyKey, &p.EntryID, &p.CreatedAt, &p.Bearer)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return collect.Payment{}, ErrNotFound
@@ -218,7 +220,7 @@ func lockPayment(ctx context.Context, tx pgx.Tx, id string) (collect.Payment, er
 	).Scan(&p.ID, &p.TenantID, &p.Property, &p.Unit, &p.MandateID, &p.Lease,
 		&kind, &p.PayerID, &p.Amount, &method, &p.Provider,
 		&p.ProviderOrderID, &p.ProviderPaymentID, &status, &p.FailureCode,
-		&p.IdempotencyKey, &p.EntryID, &p.CreatedAt); err != nil {
+		&p.IdempotencyKey, &p.EntryID, &p.CreatedAt, &p.Bearer); err != nil {
 		return collect.Payment{}, err
 	}
 	p.PayerKind, p.Method, p.Status = domain.PartyKind(kind), collect.Method(method), collect.Status(status)
@@ -268,7 +270,7 @@ func (s *Payments) ApplyConfirmed(ctx context.Context, id string, to collect.Sta
 		).Scan(&p.ID, &p.TenantID, &p.Property, &p.Unit, &p.MandateID, &p.Lease,
 			&kind, &p.PayerID, &p.Amount, &method, &p.Provider,
 			&p.ProviderOrderID, &p.ProviderPaymentID, &status, &p.FailureCode,
-			&p.IdempotencyKey, &p.EntryID, &p.CreatedAt); err != nil {
+			&p.IdempotencyKey, &p.EntryID, &p.CreatedAt, &p.Bearer); err != nil {
 			return err
 		}
 		p.PayerKind, p.Method, p.Status = domain.PartyKind(kind), collect.Method(method), collect.Status(status)
@@ -337,7 +339,7 @@ func (s *Payments) Pending(ctx context.Context, olderThan time.Time, limit int) 
 			if err := rows.Scan(&p.ID, &p.TenantID, &p.Property, &p.Unit, &p.MandateID, &p.Lease,
 				&kind, &p.PayerID, &p.Amount, &method, &p.Provider,
 				&p.ProviderOrderID, &p.ProviderPaymentID, &status, &p.FailureCode,
-				&p.IdempotencyKey, &p.EntryID, &p.CreatedAt); err != nil {
+				&p.IdempotencyKey, &p.EntryID, &p.CreatedAt, &p.Bearer); err != nil {
 				return err
 			}
 			p.PayerKind = domain.PartyKind(kind)

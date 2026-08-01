@@ -27,7 +27,7 @@ npm run typecheck
 
 ## Two product rules this app makes visible
 
-**The tenant is never surcharged by dwellm8.** The 2.99% platform fee is borne
+**The tenant is never surcharged by dwellm8.** The 2.99% platform fee (ADR-0031, configurable) is borne
 by the property manager at payout (requirements §5.5). The only amount ever
 added to a tenant's payable is a genuine payment-instrument cost — card
 processing — and it is disclosed before payment with UPI offered as the free

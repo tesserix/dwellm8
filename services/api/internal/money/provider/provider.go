@@ -59,6 +59,31 @@ type OrderRequest struct {
 	// from its history. Cashfree also rejects it outright — a customer id must
 	// be alphanumeric with underscores or hyphens, and a leading + is neither.
 	PayerRef string
+	// Split retains Dwellm8's fee at capture, so the aggregator settles two legs
+	// and no client money rests in a platform account. Nil is an unsplit
+	// collection — the fee then accrues. ADR-0031.
+	Split *Split
+}
+
+// Split is the vendor's leg of a collection. The platform's leg is the
+// remainder, which is why only one amount is carried: two amounts are two
+// chances to disagree with the order total.
+type Split struct {
+	VendorID string
+	Amount   domain.Minor
+}
+
+// Validate refuses a split that does not fit inside the collection it splits.
+func (s Split) Validate(order domain.Minor) error {
+	switch {
+	case s.VendorID == "":
+		return errors.New("provider: a split with no vendor settles to nobody")
+	case s.Amount <= 0:
+		return fmt.Errorf("provider: a vendor leg of %s", s.Amount)
+	case s.Amount > order:
+		return fmt.Errorf("provider: a vendor leg of %s exceeds the order of %s", s.Amount, order)
+	}
+	return nil
 }
 
 // Order is what came back.
