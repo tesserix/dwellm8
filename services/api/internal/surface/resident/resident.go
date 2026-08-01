@@ -42,6 +42,7 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/money/domain/collect"
 	"github.com/tesserix/dwellm8/services/api/internal/money/provider"
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/activity"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 )
@@ -68,6 +69,7 @@ type Handler struct {
 	leases     *leaseservice.Leases
 	statements *moneyservice.Statements
 	payments   *moneyservice.Payments
+	activity   activity.Feeder
 	log        *slog.Logger
 	now        func() time.Time
 }
@@ -79,6 +81,13 @@ func New(l *leaseservice.Leases, s *moneyservice.Statements, p *moneyservice.Pay
 		now = time.Now
 	}
 	return &Handler{leases: l, statements: s, payments: p, log: log, now: now}
+}
+
+// WithActivity adds the feed (#196). Optional the way WithResidents is on the
+// lease service: a surface built without it answers the activity route 404.
+func (h *Handler) WithActivity(f activity.Feeder) *Handler {
+	h.activity = f
+	return h
 }
 
 // Routes mounts the surface.
@@ -98,6 +107,8 @@ func (h *Handler) Routes(r *authz.Registrar) {
 		Relation: "tenant", Object: authz.PathObject("agreement", "lease")}, h.Pay)
 	r.Handle("GET /v1/resident/tenancies/{lease}/payments/{payment}/receipt", authz.Check{
 		Relation: "can_view", Object: authz.PathObject("agreement", "lease")}, h.Receipt)
+	r.Handle("GET /v1/resident/tenancies/{lease}/activity", authz.Check{
+		Relation: "can_view", Object: authz.PathObject("agreement", "lease")}, h.Activity)
 }
 
 // tenancyResponse is one tenancy as the renter sees it.
@@ -287,6 +298,48 @@ func (h *Handler) History(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"lease_id": res.LeaseID, "charges": charges, "payments": payments,
 	})
+}
+
+// activityEntry is one feed line as the renter sees it: the fact and its
+// time. No payload — event data carries the landlord side's detail, and the
+// allowlist admits the type, not its internals. Notes come through only when
+// a manager marked them shared.
+type activityEntry struct {
+	Kind       string `json:"kind"`
+	OccurredAt string `json:"occurred_at"`
+	Body       string `json:"body,omitempty"`
+}
+
+// Activity is the story of one tenancy, renter's cut: lifecycle facts,
+// notices, and shared notes — never the owner's fees or payouts, which is
+// #196's failure scenario and is enforced by the store's resident audience,
+// not by this handler remembering to filter.
+func (h *Handler) Activity(w http.ResponseWriter, r *http.Request) {
+	if h.activity == nil {
+		writeError(w, http.StatusNotFound, "not here yet")
+		return
+	}
+	session, res, ok := h.residency(w, r)
+	if !ok {
+		return
+	}
+	ctx := session.Scope(r.Context(), res)
+
+	entries, err := h.activity.Feed(ctx, activity.Query{
+		SubjectKind: "lease", SubjectID: res.LeaseID,
+		Audience: activity.AudienceResident, Limit: historyLimit,
+	})
+	if err != nil {
+		h.fail(w, "reading activity", res.LeaseID, err)
+		return
+	}
+	out := make([]activityEntry, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, activityEntry{
+			Kind: e.Kind, OccurredAt: e.OccurredAt.Format(time.RFC3339), Body: e.Body,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"lease_id": res.LeaseID, "entries": out})
 }
 
 // payRequest is a tenant paying their own rent.
