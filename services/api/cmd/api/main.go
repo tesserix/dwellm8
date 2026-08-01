@@ -434,6 +434,16 @@ func run() error {
 	ginEngine := ginx.Engine()
 	leasehttp.NewRevisions(leases, logger).Routes(ginx.New(ginEngine, guard))
 	protected.Handle("POST /v1/leases/{id}/rent-revisions", ginEngine)
+
+	// HomeStay, #233 — Gin-native on both sides. The host tree mounts under
+	// authentication; the guest tree joins the public funnel and its rate
+	// bucket, riding the same prospect token and verification gate.
+	stayStore := discoverystore.NewStay(pool, tenancy.NewPlatformPool(platformPool))
+	stayHost := ginx.Engine()
+	discoveryhttp.NewStay(stayStore, prospects, logger).HostRoutes(ginx.New(stayHost, guard))
+	protected.Handle("/v1/stay/", stayHost)
+	stayPublic := ginx.Engine()
+	discoveryhttp.NewStay(stayStore, prospects, logger).PublicRoutes(ginx.New(stayPublic, guard))
 	// Registering inventory, #32 — the rows everything else points back to.
 	propertyhttp.New(propertyservice.New(propertystore.New(pool)), logger).
 		Routes(authz.NewRegistrar(protected, guard))
@@ -525,6 +535,10 @@ func run() error {
 	discoveryhttp.NewPublic(listings, prospects, enquiries, logger).
 		Routes(authz.NewRegistrar(mux, guard))
 	discoveryhttp.NewInspections(inspections, logger).PublicRoutes(authz.NewRegistrar(mux, guard))
+	// The guest side of HomeStay: the exact search path and its subtree, both
+	// into the same Gin engine, inside the public rate bucket.
+	mux.Handle("GET /v1/public/stay", stayPublic)
+	mux.Handle("/v1/public/stay/", stayPublic)
 
 	// The eSign docUrl fetch, #212 — outside authentication for the webhook's
 	// reason: the caller is a signer following an ESP's hyperlink, not a
