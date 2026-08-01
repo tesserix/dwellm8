@@ -22,6 +22,12 @@ type Leases struct {
 	// nil means every party must arrive with an id, which is how this module
 	// worked before the tenant surface existed. See WithResidents.
 	residents Residents
+
+	// checklists says what blocking work stands in front of closing a tenancy, and
+	// billing says how far it has been invoiced. Both optional, and both refused
+	// again by the schema when they are absent — see terminate.go.
+	checklists Checklists
+	billing    Billing
 }
 
 // NewLeases wires the service to its store.

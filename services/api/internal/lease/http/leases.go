@@ -46,6 +46,8 @@ func (h *Leases) Routes(r *authz.Registrar) {
 		Relation: "can_operate", Object: authz.Organisation()}, h.Create)
 	r.Handle("POST /v1/leases/{id}/activate", authz.Check{
 		Relation: "can_edit", Object: authz.PathObject("agreement", "id")}, h.Activate)
+	r.Handle("POST /v1/leases/{id}/terminate", authz.Check{
+		Relation: "can_edit", Object: authz.PathObject("agreement", "id")}, h.Terminate)
 }
 
 // createRequest is the wire shape.
@@ -282,4 +284,68 @@ func writeJSON(w http.ResponseWriter, code int, body any) {
 
 func writeError(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
+}
+
+// terminateRequest is what ending a tenancy needs. ADR-0010 §5.
+type terminateRequest struct {
+	// EffectiveOn is the last day of the tenancy plus one, per ADR-0008: a tenancy
+	// ending on 20 June closes at 21 June.
+	EffectiveOn string `json:"effective_on"`
+	Reason      string `json:"reason"`
+	// Decision is what happens to money already billed for time the tenant will not
+	// occupy. "none" when nothing was over-billed, and the request is refused if it
+	// says none when something was.
+	Decision string `json:"settlement_decision"`
+}
+
+// Terminate ends a tenancy.
+//
+// Three refusals, and they are deliberately different responses. An unfinished
+// move-out is a 409 naming the outstanding steps — nothing about the request is
+// wrong and the same one works once they are done. An over-billed period with no
+// decision is a 422, because the request is missing something. A lease that is not
+// live is a 404.
+func (h *Leases) Terminate(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "no lease named")
+		return
+	}
+	var req terminateRequest
+	if err := decode(w, r, &req); err != nil {
+		return
+	}
+	on, err := effective.ParseDate(req.EffectiveOn)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity,
+			"effective_on must be a date, as YYYY-MM-DD — it is the day after the tenancy's last")
+		return
+	}
+	decision := leasedomain.SettlementDecision(req.Decision)
+	if req.Decision == "" {
+		decision = leasedomain.DecisionNone
+	}
+
+	out, err := h.leases.Terminate(r.Context(), id, leasedomain.Termination{
+		EffectiveOn: on, By: leasedomain.ActorOwner, Reason: req.Reason, Decision: decision})
+	switch {
+	case err == nil:
+		writeJSON(w, http.StatusOK, map[string]string{
+			"id": id, "state": string(out.State), "ended_on": out.EndedOn.String(),
+			"event": string(leasedomain.EventEnded)})
+	case errors.Is(err, service.ErrChecklistOutstanding),
+		errors.Is(err, store.ErrChecklistOutstanding):
+		writeError(w, http.StatusConflict, err.Error())
+	case errors.Is(err, leasedomain.ErrDecisionRequired):
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+	case errors.Is(err, leasedomain.ErrTransition):
+		writeError(w, http.StatusConflict, err.Error())
+	case errors.Is(err, store.ErrNoLease):
+		writeError(w, http.StatusNotFound, "no live tenancy to end")
+	case errors.Is(err, tenancy.ErrNoTenant):
+		writeError(w, http.StatusUnauthorized, "no organisation in this request")
+	default:
+		h.log.Error("terminating a lease", "lease", id, "error", err)
+		writeError(w, http.StatusInternalServerError, "could not end the tenancy")
+	}
 }

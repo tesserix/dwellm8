@@ -48,6 +48,24 @@ func TuplesFor(e events.Envelope) (writes, deletes []Tuple, err error) {
 		}
 		return []Tuple{{User: "user:" + data.PartyID, Relation: rel,
 			Object: "organisation:" + e.TenantID}}, nil, nil
+	case "maintenance.checklist.started":
+		// A checklist's edges are its unit and its property. Written from the event
+		// rather than read back for the reason the agreement's are: by the time this
+		// runs the checklist may already have been finished.
+		var data struct {
+			PropertyID string `json:"property_id"`
+			UnitID     string `json:"unit_id"`
+		}
+		if err := json.Unmarshal(e.Data, &data); err != nil {
+			return nil, nil, fmt.Errorf("authz: decoding %s %s: %w", e.Type, e.ID, err)
+		}
+		return ChecklistEdges(e.Subject.ID, data.PropertyID, data.UnitID), nil, nil
+	case "maintenance.checklist.completed", "maintenance.checklist.abandoned":
+		// Deliberately no deletes. An agreement's edges go when the tenancy does
+		// because the tenant must stop reading it; a finished checklist is the
+		// evidence of a process that happened, and the people who could see it are
+		// the people who should still be able to.
+		return nil, nil, nil
 	case "lease.tenancy.started":
 		w, err := agreementTuples(e)
 		return w, nil, err
@@ -86,6 +104,23 @@ func AgreementEdges(leaseID, unitID string, parties []Party) []Tuple {
 		case "guardian":
 			ts = append(ts, Tuple{User: "user:" + p.PartyID, Relation: "guardian", Object: agreement})
 		}
+	}
+	return ts
+}
+
+// ChecklistEdges is the one mapping from a fired checklist to its edges, so the
+// projector and any later rebuild agree by construction. ADR-0032.
+//
+// The property edge is not redundant with the unit one: an owner-onboarding or a
+// manager-handover names no unit, and without it those would be reachable by nobody.
+func ChecklistEdges(checklistID, propertyID, unitID string) []Tuple {
+	object := "checklist:" + checklistID
+	var ts []Tuple
+	if unitID != "" {
+		ts = append(ts, Tuple{User: "unit:" + unitID, Relation: "unit", Object: object})
+	}
+	if propertyID != "" {
+		ts = append(ts, Tuple{User: "property:" + propertyID, Relation: "property", Object: object})
 	}
 	return ts
 }

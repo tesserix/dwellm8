@@ -294,3 +294,22 @@ func (l *Ledger) Position(ctx context.Context, lease string, asOf time.Time) (do
 	}
 	return owed, nil
 }
+
+// BilledThrough is the last day a lease charge has been raised for, or zero when
+// none has.
+//
+// source_kind is filtered for the reason ADR-0006 §5's amendment gives: lease_id now
+// names the tenancy an entry concerns, payments included, so an unfiltered maximum
+// would move "billed through" every time a tenant paid.
+func (l *Ledger) BilledThrough(ctx context.Context, lease string) (time.Time, error) {
+	var through *time.Time
+	err := tenancy.Scoped(ctx, l.pool, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `
+			SELECT max(occurred_on) FROM journal_entries
+			 WHERE lease_id = $1 AND source_kind = 'lease_charge'`, lease).Scan(&through)
+	})
+	if err != nil || through == nil {
+		return time.Time{}, err
+	}
+	return *through, nil
+}

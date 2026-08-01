@@ -52,6 +52,12 @@ tuples:
       name: job_window
       context: {starts_at: "2026-08-15T00:00:00Z", ends_at: "2026-08-16T00:00:00Z"}
 
+  # ADR-0032: the move-out on 3A, and an owner onboarding that names no unit.
+  - {user: unit:sunrise-3a, relation: unit, object: checklist:mo-3a}
+  - {user: property:sunrise, relation: property, object: checklist:mo-3a}
+  - {user: user:devi, relation: assignee, object: checklist:mo-3a}
+  - {user: property:lakeview, relation: property, object: checklist:onb-lake}
+
   # Discovery: a public listing and a prospect's enquiry.
   - {user: property:sunrise, relation: property, object: listing:l-1}
   - {user: user:anita, relation: agent, object: listing:l-1}
@@ -315,3 +321,50 @@ tests:
         object: document:kyc-ravi
         context: {now: "2026-08-15T10:00:00Z"}
         assertions: {can_view: false}
+
+  - name: a checklist is reached through the unit it is about
+    check:
+      - user: user:asha
+        object: checklist:mo-3a
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_operate: true, can_manage: true}
+      - user: user:kiran
+        object: checklist:mo-3a
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_operate: true, can_manage: true}
+      # Staff of the mandated firm do the work and may not abandon the process.
+      - user: user:farhan
+        object: checklist:mo-3a
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_operate: true, can_manage: false}
+      # A field agent sent to this property works its steps and nothing else.
+      - user: user:devi
+        object: checklist:mo-3a
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_operate: true, can_manage: false}
+      - user: user:devi
+        object: checklist:onb-lake
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false, can_operate: false}
+      # The tenant the move-out is about does not run it. ADR-0029: their steps
+      # reach them as notifications, and the schema denies a renter session the row.
+      - user: user:ravi
+        object: checklist:mo-3a
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false, can_operate: false}
+      - user: user:rando
+        object: checklist:mo-3a
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false, can_operate: false, can_manage: false}
+
+  - name: a checklist with no unit is still reached through its property
+    check:
+      - user: user:asha
+        object: checklist:onb-lake
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: true, can_operate: true, can_manage: true}
+      # Keyline's mandate covers sunrise, not lakeview.
+      - user: user:kiran
+        object: checklist:onb-lake
+        context: {now: "2026-08-15T10:00:00Z"}
+        assertions: {can_view: false, can_operate: false, can_manage: false}

@@ -151,3 +151,12 @@ func ReceiptNumber(paymentID string, at time.Time) string {
 	}
 	return fmt.Sprintf("DW-%s-%s", at.UTC().Format("20060102"), strings.ToUpper(hex))
 }
+
+// BilledThrough is the last day a lease charge has been raised for on this tenancy.
+//
+// The lease module's question, and it is here rather than a query in that module for
+// ADR-0001's reason: money owns journal_entries. Zero means nothing has been billed,
+// which is what a termination on a lease that never invoiced sees.
+func (s *Statements) BilledThrough(ctx context.Context, leaseID string) (time.Time, error) {
+	return s.ledger.BilledThrough(ctx, leaseID)
+}

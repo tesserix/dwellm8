@@ -161,6 +161,21 @@ type inspection
     define can_view: assigned or participant or can_view from unit
     define can_conduct: assigned or can_operate from unit
 
+# ADR-0032. A checklist hangs off the unit it is about, so a mandate over one flat
+# reaches that flat's move-out and no other. Templates are organisation-scoped and
+# are configured through can_administer on the organisation, not here.
+type checklist
+  relations
+    define unit: [unit]
+    define property: [property]
+    define assignee: [user]
+    # An assignee can see and work their own task without a mandate over the unit,
+    # which is what a field agent sent to one property is.
+    define can_view: assignee or can_view from unit or can_view from property
+    define can_operate: assignee or can_operate from unit or can_operate from property
+    # Abandoning a process, and configuring what it contains, is not day-to-day work.
+    define can_manage: can_manage from unit or can_manage from property
+
 type document
   relations
     define org: [organisation]
