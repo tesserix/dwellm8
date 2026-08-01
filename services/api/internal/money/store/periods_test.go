@@ -55,9 +55,9 @@ func TestThePeriodCloseStory(t *testing.T) {
 			}
 			return tx.QueryRow(ctx, `
 				INSERT INTO settlement_lines (batch_id, tenant_id, payment_id, provider, provider_line_id,
-				                              line_kind, direction, amount_minor, settled_on)
-				VALUES ($1, $2, $3, 'cashfree', $4, 'payment', 'inward', 100000, date '2024-03-05')
-				RETURNING id`, batch, f.owner, payment, "line-"+f.token).Scan(&lineID)
+				                              provider_payment_id, line_kind, direction, amount_minor, settled_on)
+				VALUES ($1, $2, $3, 'cashfree', $4, $5, 'payment', 'inward', 100000, date '2024-03-05')
+				RETURNING id`, batch, f.owner, payment, "line-"+f.token, "order-"+f.token).Scan(&lineID)
 		})
 	if err != nil {
 		t.Fatalf("seeding the gap: %v", err)
