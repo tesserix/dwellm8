@@ -148,13 +148,15 @@ func TestDrainPublishesAndMarks(t *testing.T) {
 	if rec.count() == 0 {
 		t.Fatal("nothing reached the transport")
 	}
-	// The id is what the broker deduplicates on. Without it a relay retry is a
-	// second event rather than the same one.
-	if rec.ids[0] != e.ID {
-		t.Errorf("published with id %q, want the event id %q", rec.ids[0], e.ID)
-	}
-	if rec.sent[0] != e.SubjectName() {
-		t.Errorf("subject = %q, want %q", rec.sent[0], e.SubjectName())
+	// The drain sweeps whatever the suite's other tests committed too, so the
+	// assertion is membership, not position. The id is what the broker
+	// deduplicates on — without it a relay retry is a second event rather than
+	// the same one.
+	idx := slices.Index(rec.ids, e.ID)
+	if idx == -1 {
+		t.Errorf("the appended event %q was not among the %d published", e.ID, rec.count())
+	} else if rec.sent[idx] != e.SubjectName() {
+		t.Errorf("subject = %q, want %q", rec.sent[idx], e.SubjectName())
 	}
 }
 
