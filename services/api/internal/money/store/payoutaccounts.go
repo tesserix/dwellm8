@@ -27,11 +27,11 @@ type AccountChange struct {
 
 // Changed reports what a change did, for the response and the notification.
 type Changed struct {
-	ID         string
-	OldMasked  string // empty on the first account
-	NewMasked  string
-	PayableAt  time.Time
-	Unchanged  bool // the "change" named the account already on file
+	ID        string
+	OldMasked string // empty on the first account
+	NewMasked string
+	PayableAt time.Time
+	Unchanged bool // the "change" named the account already on file
 }
 
 // ErrNoAccount is a payout asked about an owner who has no account on file.
