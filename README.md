@@ -86,6 +86,7 @@ still GitHub issues and the org project board.
 | Resource | Where |
 |---|---|
 | **Running it locally** | [`SETUP_LOCAL.md`](SETUP_LOCAL.md) |
+| **Working on this repo in parallel** | [`docs/parallel-sessions.md`](docs/parallel-sessions.md) — read before you commit |
 | **Changing the database schema** | [`docs/schema-changes.md`](docs/schema-changes.md) — it is not in this repository |
 | Architecture decisions | [`docs/adr/`](docs/adr/README.md) |
 | **Threat model & security baseline** | [`docs/threat-model.md`](docs/threat-model.md), [`docs/security-baseline.md`](docs/security-baseline.md) |

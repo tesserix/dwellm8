@@ -8,13 +8,37 @@ look for the migrations directory. There isn't one, and that is deliberate.
 ## Where the schema lives
 
 ```
-tesserix-k8s/charts/apps/db-schema-bootstrap/schemas/dwellm8/dwellm8/dwellm8.sql
+tesserix-k8s/charts/apps/db-schema-bootstrap/schemas/dwellm8/dwellm8/*.sql
 ```
 
-One file. Every table, index, constraint, trigger, function, row-level-security policy,
-grant and seeded reference row for Dwellm8 is in it. This repository holds none of them —
+One database, written as **ordered chapters** — `000_extensions_and_roles.sql`,
+`010_tenancy_and_audit.sql`, and so on. The bootstrap concatenates them in filename order
+into the single `dwellm8.sql` the chart's contract asks for, so the split is how it is
+authored and reviewed rather than how it is applied:
+
+```bash
+cat $(ls *.sql | sort) > dwellm8.sql
+```
+
+Every table, index, constraint, trigger, function, row-level-security policy, grant and
+seeded reference row for Dwellm8 is in those chapters. This repository holds none of them —
 CI refuses a `.sql` file outside `docs/`, and refuses a `migrations/`, `alembic/`,
 `flyway/` or `liquibase/` directory, with a pointer back to this page.
+
+**Filename order is dependency order.** A chapter referencing `organisations` must sort
+after `010`; one wanting the platform organisation must sort after `190`. Two chapters that
+share a number both apply and the order between them is alphabetical, which works and is
+unreadable — so claim the next free number by listing the directory before you create the
+file. See [`parallel-sessions.md`](parallel-sessions.md) §2 when more than one session is
+open.
+
+**The assertions in `230_tenancy_assertions.sql` and the resident-deny loop in
+`220_resident_scope.sql` run before any chapter numbered above them**, so a new chapter is
+not covered by either until the next replay. On the cluster that is thirty minutes; in CI,
+where the database is fresh and applied once, it is never. A chapter above 220 therefore
+writes its own `<table>_resident_denied` policies — using the generator's own names, so the
+next replay replaces them with identical ones — and is verified by applying the combined
+file **twice**.
 
 **Why here and not there.** One source of truth, and one author. A schema with two authors
 — a migration tool in the app repository and the bootstrap job in the cluster — diverges on
@@ -25,10 +49,10 @@ the wrong number rather than by an error.
 
 ## How a change reaches the cluster
 
-1. Edit `dwellm8.sql` in `tesserix-k8s`.
+1. Edit a chapter — or add one — in `tesserix-k8s`.
 2. Commit and push to `main`.
-3. ArgoCD syncs the `dwellm8-db-schema-bootstrap` Application, which renders the file into
-   a ConfigMap.
+3. ArgoCD syncs the `dwellm8-db-schema-bootstrap` Application, which combines the chapters
+   and renders them into a ConfigMap.
 4. A CronJob applies it, every 30 minutes, idempotently.
 
 No step of that is manual and none of it involves `kubectl apply`.
