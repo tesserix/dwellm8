@@ -57,6 +57,15 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+      # A real OpenFGA for the dwellm8#154 combined harness: the graph half of
+      # ADR-0020 must be exercised by a real evaluator — CEL conditions and the
+      # write API's refusal shapes are exactly what a fake gets subtly wrong.
+      # Memory engine (the image's default `run`), so no migrate step.
+      openfga:
+        image: openfga/openfga:v1.18.1
+        ports:
+          - 8090:8080
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -111,6 +120,7 @@ jobs:
           TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
           TEST_PLATFORM_DATABASE_URL: postgres://dwellm8_platform:ci@localhost:5432/dwellm8?sslmode=disable
           TEST_PURGE_DATABASE_URL: postgres://dwellm8_purge:ci@localhost:5432/dwellm8?sslmode=disable
+          TEST_AUTHZ_URL: http://localhost:8090
         run: go test -race -count=1 ./...
 
       # The harness is only worth having if it fails. This plants a real
