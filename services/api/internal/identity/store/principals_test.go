@@ -48,7 +48,7 @@ func TestAFirstSignInBecomesAnOrganisation(t *testing.T) {
 	ctx := context.Background()
 	id := uid()
 
-	p, err := s.Onboard(ctx, store.Onboarding{
+	p, _, err := s.Onboard(ctx, store.Onboarding{
 		Principal:        signIn(auth.SurfaceOwn, id),
 		OrganisationName: "Menon Properties",
 		Slug:             "menon-" + id,
@@ -108,7 +108,7 @@ func TestAFailedOnboardingLeavesNothingBehind(t *testing.T) {
 		t.Fatalf("seeding: %v", err)
 	}
 
-	if _, err := s.Onboard(ctx, store.Onboarding{
+	if _, _, err := s.Onboard(ctx, store.Onboarding{
 		Principal:        signIn(auth.SurfaceOwn, id),
 		OrganisationName: "Second", Slug: taken,
 	}.Fill()); err == nil {
@@ -128,14 +128,14 @@ func TestTheSameUidInTwoPoolsIsTwoPeople(t *testing.T) {
 	ctx := context.Background()
 	id := uid()
 
-	own, err := s.Onboard(ctx, store.Onboarding{
+	own, _, err := s.Onboard(ctx, store.Onboarding{
 		Principal: signIn(auth.SurfaceOwn, id), OrganisationName: "Landlord",
 		Slug: "own-" + id,
 	}.Fill())
 	if err != nil {
 		t.Fatalf("onboarding into own: %v", err)
 	}
-	ops, err := s.Onboard(ctx, store.Onboarding{
+	ops, _, err := s.Onboard(ctx, store.Onboarding{
 		Principal: signIn(auth.SurfaceOps, id), OrganisationName: "Agency",
 		Slug: "ops-" + id,
 	}.Fill())
@@ -177,7 +177,7 @@ func TestOnlySomeSurfacesCreateOrganisations(t *testing.T) {
 				return
 			}
 			id := uid()
-			_, err := s.Onboard(ctx, store.Onboarding{
+			_, _, err := s.Onboard(ctx, store.Onboarding{
 				Principal: signIn(c.surface, id), OrganisationName: "X", Slug: "x-" + id,
 			}.Fill())
 			if !errors.Is(err, store.ErrOnboarding) {
@@ -194,7 +194,7 @@ func TestStaffDoNotOnboard(t *testing.T) {
 	s, _ := principals(t)
 	id := uid()
 
-	_, err := s.Onboard(context.Background(), store.Onboarding{
+	_, _, err := s.Onboard(context.Background(), store.Onboarding{
 		Principal:        auth.Principal{UID: id, Staff: true},
 		OrganisationName: "Dwellm8", Slug: "dwellm8-" + id, Kind: "platform", Role: "owner",
 	})
@@ -210,7 +210,7 @@ func TestSeveralMembershipsIsNotASingleAnswer(t *testing.T) {
 	ctx := context.Background()
 	id := uid()
 
-	first, err := s.Onboard(ctx, store.Onboarding{
+	first, _, err := s.Onboard(ctx, store.Onboarding{
 		Principal: signIn(auth.SurfaceOps, id), OrganisationName: "Firm A", Slug: "a-" + id,
 	}.Fill())
 	if err != nil {
@@ -253,7 +253,7 @@ func TestADisabledPrincipalDoesNotResolve(t *testing.T) {
 	ctx := context.Background()
 	id := uid()
 
-	if _, err := s.Onboard(ctx, store.Onboarding{
+	if _, _, err := s.Onboard(ctx, store.Onboarding{
 		Principal: signIn(auth.SurfaceOwn, id), OrganisationName: "Disabled", Slug: "d-" + id,
 	}.Fill()); err != nil {
 		t.Fatalf("onboarding: %v", err)

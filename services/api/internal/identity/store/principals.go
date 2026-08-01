@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/auth"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/events"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 )
 
@@ -134,7 +135,7 @@ type Onboarding struct {
 }
 
 // Onboard creates the principal, the organisation and the membership in one
-// transaction.
+// transaction, and reports whether it created anything.
 //
 // **One transaction**, and it is the whole point. Three separate writes leave
 // three ways to fail: a principal with no organisation cannot do anything, an
@@ -142,18 +143,25 @@ type Onboarding struct {
 // support, and a membership pointing at either is a foreign-key error somebody
 // discovers later. Committing together means a committed organisation always has
 // somebody who can reach it.
-func (s *Principals) Onboard(ctx context.Context, o Onboarding) (Person, error) {
+//
+// **Idempotent by membership**: a principal who already holds a live membership
+// in an organisation of this kind gets that organisation back, not a second
+// one. A retried request, a re-opened app and a double-tap are the same call,
+// and a person's second property joins their existing organisation — creating
+// another would split one landlord's books in two.
+func (s *Principals) Onboard(ctx context.Context, o Onboarding) (Person, bool, error) {
 	if err := o.validate(); err != nil {
-		return Person{}, err
+		return Person{}, false, err
 	}
 	surface := string(o.Principal.Surface)
 	if o.Principal.Staff {
-		return Person{}, errors.New("identity: staff do not onboard into an organisation — " +
+		return Person{}, false, errors.New("identity: staff do not onboard into an organisation — " +
 			"they are outside every surface, and giving them one would make the product owner " +
 			"a member of a customer")
 	}
 
 	var out Person
+	created := false
 	err := tenancy.Platform(ctx, s.platform, "onboarding a first sign-in",
 		func(ctx context.Context, tx pgx.Tx) error {
 			// The principal first: everything else points at its party.
@@ -167,6 +175,23 @@ func (s *Principals) Onboard(ctx context.Context, o Onboarding) (Person, error) 
 				o.Principal.SignInProvider).Scan(&out.PartyID)
 			if err != nil {
 				return fmt.Errorf("identity: writing the principal: %w", err)
+			}
+
+			var existingID, existingRole string
+			err = tx.QueryRow(ctx, `
+				SELECT m.tenant_id::text, m.role
+				  FROM organisation_members m
+				  JOIN organisations org ON org.id = m.tenant_id
+				 WHERE m.party_id = $1::uuid AND org.kind = $2
+				   AND m.validity @> current_date
+				 ORDER BY m.created_at
+				 LIMIT 1`, out.PartyID, o.Kind).Scan(&existingID, &existingRole)
+			switch {
+			case err == nil:
+				out.Memberships = []Membership{{TenantID: tenancy.ID(existingID), Role: existingRole}}
+				return nil
+			case !errors.Is(err, pgx.ErrNoRows):
+				return fmt.Errorf("identity: looking for an existing organisation: %w", err)
 			}
 
 			var tenantID string
@@ -185,15 +210,35 @@ func (s *Principals) Onboard(ctx context.Context, o Onboarding) (Person, error) 
 				return fmt.Errorf("identity: writing the membership: %w", err)
 			}
 
+			// The fact, in the same transaction (ADR-0002) — the authz
+			// projector turns it into the organisation's first edge, which is
+			// what makes the creator able to pass an enforced check at all.
+			env, err := events.New("identity.organisation.created", tenantID,
+				events.Subject{Kind: "organisation", ID: tenantID},
+				events.Actor{Kind: events.ActorUser, ID: out.PartyID},
+				struct {
+					PartyID string `json:"party_id"`
+					Role    string `json:"role"`
+					Kind    string `json:"kind"`
+					Slug    string `json:"slug"`
+				}{out.PartyID, o.Role, o.Kind, o.Slug})
+			if err != nil {
+				return err
+			}
+			if err := events.Append(ctx, tx, env); err != nil {
+				return err
+			}
+
+			created = true
 			out.Memberships = []Membership{{TenantID: tenancy.ID(tenantID), Role: o.Role}}
 			return nil
 		})
 	if err != nil {
-		return Person{}, err
+		return Person{}, false, err
 	}
 	out.Surface = o.Principal.Surface
 	out.Phone, out.Email = o.Principal.Phone, o.Principal.Email
-	return out, nil
+	return out, created, nil
 }
 
 // ErrOnboarding is an onboarding that cannot produce a usable organisation.

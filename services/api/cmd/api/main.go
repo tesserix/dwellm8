@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	identityhttp "github.com/tesserix/dwellm8/services/api/internal/identity/http"
 	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 	identitystore "github.com/tesserix/dwellm8/services/api/internal/identity/store"
 	leasehttp "github.com/tesserix/dwellm8/services/api/internal/lease/http"
@@ -203,6 +204,18 @@ func run() error {
 				Stream:   "DWELLM8_LEASE",
 				Subjects: []string{"dwellm8.lease.tenancy.>"},
 			})
+			if err != nil {
+				cancel()
+				return fmt.Errorf("authz projector consumer: %w", err)
+			}
+			// A second durable on the identity stream: organisation birth is
+			// the graph's first edge. Two consumers because streams are per
+			// module (ADR-0002 §2) and a consumer belongs to one stream.
+			idCons, err := eventsConn.EnsureConsumer(ensureCtx, natsx.ConsumerSpec{
+				Name:     "authz-tupler-identity",
+				Stream:   "DWELLM8_IDENTITY",
+				Subjects: []string{"dwellm8.identity.organisation.>"},
+			})
 			cancel()
 			if err != nil {
 				return fmt.Errorf("authz projector consumer: %w", err)
@@ -213,7 +226,13 @@ func run() error {
 					logger.Error("authz projector stopped", "error", err)
 				}
 			}()
-			logger.Info("authz projector running", "consumer", "authz-tupler")
+			go func() {
+				if err := natsx.Consume(relayCtx, idCons, proj.Handle, logger); err != nil && !errors.Is(err, context.Canceled) {
+					logger.Error("authz identity projector stopped", "error", err)
+				}
+			}()
+			logger.Info("authz projector running",
+				"consumers", "authz-tupler, authz-tupler-identity")
 		}
 	} else {
 		logger.Warn("authz is not configured; route checks are declared but dark",
@@ -257,6 +276,12 @@ func run() error {
 	// this says whose rows they may touch, and it is a database lookup rather
 	// than a token claim for the reason ADR-0027 §6 gives.
 	if cfg.Identity.Enforce {
+		// Onboarding sits inside verification and outside the resolver: its
+		// caller has, by definition, no membership to resolve. Issue #31.
+		onboardingMux := http.NewServeMux()
+		identityhttp.NewOnboarding(principals, logger).Routes(authz.NewRegistrar(onboardingMux, guard))
+		mux.Handle("POST /v1/onboarding", auth.Middleware(verifier, onboardingMux))
+
 		resolver := identityservice.NewResolver(principals, logger)
 		mux.Handle("/", auth.Middleware(verifier, resolver.Middleware(protected)))
 		mux.Handle("/v1/resident/", auth.Middleware(verifier,

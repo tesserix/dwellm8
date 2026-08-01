@@ -68,6 +68,26 @@ func TestEndedTenancyDeletesTheSameEdges(t *testing.T) {
 	}
 }
 
+// An organisation's birth writes its first edge; without it the creator could
+// never pass an enforced check against the thing they just made.
+func TestACreatedOrganisationGetsItsFirstEdge(t *testing.T) {
+	env, err := events.New("identity.organisation.created", "org-9",
+		events.Subject{Kind: "organisation", ID: "org-9"},
+		events.Actor{Kind: events.ActorUser, ID: "p-founder"},
+		map[string]string{"party_id": "p-founder", "role": "owner", "kind": "owner"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writes, deletes, err := TuplesFor(env)
+	if err != nil || len(deletes) != 0 || len(writes) != 1 {
+		t.Fatalf("writes=%v deletes=%v err=%v", writes, deletes, err)
+	}
+	want := Tuple{User: "user:p-founder", Relation: "owner", Object: "organisation:org-9"}
+	if writes[0] != want {
+		t.Fatalf("got %+v want %+v", writes[0], want)
+	}
+}
+
 func TestAnUnknownEventMovesNoEdges(t *testing.T) {
 	env, _ := events.New("money.payment.captured", "org-1",
 		events.Subject{Kind: "payment", ID: "p-1"}, events.Actor{Kind: events.ActorSystem}, nil)

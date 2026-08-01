@@ -29,6 +29,25 @@ type Tuple struct {
 // is where that must surface.
 func TuplesFor(e events.Envelope) (writes, deletes []Tuple, err error) {
 	switch e.Type {
+	case "identity.organisation.created":
+		// The organisation's first edge: without it the creator could never
+		// pass an enforced check against the thing they just made.
+		var data struct {
+			PartyID string `json:"party_id"`
+			Role    string `json:"role"`
+		}
+		if err := json.Unmarshal(e.Data, &data); err != nil {
+			return nil, nil, fmt.Errorf("authz: decoding %s %s: %w", e.Type, e.ID, err)
+		}
+		// The membership vocabulary is coarse (ADR-0027); the graph's is not.
+		// A creator is the organisation's owner whatever kind it is — an
+		// agency's founding manager owns the agency.
+		rel := map[string]string{"owner": "owner", "manager": "manager", "staff": "staff"}[data.Role]
+		if rel == "" {
+			rel = "owner"
+		}
+		return []Tuple{{User: "user:" + data.PartyID, Relation: rel,
+			Object: "organisation:" + e.TenantID}}, nil, nil
 	case "lease.tenancy.started":
 		w, err := agreementTuples(e)
 		return w, nil, err
