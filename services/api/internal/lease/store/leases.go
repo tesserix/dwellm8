@@ -440,3 +440,55 @@ func interval(from time.Time, to *time.Time) (effective.Interval, error) {
 	}
 	return effective.Between(f, effective.Day(to.Year(), to.Month(), to.Day()))
 }
+
+// Expiring is a tenancy running out, as the renewal reminder reads it.
+type Expiring struct {
+	LeaseID       string
+	PropertyID    string
+	UnitID        string
+	State         string
+	EndsOn        effective.Date
+	DaysRemaining int
+	NoticeDays    int
+	// InsideNoticeWindow is whether notice can still be given in time — the thing
+	// an owner actually needs to know, and one subtraction away from being got
+	// wrong in a dashboard.
+	InsideNoticeWindow bool
+}
+
+// Expiring lists tenancies ending within `within` days.
+//
+// It reads the lease_expiring view rather than repeating its arithmetic, which is
+// why ADR-0010 §6 made it a view: the renewal reminder and the owner's dashboard
+// read one definition, and a second copy here would be the one that drifts.
+func (s *Leases) Expiring(ctx context.Context, within int) ([]Expiring, error) {
+	if within <= 0 {
+		within = 60
+	}
+	var out []Expiring
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT lease_id::text, property_id::text, unit_id::text, state, ends_on,
+			       days_remaining, notice_days, inside_notice_window
+			  FROM lease_expiring
+			 WHERE days_remaining <= $1
+			 ORDER BY ends_on`, within)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var e Expiring
+			var ends time.Time
+			if err := rows.Scan(&e.LeaseID, &e.PropertyID, &e.UnitID, &e.State, &ends,
+				&e.DaysRemaining, &e.NoticeDays, &e.InsideNoticeWindow); err != nil {
+				return err
+			}
+			e.EndsOn = effective.DateOf(ends, ends.Location())
+			out = append(out, e)
+		}
+		return rows.Err()
+	})
+	return out, err
+}

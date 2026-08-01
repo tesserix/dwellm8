@@ -24,8 +24,9 @@
 // look like a duplicate every month. A CronJob is one runner, visible in
 // `kubectl get jobs`, with a history somebody can read after an incident.
 //
-//	jobs bill   --through-days 5
-//	jobs poll   --settle-within 10m
+//	jobs bill        --through-days 5
+//	jobs poll        --settle-within 10m
+//	jobs automations
 package main
 
 import (
@@ -42,13 +43,18 @@ import (
 	identitystore "github.com/tesserix/dwellm8/services/api/internal/identity/store"
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
 	leasestore "github.com/tesserix/dwellm8/services/api/internal/lease/store"
+	maintenanceservice "github.com/tesserix/dwellm8/services/api/internal/maintenance/service"
+	maintenancestore "github.com/tesserix/dwellm8/services/api/internal/maintenance/store"
 	"github.com/tesserix/dwellm8/services/api/internal/money/provider"
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	moneystore "github.com/tesserix/dwellm8/services/api/internal/money/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/automation"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/config"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
+	tdsstore "github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
+	"github.com/tesserix/dwellm8/services/api/internal/routine"
 )
 
 var version = "dev"
@@ -93,8 +99,10 @@ func run(args []string) error {
 		return authzJob(ctx, args[1:], cfg, pool, logger)
 	case "review":
 		return review(ctx, pool, logger)
+	case "automations":
+		return automations(ctx, args[1:], cfg, pool, logger)
 	default:
-		return fmt.Errorf("%q is not a job — try `bill`, `poll`, `authz` or `review`", args[0])
+		return fmt.Errorf("%q is not a job — try `bill`, `poll`, `authz`, `review` or `automations`", args[0])
 	}
 }
 
@@ -366,4 +374,69 @@ func paymentProviders(cfg config.Config) (*provider.Registry, error) {
 		return nil, err
 	}
 	return r, nil
+}
+
+// automations runs the scheduled prebuilt automations, once per organisation.
+// ADR-0033 §6, which is ADR-0028's argument applied to a job that reads every
+// tenancy and every balance: as the platform role it would put the whole
+// platform's arrears in one result set, where a single wrong join is a reminder
+// sent to somebody else's tenant.
+//
+// It exits zero when automations failed for some organisations and non-zero only
+// when the run itself could not proceed. A failing automation is an alert on the
+// log line that names it; failing the CronJob would stop every other
+// organisation's automations for the sake of one landlord's data.
+func automations(ctx context.Context, args []string, cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) error {
+	fs := flag.NewFlagSet("automations", flag.ContinueOnError)
+	only := fs.String("organisation", "", "run for one organisation rather than all of them")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	platformPool, err := pgxpool.New(ctx, cfg.PlatformDatabaseURL)
+	if err != nil {
+		return fmt.Errorf("platform database pool: %w", err)
+	}
+	defer platformPool.Close()
+
+	runner, err := automationRunner(pool, platformPool, log)
+	if err != nil {
+		return err
+	}
+
+	var res automation.Result
+	if *only != "" {
+		res, err = runner.RunFor(tenancy.With(ctx, tenancy.ID(*only)))
+	} else {
+		res, err = runner.RunAll(ctx)
+	}
+	if err != nil {
+		return err
+	}
+	log.Info("automations finished", "version", version,
+		"organisations", res.Organisations, "automations", res.Automations,
+		"acted", res.Acted, "skipped", res.Skipped,
+		"awaiting_approval", res.Awaiting, "failed", res.Failed)
+	return nil
+}
+
+// automationRunner wires the catalogue to the modules. The one place the
+// dependency direction of ADR-0033 §2 is visible: the engine below, the modules
+// beside it, and the catalogue above both.
+func automationRunner(pool, platformPool *pgxpool.Pool, log *slog.Logger) (*automation.Runner, error) {
+	leases := leaseservice.NewLeases(leasestore.New(pool), log)
+	statements := moneyservice.NewStatements(moneystore.NewLedger(pool), moneystore.NewPayments(pool), nil)
+	checklists := maintenanceservice.NewChecklists(maintenancestore.New(pool), log)
+
+	catalogue := routine.Catalogue(routine.Deps{
+		Now:        routine.Today,
+		Tenancies:  routine.FromLeases{Leases: leases},
+		Money:      routine.FromMoney{Statements: statements},
+		Checklists: routine.FromChecklists{Checklists: checklists},
+		Compliance: routine.FromCertificates{Certificates: tdsstore.New(pool)},
+		Events:     routine.Outbox{Pool: pool},
+	})
+	return automation.NewRunner(catalogue,
+		identitystore.NewOrganisations(tenancy.NewPlatformPool(platformPool)),
+		automation.NewStore(pool), log)
 }

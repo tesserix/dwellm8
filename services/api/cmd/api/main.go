@@ -25,17 +25,25 @@ import (
 	leasehttp "github.com/tesserix/dwellm8/services/api/internal/lease/http"
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
 	leasestore "github.com/tesserix/dwellm8/services/api/internal/lease/store"
+	maintenancehttp "github.com/tesserix/dwellm8/services/api/internal/maintenance/http"
+	maintenanceservice "github.com/tesserix/dwellm8/services/api/internal/maintenance/service"
+	maintenancestore "github.com/tesserix/dwellm8/services/api/internal/maintenance/store"
 	moneyhttp "github.com/tesserix/dwellm8/services/api/internal/money/http"
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	moneystore "github.com/tesserix/dwellm8/services/api/internal/money/store"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/activity"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/auth"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/automation"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/config"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/docurl"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/events"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/events/natsx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
+	tdsstore "github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
+	"github.com/tesserix/dwellm8/services/api/internal/routine"
+	automationsurface "github.com/tesserix/dwellm8/services/api/internal/surface/automations"
 	"github.com/tesserix/dwellm8/services/api/internal/surface/resident"
 )
 
@@ -142,10 +150,53 @@ func run() error {
 	principals := identitystore.New(tenancy.NewPlatformPool(platformPool))
 	residents := identityservice.NewResidents(principals, logger)
 
+	// The automation engine and its catalogue, ADR-0033. Built here because the
+	// catalogue is the one thing above every module: the engine below it owns the
+	// settings and the run log, the modules beside it do the work, and this is the
+	// only file that sees all three.
+	//
+	// A run that is scheduled happens in `jobs automations` (ADR-0028); what the
+	// API holds is the settings surface and the consumer for the event-triggered
+	// ones, so a tenancy going live starts its move-in without waiting for a
+	// CronJob.
+	automationStore := automation.NewStore(pool)
+
+	// The checklist module, ADR-0032. Built before the lease service because the
+	// lease service takes it: a tenancy does not close over an unfinished move-out,
+	// and the gate has to exist before the thing it gates.
+	checklists := maintenanceservice.NewChecklists(maintenancestore.New(pool), logger)
+
 	// The lease module learns to identify a party by mobile number, which is how
 	// a renter acquires an identity: their landlord types the number weeks
 	// before they ever open the app. ADR-0029 §2.
-	leases := leaseservice.NewLeases(leasestore.New(pool), logger).WithResidents(residents)
+	//
+	// It also learns two things it must not read for itself: what blocking work
+	// stands in front of closing a tenancy (maintenance) and how far that tenancy
+	// has been invoiced (money). Both are service interfaces the lease module
+	// declares and the other modules satisfy — ADR-0001 §3, and the whole of the
+	// coupling is visible on this line.
+	leases := leaseservice.NewLeases(leasestore.New(pool), logger).
+		WithResidents(residents).
+		WithChecklists(maintenanceservice.LeaseGate{Checklists: checklists}).
+		WithBilling(statements)
+
+	automations, err := automation.NewRunner(
+		routine.Catalogue(routine.Deps{
+			Now:        routine.Today,
+			Tenancies:  routine.FromLeases{Leases: leases},
+			Money:      routine.FromMoney{Statements: statements},
+			Checklists: routine.FromChecklists{Checklists: checklists},
+			Compliance: routine.FromCertificates{Certificates: tdsstore.New(pool)},
+			Events:     routine.Outbox{Pool: pool},
+		}),
+		identitystore.NewOrganisations(tenancy.NewPlatformPool(platformPool)),
+		automationStore, logger)
+	if err != nil {
+		// A catalogue that does not validate is a programming error, and the
+		// process refusing to start is the only way it is ever noticed: the
+		// alternative is an automation that silently never fires.
+		return fmt.Errorf("automation catalogue: %w", err)
+	}
 
 	// Rate limiting, issue #228. Two limiters because they fail differently: the
 	// per-tenant one stops one organisation taking the service down for the rest,
@@ -240,15 +291,76 @@ func run() error {
 			"set", "AUTHZ_URL")
 	}
 
+	// The event-triggered automations, ADR-0033 §5. Two durable consumers on the
+	// two streams that carry the facts they react to — a tenancy going live, a
+	// notice being served, an organisation being created.
+	//
+	// Independent of the authz projector on purpose, and on their own consumer
+	// names: a checklist that fails to start must not stop an access edge being
+	// written, and the two have nothing to say to each other.
+	if eventsConn != nil {
+		ensureCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		leaseCons, err := eventsConn.EnsureConsumer(ensureCtx, natsx.ConsumerSpec{
+			Name:     "automations-lease",
+			Stream:   "DWELLM8_LEASE",
+			Subjects: []string{"dwellm8.lease.>"},
+		})
+		if err != nil {
+			cancel()
+			return fmt.Errorf("automation consumer: %w", err)
+		}
+		idCons, err := eventsConn.EnsureConsumer(ensureCtx, natsx.ConsumerSpec{
+			Name:     "automations-identity",
+			Stream:   "DWELLM8_IDENTITY",
+			Subjects: []string{"dwellm8.identity.organisation.>"},
+		})
+		cancel()
+		if err != nil {
+			return fmt.Errorf("automation consumer: %w", err)
+		}
+		// Two goroutines rather than a loop over the pair: the consumer type comes
+		// from the JetStream SDK, and naming it here would put that import in cmd/
+		// — which the arch guard forbids and ADR-0002 §4 explains.
+		consumer := routine.Consumer{Runner: automations, Log: logger}
+		go func() {
+			if err := natsx.Consume(relayCtx, leaseCons, consumer.Handle, logger); err != nil &&
+				!errors.Is(err, context.Canceled) {
+				logger.Error("automation consumer stopped", "consumer", "automations-lease", "error", err)
+			}
+		}()
+		go func() {
+			if err := natsx.Consume(relayCtx, idCons, consumer.Handle, logger); err != nil &&
+				!errors.Is(err, context.Canceled) {
+				logger.Error("automation consumer stopped", "consumer", "automations-identity", "error", err)
+			}
+		}()
+		logger.Info("automations running", "consumers", "automations-lease, automations-identity")
+	} else {
+		logger.Warn("the event-triggered automations are off; a tenancy going live will not " +
+			"start its move-in until somebody does. The scheduled ones are unaffected.")
+	}
+
 	// Routes that a person authenticates for.
 	protected := http.NewServeMux()
 	leasehttp.NewLeases(leases, logger).Routes(authz.NewRegistrar(protected, guard))
+	maintenancehttp.NewChecklists(checklists, logger).Routes(authz.NewRegistrar(protected, guard))
+	automationsurface.New(automations, automationStore, logger).Routes(authz.NewRegistrar(protected, guard))
 
 	// The impersonated-owner control, #227. Changes fail closed without the
 	// fingerprint key; the payout run (#80) is the reader.
 	payoutAccounts := moneyservice.NewPayoutAccounts(
 		moneystore.NewPayoutAccounts(pool), cfg.PayoutFingerprintKey, logger)
 	moneyhttp.NewPayoutAccounts(payoutAccounts, logger).Routes(authz.NewRegistrar(protected, guard))
+
+	// The activity feed, #196: the outbox read back per record, plus notes.
+	// One store serves both sides — the org routes here, and the renter's cut
+	// on the resident surface below, where the audience narrows what it sees.
+	feed := activity.NewStore(pool)
+	activity.NewHandler(feed, logger).Routes(authz.NewRegistrar(protected, guard))
+
+	// The period close, #190. Enforcement is the database trigger; these routes
+	// are the checklist, the history, and the audit pack.
+	moneyhttp.NewPeriods(moneystore.NewPeriods(pool), logger).Routes(authz.NewRegistrar(protected, guard))
 
 	// The tenant view, on its own tree. Issue #51, ADR-0029.
 	//
@@ -258,7 +370,8 @@ func run() error {
 	// also carries its own surface check, so a genuine Ops token presented here
 	// is refused before any query runs.
 	residentMux := http.NewServeMux()
-	resident.New(leases, statements, payments, logger, nil).Routes(authz.NewRegistrar(residentMux, guard))
+	resident.New(leases, statements, payments, logger, nil).
+		WithActivity(feed).Routes(authz.NewRegistrar(residentMux, guard))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)

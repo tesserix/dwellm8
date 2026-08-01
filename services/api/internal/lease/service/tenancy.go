@@ -75,3 +75,23 @@ func (s *Leases) resolveParties(ctx context.Context, d domain.Draft) (domain.Dra
 	d.Parties = parties
 	return d, nil
 }
+
+// Expiring is a tenancy running out. See store.Expiring.
+type Expiring = store.Expiring
+
+// Expiring lists tenancies ending within `within` days, for the renewal reminder
+// and the owner's dashboard. ADR-0010 §6's view, read through the seam.
+func (s *Leases) Expiring(ctx context.Context, within int) ([]Expiring, error) {
+	return s.store.Expiring(ctx, within)
+}
+
+// Live lists the tenancies that are running — active or in notice — which is what
+// an automation walks when it has something to say about every tenancy.
+func (s *Leases) Live(ctx context.Context, limit int) ([]domain.Lease, error) {
+	return s.store.Billable(ctx, limit)
+}
+
+// PartiesOf returns the tenant and the owner on a tenancy as at a date.
+func (s *Leases) PartiesOf(ctx context.Context, leaseID string, on effective.Date) (tenant, owner string, err error) {
+	return s.store.Parties(ctx, leaseID, on)
+}

@@ -93,3 +93,49 @@ func (c *Certificates) Profile(
 func day(t time.Time) effective.Date {
 	return effective.Day(t.Year(), t.Month(), t.Day())
 }
+
+// Expiring is a lower-deduction certificate running out. A landlord whose
+// certificate lapses is deducted at the full rate from the next payment, which
+// they discover on the payout rather than in time to renew.
+type Expiring struct {
+	PartyID           string
+	CertificateNumber string
+	Section           tds.Section
+	ValidTo           effective.Date
+	DaysRemaining     int
+}
+
+// Expiring lists live certificates lapsing within `within` days.
+//
+// Ordered by expiry, so the one with least time left is first — the order the
+// work should actually be done in, which a screen should not have to re-derive.
+func (c *Certificates) Expiring(ctx context.Context, on effective.Date, within int) ([]Expiring, error) {
+	if within <= 0 {
+		within = 45
+	}
+	rows, err := c.q.Query(ctx, `
+		SELECT party_id::text, certificate_number, section, valid_to, (valid_to - $1::date)
+		  FROM tds_certificates
+		 WHERE retired_at IS NULL
+		   AND valid_to > $1::date
+		   AND valid_to <= ($1::date + $2)
+		 ORDER BY valid_to`, on.Time(), within)
+	if err != nil {
+		return nil, fmt.Errorf("tds: reading expiring certificates: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Expiring
+	for rows.Next() {
+		var e Expiring
+		var section string
+		var validTo time.Time
+		if err := rows.Scan(&e.PartyID, &e.CertificateNumber, &section, &validTo,
+			&e.DaysRemaining); err != nil {
+			return nil, err
+		}
+		e.Section, e.ValidTo = tds.Section(section), day(validTo)
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}

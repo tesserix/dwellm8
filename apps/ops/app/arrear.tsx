@@ -3,10 +3,11 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, StatusPill, Button, Timeline, Toast,
-  ListRow, Avatar, ActionBar, PhoneIcon, ChatIcon, RupeeIcon, Field,
+  ListRow, Avatar, ActionBar, PhoneIcon, ChatIcon, RupeeIcon, RefreshIcon, Field,
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
 import { arrears, collectionActions } from '../src/data/mock';
+import { historyByLease } from '../src/data/automations';
 
 /**
  * One tenancy in arrears — the whole recovery decision on a single screen.
@@ -108,6 +109,52 @@ export default function ArrearScreen() {
             ]}
           />
         </Card>
+        <Card>
+          <View style={sAuto.head}>
+            <RefreshIcon size={19} c={color.inkSoft} />
+            <Text style={sAuto.h}>What ran by itself</Text>
+          </View>
+          <Text style={sAuto.body}>
+            Every line here was an automation rather than a person. ADR-0033: a record has to be
+            able to say which one, or "a reminder was sent" is all anybody ever learns.
+          </Text>
+          {(historyByLease['lease-a302'] ?? []).map((line, i, all) => (
+            <View
+              key={line.id}
+              style={[sAuto.line, i === all.length - 1 && { borderBottomWidth: 0 }]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={sAuto.action}>{line.action}</Text>
+                <Text style={sAuto.meta}>
+                  {line.automationName} · {line.occurredAt}
+                </Text>
+                {line.detail ? <Text style={sAuto.meta}>{line.detail}</Text> : null}
+              </View>
+              <StatusPill
+                text={
+                  line.outcome === 'acted' ? 'Done'
+                  : line.outcome === 'awaiting_approval' ? 'Needs you'
+                  : line.outcome === 'failed' ? 'Failed'
+                  : 'Skipped'
+                }
+                tone={
+                  line.outcome === 'acted' ? 'green'
+                  : line.outcome === 'awaiting_approval' ? 'amber'
+                  : line.outcome === 'failed' ? 'red'
+                  : 'neutral'
+                }
+              />
+            </View>
+          ))}
+          <Button
+            label="All automations"
+            tone="secondary"
+            small
+            style={{ marginTop: space(4) }}
+            onPress={() => router.push('/automations')}
+          />
+        </Card>
+
       </Screen>
 
       <ActionBar>
@@ -124,4 +171,16 @@ const s = StyleSheet.create({
   dueSub: { ...font.small, color: color.inkSoft, marginTop: 2 },
   h: { ...font.h3, color: color.inkStrong, marginBottom: space(1) },
   note: { ...font.small, color: color.inkSoft, marginTop: space(3), lineHeight: 18 },
+});
+
+const sAuto = StyleSheet.create({
+  head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  h: { ...font.h3, color: color.inkStrong },
+  body: { ...font.body, color: color.inkSoft, marginTop: 8, lineHeight: 21 },
+  line: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    paddingVertical: space(3), borderBottomWidth: 1, borderBottomColor: color.line,
+  },
+  action: { ...font.label, color: color.inkStrong },
+  meta: { ...font.small, color: color.inkSoft, marginTop: 2 },
 });

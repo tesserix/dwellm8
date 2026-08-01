@@ -3,11 +3,13 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   AppHeader, AvatarButton, Card, Screen, SearchBar, ListRow, StatusPill, Metric,
-  SectionTitle, BedIcon, BuildingIcon, ShieldIcon, UsersIcon, ChartIcon,
+  SectionTitle, BedIcon, BuildingIcon, ClipboardIcon, RefreshIcon, ShieldIcon, UsersIcon, ChartIcon,
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { propertiesOps, today } from '../../src/data/mock';
+import { checklists } from '../../src/data/checklists';
+import { approvals, automations, enabledCount } from '../../src/data/automations';
 
 /**
  * Portfolio — properties, units and who is in them.
@@ -45,6 +47,9 @@ export default function Portfolio() {
   const totalUnits = propertiesOps.reduce((a, p) => a + p.units.length, 0);
   const vacant = propertiesOps.reduce((a, p) => a + p.units.filter((u) => u.status === 'Vacant').length, 0);
   const roll = propertiesOps.reduce((a, p) => a + p.monthlyRentPaise, 0);
+  const openProcesses = checklists.filter((c) => c.state === 'open').length;
+  const lateProcesses = checklists.filter((c) => c.state === 'open' && c.daysOverdue > 0).length;
+  const pendingApprovals = approvals.length;
 
   return (
     <>
@@ -104,6 +109,18 @@ export default function Portfolio() {
 
         <SectionTitle>Elsewhere</SectionTitle>
         <Card padded={false} style={{ paddingHorizontal: space(4) }}>
+          <ListRow
+            left={<RefreshIcon size={20} />}
+            title="Automations"
+            subtitle={`${enabledCount(automations)} of ${automations.length} running${pendingApprovals ? ` · ${pendingApprovals} need approval` : ''}`}
+            onPress={() => router.push('/automations')}
+          />
+          <ListRow
+            left={<ClipboardIcon size={20} />}
+            title="Processes"
+            subtitle={`${openProcesses} under way · ${lateProcesses} running late`}
+            onPress={() => router.push('/processes')}
+          />
           <ListRow
             left={<BedIcon size={20} />}
             title="Bed allocation — Nest PG"
