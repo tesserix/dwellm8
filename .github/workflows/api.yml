@@ -652,6 +652,20 @@ jobs:
               DELETE FROM payment_events WHERE payment_id IN (
                 SELECT id FROM payments WHERE lease_id IS NOT NULL
                    OR entry_id IN (SELECT id FROM journal_entries WHERE lease_id IS NOT NULL));
+              -- A settled payment is referenced twice more. #190's period-close story
+              -- writes a settlement line against one of this suite's payments, and a
+              -- line -- or a drift row -- is enough to refuse the delete below. Same
+              -- predicate as the payments themselves, so nothing outside this suite's
+              -- own rows is touched, and neither table has a trigger that a delete
+              -- would fire.
+              ALTER TABLE settlement_lines NO FORCE ROW LEVEL SECURITY;
+              ALTER TABLE settlement_drift NO FORCE ROW LEVEL SECURITY;
+              DELETE FROM settlement_drift WHERE payment_id IN (
+                SELECT id FROM payments WHERE lease_id IS NOT NULL
+                   OR entry_id IN (SELECT id FROM journal_entries WHERE lease_id IS NOT NULL));
+              DELETE FROM settlement_lines WHERE payment_id IN (
+                SELECT id FROM payments WHERE lease_id IS NOT NULL
+                   OR entry_id IN (SELECT id FROM journal_entries WHERE lease_id IS NOT NULL));
               DELETE FROM payments WHERE lease_id IS NOT NULL
                  OR entry_id IN (SELECT id FROM journal_entries WHERE lease_id IS NOT NULL);
               DELETE FROM ledger_postings
@@ -669,6 +683,8 @@ jobs:
               ALTER TABLE tds_obligation_steps FORCE ROW LEVEL SECURITY;
               ALTER TABLE tds_obligations FORCE ROW LEVEL SECURITY;
               ALTER TABLE lease_tax_facts FORCE ROW LEVEL SECURITY;
+              ALTER TABLE settlement_lines FORCE ROW LEVEL SECURITY;
+              ALTER TABLE settlement_drift FORCE ROW LEVEL SECURITY;
               ALTER TABLE payment_events FORCE ROW LEVEL SECURITY;
               ALTER TABLE payments FORCE ROW LEVEL SECURITY;
               ALTER TABLE ledger_postings FORCE ROW LEVEL SECURITY;
