@@ -61,6 +61,10 @@ type Config struct {
 
 	// PayoutFingerprintKey keys the payout-account fingerprint HMAC (#227).
 	PayoutFingerprintKey string
+
+	// DocURLKey signs the eSign document URLs (#212). Unset leaves the fetch
+	// route unregistered — no key, no URLs, nothing to serve.
+	DocURLKey string
 }
 
 // Authz configures the OpenFGA guard. ADR-0020, dwellm8#150.
@@ -254,6 +258,10 @@ func Load() (Config, error) {
 	// than the process: the control fails closed per request, and the rest of
 	// the API owes nothing to it.
 	c.PayoutFingerprintKey = os.Getenv("PAYOUT_FP_KEY")
+
+	// The docUrl signing key (#212), under the same rule as the fingerprint
+	// key: unset disables the feature rather than the process.
+	c.DocURLKey = os.Getenv("DOCURL_KEY")
 
 	c.PaymentProviders = splitList(get("PAYMENT_PROVIDERS", "offline"))
 	if !contains(c.PaymentProviders, "offline") {

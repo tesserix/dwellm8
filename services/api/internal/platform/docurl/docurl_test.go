@@ -18,7 +18,7 @@ func signer(t *testing.T) *Signer {
 func TestARoundTripInsideTheWindow(t *testing.T) {
 	s := signer(t)
 	now := time.Now()
-	tok, err := s.Token(Grant{DocumentRef: "d-1", TxnID: "t-1", ExpiresAt: now.Add(10 * time.Minute)})
+	tok, err := s.Token(Grant{Org: "org-1", DocumentRef: "d-1", TxnID: "t-1", ExpiresAt: now.Add(10 * time.Minute)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,10 +33,10 @@ func TestARoundTripInsideTheWindow(t *testing.T) {
 func TestEveryRefusalIsTheSameRefusal(t *testing.T) {
 	s := signer(t)
 	now := time.Now()
-	tok, _ := s.Token(Grant{DocumentRef: "d-1", TxnID: "t-1", ExpiresAt: now.Add(time.Minute)})
+	tok, _ := s.Token(Grant{Org: "org-1", DocumentRef: "d-1", TxnID: "t-1", ExpiresAt: now.Add(time.Minute)})
 
 	other, _ := NewSigner(strings.Repeat("x", 32))
-	forged, _ := other.Token(Grant{DocumentRef: "d-1", TxnID: "t-1", ExpiresAt: now.Add(time.Minute)})
+	forged, _ := other.Token(Grant{Org: "org-1", DocumentRef: "d-1", TxnID: "t-1", ExpiresAt: now.Add(time.Minute)})
 
 	cases := map[string]string{
 		"expired":      tok,
@@ -62,7 +62,7 @@ func TestEveryRefusalIsTheSameRefusal(t *testing.T) {
 func TestTheWindowClosesAtItsEdge(t *testing.T) {
 	s := signer(t)
 	exp := time.Now().Add(time.Minute).Truncate(time.Second)
-	tok, _ := s.Token(Grant{DocumentRef: "d", TxnID: "t", ExpiresAt: exp})
+	tok, _ := s.Token(Grant{Org: "org-1", DocumentRef: "d", TxnID: "t", ExpiresAt: exp})
 	if _, err := s.Parse(tok, exp.Add(-time.Second)); err != nil {
 		t.Fatalf("one second before expiry must serve: %v", err)
 	}
@@ -75,8 +75,8 @@ func TestTheWindowClosesAtItsEdge(t *testing.T) {
 // cannot be derived from the ids it names.
 func TestATokenIsNotDerivableFromItsIDs(t *testing.T) {
 	s := signer(t)
-	a, _ := s.Token(Grant{DocumentRef: "d", TxnID: "t-a", ExpiresAt: time.Now().Add(time.Minute)})
-	b, _ := s.Token(Grant{DocumentRef: "d", TxnID: "t-b", ExpiresAt: time.Now().Add(time.Minute)})
+	a, _ := s.Token(Grant{Org: "org-1", DocumentRef: "d", TxnID: "t-a", ExpiresAt: time.Now().Add(time.Minute)})
+	b, _ := s.Token(Grant{Org: "org-1", DocumentRef: "d", TxnID: "t-b", ExpiresAt: time.Now().Add(time.Minute)})
 	if a == b {
 		t.Fatal("two transactions produced one URL")
 	}

@@ -14,12 +14,20 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 )
 
 // Grant is what one URL permits: one document, for one eSign transaction,
 // until one moment. Nothing in it is derivable from a lease id or a tenant id
 // — the signature is what makes the path, and the key never leaves the server.
+//
+// Org is carried in the payload because the fetch arrives with no sign-in: it
+// is what lets the handler open a tenant-scoped transaction for the revocation
+// check and the access log. Readable in the token, like the rest of the
+// payload — the signature is the secret, not the ids.
 type Grant struct {
+	Org         tenancy.ID
 	DocumentRef string
 	TxnID       string
 	ExpiresAt   time.Time
@@ -46,6 +54,8 @@ func NewSigner(key string) (*Signer, error) {
 // makes it unforgeable and non-enumerable.
 func (s *Signer) Token(g Grant) (string, error) {
 	switch {
+	case g.Org == "" || strings.Contains(g.Org.String(), "|"):
+		return "", fmt.Errorf("docurl: not a usable organisation id")
 	case g.DocumentRef == "" || strings.Contains(g.DocumentRef, "|"):
 		return "", fmt.Errorf("docurl: not a usable document ref")
 	case g.TxnID == "" || strings.Contains(g.TxnID, "|"):
@@ -54,7 +64,7 @@ func (s *Signer) Token(g Grant) (string, error) {
 		return "", fmt.Errorf("docurl: a grant expires, always")
 	}
 	payload := base64.RawURLEncoding.EncodeToString(
-		fmt.Appendf(nil, "%s|%s|%d", g.DocumentRef, g.TxnID, g.ExpiresAt.Unix()))
+		fmt.Appendf(nil, "%s|%s|%s|%d", g.Org, g.DocumentRef, g.TxnID, g.ExpiresAt.Unix()))
 	return payload + "." + s.sign(payload), nil
 }
 
@@ -62,23 +72,45 @@ func (s *Signer) Token(g Grant) (string, error) {
 // signature, and expiry is checked here rather than left to the caller — a
 // caller cannot forget a check that already happened.
 func (s *Signer) Parse(token string, now time.Time) (Grant, error) {
+	g, ok := s.decode(token)
+	if !ok || now.Unix() >= g.ExpiresAt.Unix() {
+		return Grant{}, ErrURL
+	}
+	return g, nil
+}
+
+// Attribution returns the grant a token names when its signature is genuine,
+// live or not. It exists for the access log alone — an expired fetch is still
+// an attempt worth recording against its transaction — and never for serving:
+// the serving path goes through Parse, where expiry refuses. A tampered or
+// forged token has no attribution and is recorded by nobody.
+func (s *Signer) Attribution(token string) (Grant, bool) {
+	return s.decode(token)
+}
+
+func (s *Signer) decode(token string) (Grant, bool) {
 	payload, sig, ok := strings.Cut(token, ".")
 	if !ok || !hmac.Equal([]byte(s.sign(payload)), []byte(sig)) {
-		return Grant{}, ErrURL
+		return Grant{}, false
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(payload)
 	if err != nil {
-		return Grant{}, ErrURL
+		return Grant{}, false
 	}
 	parts := strings.Split(string(raw), "|")
-	if len(parts) != 3 {
-		return Grant{}, ErrURL
+	if len(parts) != 4 {
+		return Grant{}, false
 	}
-	exp, err := strconv.ParseInt(parts[2], 10, 64)
-	if err != nil || now.Unix() >= exp {
-		return Grant{}, ErrURL
+	exp, err := strconv.ParseInt(parts[3], 10, 64)
+	if err != nil {
+		return Grant{}, false
 	}
-	return Grant{DocumentRef: parts[0], TxnID: parts[1], ExpiresAt: time.Unix(exp, 0)}, nil
+	return Grant{
+		Org:         tenancy.ID(parts[0]),
+		DocumentRef: parts[1],
+		TxnID:       parts[2],
+		ExpiresAt:   time.Unix(exp, 0),
+	}, true
 }
 
 func (s *Signer) sign(payload string) string {

@@ -31,6 +31,7 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/platform/auth"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/config"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/docurl"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/events"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/events/natsx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
@@ -272,6 +273,23 @@ func run() error {
 	// else, and it is the one route rate limited without a key for exactly that
 	// reason.
 	moneyhttp.NewWebhooks(payments, logger).Routes(authz.NewRegistrar(mux, guard))
+
+	// The eSign docUrl fetch, #212 — outside authentication for the webhook's
+	// reason: the caller is a signer following an ESP's hyperlink, not a
+	// sign-in, and the HMAC grant in the path is the credential. The source is
+	// nil until the eSign flow (#62) exists; so does issuance, so a live grant
+	// arriving today would be a wiring bug, and the handler refuses it loudly.
+	if cfg.DocURLKey != "" {
+		docSigner, err := docurl.NewSigner(cfg.DocURLKey)
+		if err != nil {
+			return fmt.Errorf("docurl signer: %w", err)
+		}
+		docurl.NewHandler(docSigner, docurl.NewStore(pool), nil, logger).
+			Routes(authz.NewRegistrar(mux, guard))
+	} else {
+		logger.Warn("no docUrl signing key; the eSign document route is not registered",
+			"set", "DOCURL_KEY")
+	}
 	// The organisation a request acts for. Verification says who signed in;
 	// this says whose rows they may touch, and it is a database lookup rather
 	// than a token claim for the reason ADR-0027 §6 gives.
@@ -391,9 +409,16 @@ func newLogger(cfg config.Config) *slog.Logger {
 // webhookRoutes keys the unauthenticated surface, and only that surface. A
 // KeyFunc returning "" means "not limited by this one", so everything else falls
 // through to the per-tenant limiter rather than being counted twice.
+//
+// The docUrl route shares the limiter but not the bucket: an aggregator's
+// delivery burst must not be shed because somebody is probing document URLs,
+// and vice versa.
 func webhookRoutes(r *http.Request) string {
 	if strings.HasPrefix(r.URL.Path, "/v1/webhooks/") {
 		return "webhooks"
+	}
+	if strings.HasPrefix(r.URL.Path, "/v1/esign/documents/") {
+		return "esign-documents"
 	}
 	return ""
 }
