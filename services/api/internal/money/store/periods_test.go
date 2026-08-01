@@ -31,22 +31,33 @@ func TestThePeriodCloseStory(t *testing.T) {
 		f.src(domain.SourceLeaseCharge, "mar-2024-invoice", "2024-03-10")))
 
 	// A settlement line the provider settled in the month, attributed to this
-	// organisation and not yet posted: the checklist's known gap.
+	// organisation and not yet posted: the checklist's known gap. Attribution
+	// and a payment arrive together (settlement_lines_attribution_shape), so
+	// the gap is a matched-to-payment line that has not caused an entry.
 	lineID := ""
 	err := tenancy.Platform(context.Background(), plat, "seeding the pre-close gap",
 		func(ctx context.Context, tx pgx.Tx) error {
-			var batch string
+			var batch, payment string
 			if err := tx.QueryRow(ctx, `
 				INSERT INTO settlement_batches (provider, provider_batch_id, settled_on, gross_minor, net_minor)
 				VALUES ('cashfree', $1, date '2024-03-05', 100000, 100000)
 				RETURNING id`, "close-story-"+f.token).Scan(&batch); err != nil {
 				return err
 			}
+			if err := tx.QueryRow(ctx, `
+				INSERT INTO payments (tenant_id, property_id, unit_id, lease_id, payer_kind, payer_id,
+				                      amount_minor, method, provider, status, idempotency_key)
+				VALUES ($1, $2, $3, $4, 'tenant', $5, 100000, 'upi_intent', 'cashfree', 'created', $6)
+				RETURNING id`,
+				f.owner, f.place.Property, f.place.Unit, f.lease, f.tenant,
+				"close-story-"+f.token).Scan(&payment); err != nil {
+				return err
+			}
 			return tx.QueryRow(ctx, `
-				INSERT INTO settlement_lines (batch_id, tenant_id, provider, provider_line_id,
+				INSERT INTO settlement_lines (batch_id, tenant_id, payment_id, provider, provider_line_id,
 				                              line_kind, direction, amount_minor, settled_on)
-				VALUES ($1, $2, 'cashfree', $3, 'payment', 'inward', 100000, date '2024-03-05')
-				RETURNING id`, batch, f.owner, "line-"+f.token).Scan(&lineID)
+				VALUES ($1, $2, $3, 'cashfree', $4, 'payment', 'inward', 100000, date '2024-03-05')
+				RETURNING id`, batch, f.owner, payment, "line-"+f.token).Scan(&lineID)
 		})
 	if err != nil {
 		t.Fatalf("seeding the gap: %v", err)
