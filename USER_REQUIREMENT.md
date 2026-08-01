@@ -1,0 +1,19 @@
+# User requirements — done provisionally, to be redone properly for prod
+
+Each item below is live today with a shortcut that is acceptable for development
+and **not** for production. The "proper" column is the work owed before launch;
+nothing here is optional, and each names where the shortcut lives so it can be
+found and removed.
+
+| # | Area | Shortcut in place today | Proper prod treatment |
+|---|------|------------------------|----------------------|
+| 1 | **GIP tenants** (#229) | Not created; dev impersonation shim (`DEV_IMPERSONATE_ORG` / `DEV_IMPERSONATE_RESIDENT`) serves requests with `AUTH_ENFORCE=false` in dev | Create the six tenants (`dwellm8-own/ops/live/find/pro/admin`) with the curl loop on issue #229, enable phone OTP on all six and Google on own/ops/pro (ADR-0027 §5), then remove the impersonation shim per #229's acceptance criteria |
+| 2 | **Payout fingerprint key** (#227) | `PAYOUT_FP_KEY` set as a plain value in `tesserix-k8s/charts/apps/dwellm8-api/values.yaml` — a secret visible in git, rotated never | Create `prod-dwellm8-payout-fp-key` in GCP Secret Manager, wire an ExternalSecret + `secretKeyRef` in the api chart, delete the values entry. Rotating the key orphans old fingerprints, so rotation needs `jobs authz`-style re-fingerprinting or an epoch column — decide before rotating, not during |
+| 3 | **Authz enforcement** (ADR-0020) | `AUTHZ_ENFORCE` unset (false): checks run dark, every route passes | Flip to `true` in values only after (1) is done and `jobs authz --mode reconcile` exits clean on the deployed image. Flipping earlier denies everything — fail-closed is the design |
+| 4 | **Statutory rule rows** (#210, #207, #215) | Stamp-duty and deposit-cap rows seeded from secondary sources, statuses `unverified`/`conflicting`, `enforcement=record_only` | Counsel verifies each row against the bare act, sets `verified` + `verified_by`/`verified_on`, and only then raises enforcement. The `jobs review` CronJob goes red when `review_due` passes — that red is the reminder, do not silence it by moving the date |
+| 5 | **Support/impersonation windows** | `organisation#support` tuples must be written manually (no admin surface exists) | The admin console (#157) owns creating support sessions with MFA, justification and expiry; until then any support tuple written by hand must be deleted by hand |
+| 6 | **Payout run** (#80) | `Payable()` and the cool-off exist with no caller; a held payout is only visible in data | The Temporal payout workflow calls `Payable` before money moves, surfaces holds to support, and notifies the old channels from the `money.payout_account.changed` event |
+| 7 | **GitHub Actions billing** | Fixed manually on 2026-08-01 after an org-wide outage | Set a spending alert on the org so the next failure is an email, not a red pipeline discovered at midnight |
+| 8 | **Repo visibility cycle** | `tesserix/dwellm8` left public at the user's instruction to keep CI running | Decide: either buy private-repo Actions minutes and go private permanently, or accept public. The public/private toggle cycle documented in the workspace CLAUDE.md is the interim rule |
+| 9 | **Decision audit as rows** (#154) | Enforced authz decisions are structured log lines (subject, relation, object, result, cache provenance); retention = cluster log retention | Decide whether denials (low-volume, security-significant) become `audit_events` rows with the granting relationship, and write the retention/access rule for them |
+| 10 | **OpenFGA model race** | Two identical model versions exist in the store — the two API replicas raced their first boot; benign because models are immutable and checks pin ids | Add a jittered or advisory-locked bootstrap so a fleet writes one model version, before the model becomes large enough for the duplication to annoy audits |
