@@ -28,7 +28,7 @@ jobs:
   typecheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
@@ -51,7 +51,7 @@ jobs:
       matrix:
         app: [admin, find, live, ops, own, pro]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
@@ -67,7 +67,7 @@ jobs:
   guards:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # ADR-0024 §8 and the facilitation rule it names: the product describes its
       # own role in one set of words, and a screen that paraphrases it is a screen
