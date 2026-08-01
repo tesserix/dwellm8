@@ -17,7 +17,7 @@ jobs:
   guards:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # This repository ships no SQL. Every table, policy, function and seed row
       # lives in tesserix-k8s and reaches the cluster through ArgoCD, so a .sql
