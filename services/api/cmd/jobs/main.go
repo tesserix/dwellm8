@@ -91,9 +91,48 @@ func run(args []string) error {
 		return poll(ctx, args[1:], cfg, pool, logger)
 	case "authz":
 		return authzJob(ctx, args[1:], cfg, pool, logger)
+	case "review":
+		return review(ctx, pool, logger)
 	default:
-		return fmt.Errorf("%q is not a job — try `bill`, `poll` or `authz`", args[0])
+		return fmt.Errorf("%q is not a job — try `bill`, `poll`, `authz` or `review`", args[0])
 	}
+}
+
+// review fails when any live statutory rule is past its review date — the
+// registry's operational alert (#210, ADR-0023). The failed CronJob is the
+// page, the same idiom as the authz reconcile: a rule nobody re-reads after a
+// Budget is how a verified number quietly stops being true.
+func review(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) error {
+	rows, err := pool.Query(ctx, `
+		SELECT rule_type, jurisdiction, rule_key, owner, review_due
+		  FROM statutory_rules
+		 WHERE retired_at IS NULL AND review_due < CURRENT_DATE
+		 ORDER BY review_due, rule_type, jurisdiction`)
+	if err != nil {
+		return fmt.Errorf("reading the registry: %w", err)
+	}
+	defer rows.Close()
+
+	overdue := 0
+	for rows.Next() {
+		var ruleType, jurisdiction, key, owner string
+		var due time.Time
+		if err := rows.Scan(&ruleType, &jurisdiction, &key, &owner, &due); err != nil {
+			return err
+		}
+		overdue++
+		log.Warn("statutory rule overdue for review",
+			"rule", ruleType, "jurisdiction", jurisdiction, "key", key,
+			"owner", owner, "review_due", due.Format("2006-01-02"))
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	log.Info("registry review finished", "version", version, "overdue", overdue)
+	if overdue > 0 {
+		return fmt.Errorf("%d statutory rule(s) are past review_due — each is named above with its owner", overdue)
+	}
+	return nil
 }
 
 // authzJob compares the graph with the domain database. dwellm8#151.

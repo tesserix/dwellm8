@@ -76,7 +76,7 @@ func TestATupleMovesNothingInPostgreSQL(t *testing.T) {
 			_, err := tx.Exec(ctx, `
 				INSERT INTO payout_accounts (tenant_id, owner_party_id, masked_account, ifsc, account_fp)
 				VALUES ($1, $2, 'XX9999', 'HDFC0009999', 'fp-combined')
-				ON CONFLICT DO NOTHING`, isolationtest.OrgA.String(), owner)
+				ON CONFLICT DO NOTHING`, isolationtest.OrgOwner.String(), owner)
 			return err
 		})
 	if err != nil {
@@ -86,7 +86,7 @@ func TestATupleMovesNothingInPostgreSQL(t *testing.T) {
 	// The graph is as wrong as it can be: mallory holds a tuple onto the org A
 	// object, written moments ago.
 	if err := c.WriteTuples(ctx, []Tuple{
-		{User: "user:mallory", Relation: "owner", Object: "organisation:" + isolationtest.OrgA.String()}}, nil); err != nil {
+		{User: "user:mallory", Relation: "owner", Object: "organisation:" + isolationtest.OrgOwner.String()}}, nil); err != nil {
 		t.Fatalf("writing the hostile tuple: %v", err)
 	}
 
