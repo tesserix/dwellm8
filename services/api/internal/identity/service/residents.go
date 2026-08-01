@@ -115,6 +115,12 @@ func (r *Residents) PartyFor(ctx context.Context, phone string) (string, error) 
 	return r.principals.EnsureResident(ctx, phone)
 }
 
+// Contact returns a party's phone and email — an ops surface's reason to
+// hold a tenant's party id is a lease, not a sign-in, so it cannot Lookup.
+func (r *Residents) Contact(ctx context.Context, partyID string) (phone, email string, err error) {
+	return r.principals.Contact(ctx, partyID)
+}
+
 // ErrNoTenancy is a verified renter who is on no lease.
 //
 // Distinct from a refusal: the sign-in is genuine and there is simply nothing

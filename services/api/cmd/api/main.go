@@ -51,6 +51,7 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 	"github.com/tesserix/dwellm8/services/api/internal/routine"
 	automationsurface "github.com/tesserix/dwellm8/services/api/internal/surface/automations"
+	opssurface "github.com/tesserix/dwellm8/services/api/internal/surface/ops"
 	ownersurface "github.com/tesserix/dwellm8/services/api/internal/surface/owner"
 	"github.com/tesserix/dwellm8/services/api/internal/surface/resident"
 )
@@ -471,6 +472,16 @@ func run() error {
 		feed, blobStore, logger, nil).
 		Routes(authz.NewRegistrar(ownerMux, guard))
 
+	// The management firm's view — the Ops app's surface. Portfolio, the
+	// live roster's arrears, and the org feed: the same composition seam as
+	// the owner surface above, reused rather than duplicated (both take the
+	// same property.Service and leases/statements/feed instances).
+	opsMux := http.NewServeMux()
+	opssurface.New(
+		propertyservice.New(propertystore.New(pool)),
+		leases, statements, residents, feed, logger, nil).
+		Routes(authz.NewRegistrar(opsMux, guard))
+
 	// The tenant view, on its own tree. Issue #51, ADR-0029.
 	//
 	// Separate because it resolves a sign-in differently: the ordinary resolver
@@ -539,6 +550,9 @@ func run() error {
 		// presented here is refused before any query runs.
 		mux.Handle("/v1/owner/", auth.Middleware(verifier,
 			auth.RequireSurface(auth.SurfaceOwn, resolver.Middleware(ownerMux))))
+		// Same shape, the Ops app's own sign-ins only.
+		mux.Handle("/v1/ops/", auth.Middleware(verifier,
+			auth.RequireSurface(auth.SurfaceOps, resolver.Middleware(opsMux))))
 	} else {
 		// The renter every tenant-surface request acts as while authentication is
 		// off. Unset is a supported state and answers 503 per request rather than
@@ -571,6 +585,7 @@ func run() error {
 		// Dev only, like everything in this branch: the Own app pointed at a
 		// local API reads the impersonated organisation's portfolio.
 		mux.Handle("/v1/owner/", resolver.Middleware(ownerMux))
+		mux.Handle("/v1/ops/", resolver.Middleware(opsMux))
 	}
 
 	tenantLimiter := httpx.NewLimiter(cfg.RateLimits.Tenant, nil)

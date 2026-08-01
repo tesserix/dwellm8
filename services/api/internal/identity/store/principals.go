@@ -118,6 +118,33 @@ func (s *Principals) Lookup(ctx context.Context, p auth.Principal) (Person, erro
 	return out, nil
 }
 
+// Contact returns a party's phone and email, for a caller — an ops
+// collections screen, say — holding only a party id from a lease's
+// tenant_id, not a token to Lookup.
+//
+// LIMIT 1 rather than an error on more than one row: a party signs in on one
+// surface in the ordinary case, and a second principal row for the same
+// party (staff moving between apps) is not a reason to refuse a screen that
+// only wants a phone number.
+func (s *Principals) Contact(ctx context.Context, partyID string) (phone, email string, err error) {
+	err = tenancy.Platform(ctx, s.platform, "resolving a party's contact details",
+		func(ctx context.Context, tx pgx.Tx) error {
+			return tx.QueryRow(ctx, `
+				SELECT coalesce(phone, ''), coalesce(email::text, '')
+				  FROM identity_principals
+				 WHERE party_id = $1::uuid
+				 ORDER BY last_seen_at DESC NULLS LAST
+				 LIMIT 1`, partyID).Scan(&phone, &email)
+		})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", nil
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("identity: resolving contact for %s: %w", partyID, err)
+	}
+	return phone, email, nil
+}
+
 // Onboarding is a first sign-in becoming somebody with an organisation.
 type Onboarding struct {
 	Principal auth.Principal

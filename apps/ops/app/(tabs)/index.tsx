@@ -9,6 +9,7 @@ import {
   color, font, inr, inrShort, radius, space,
 } from '@dwellm8/mobile-shared';
 import { approvals, org, staff, today, worklist } from '../../src/data/mock';
+import { useOpsTodayData } from '../../src/data/source';
 
 /**
  * Today — the manager's first screen of the day.
@@ -29,7 +30,14 @@ const kindIcon: Record<string, React.ReactNode> = {
 
 export default function Today() {
   const router = useRouter();
-  const pct = Math.round((today.collectedPaise / today.targetPaise) * 100);
+  const roster = useOpsTodayData();
+  // Billed and outstanding are real in live mode (the roster's rent-roll and
+  // position-today, GET /v1/ops/today) — everything else on this screen
+  // (payouts, jobs, inspections, occupancy) has no API yet and stays on the
+  // demonstration figures, per source.ts's file comment.
+  const billedPaise = roster.billedPaise;
+  const collectedPaise = billedPaise - roster.outstandingPaise;
+  const pct = billedPaise > 0 ? Math.round((collectedPaise / billedPaise) * 100) : 0;
 
   const open = (t: (typeof worklist)[number]) => {
     if (t.kind === 'collect') router.push(`/arrear?id=${t.ref}`);
@@ -59,23 +67,23 @@ export default function Today() {
           <Text style={s.date}>{today.date}</Text>
         </View>
 
-        {/* collections this month — the number the agency is judged on */}
+        {/* the rent roll and what's outstanding against it — real in live mode */}
         <Card>
           <View style={s.rowBetween}>
-            <Text style={s.cardLabel}>Collected in July</Text>
-            <StatusPill text={`${pct}% of target`} tone={pct >= 90 ? 'green' : 'amber'} />
+            <Text style={s.cardLabel}>{roster.mode === 'live' ? 'Rent roll, position today' : 'Collected in July'}</Text>
+            <StatusPill text={`${pct}% collected`} tone={pct >= 90 ? 'green' : 'amber'} />
           </View>
-          <Text style={s.big}>{inr(today.collectedPaise, { noPaise: true })}</Text>
+          <Text style={s.big}>{inr(collectedPaise, { noPaise: true })}</Text>
           <ProgressBar pct={pct} tint={pct >= 90 ? color.positive : '#D89A2B'} />
           <Text style={s.sub}>
-            {inr(today.targetPaise - today.collectedPaise, { noPaise: true })} outstanding of{' '}
-            {inr(today.targetPaise, { noPaise: true })} billed
+            {inr(roster.outstandingPaise, { noPaise: true })} outstanding of{' '}
+            {inr(billedPaise, { noPaise: true })} billed
           </Text>
 
           <View style={s.metrics}>
             <Metric
-              value={inrShort(today.arrearsPaise)}
-              label={`arrears · ${today.arrearsCount} tenancies`}
+              value={inrShort(roster.outstandingPaise)}
+              label={`arrears · ${roster.arrearsCount} tenancies`}
               tone="red"
               onPress={() => router.push('/(tabs)/collect')}
             />
@@ -159,7 +167,10 @@ export default function Today() {
         <View style={s.footNote}>
           <AlertIcon size={16} c={color.inkFaint} />
           <Text style={s.footText}>
-            Demonstration data. Your spend authority is {inr(staff.spendAuthorityPaise, { noPaise: true })} per job.
+            {roster.mode === 'live'
+              ? 'Rent roll and arrears are live. Everything else on this screen is demonstration data — no API yet.'
+              : 'Demonstration data.'}{' '}
+            Your spend authority is {inr(staff.spendAuthorityPaise, { noPaise: true })} per job.
           </Text>
         </View>
       </Screen>

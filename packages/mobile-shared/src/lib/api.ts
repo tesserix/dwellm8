@@ -69,6 +69,40 @@ export type UploadGrant = {
   object_path: string;
 };
 
+/** One property on the firm's portfolio (GET /v1/ops/properties). */
+export type OpsProperty = {
+  id: string;
+  code: string;
+  name: string;
+  kind: string;
+  address_line1: string;
+  locality: string;
+  city: string;
+  unit_count: number;
+};
+
+/** One live tenancy and what it owes today (GET /v1/ops/arrears). */
+export type OpsArrear = {
+  lease_id: string;
+  property: string;
+  unit: string;
+  locality: string;
+  phone?: string;
+  email?: string;
+  rent_amount_minor: number;
+  due_amount_minor: number;
+  as_of: string;
+};
+
+/** The collection roster's headline numbers (GET /v1/ops/today). */
+export type OpsToday = {
+  as_of: string;
+  active_tenancies: number;
+  rent_roll_amount_minor: number;
+  outstanding_amount_minor: number;
+  tenancies_in_arrears: number;
+};
+
 export type ApiConfig = {
   /** e.g. https://api.dwellm8.com — no trailing slash. */
   baseUrl: string;
@@ -149,6 +183,27 @@ export class DwellmApi {
     return this.request('POST', `/v1/owner/properties/${propertyId}/documents/upload-url`, {
       filename, content_type: contentType,
     });
+  }
+
+  /* --------------------------------------------------------- ops surface */
+
+  async opsProperties(): Promise<OpsProperty[]> {
+    const out = await this.request<{ properties: OpsProperty[] }>('GET', '/v1/ops/properties');
+    return out.properties ?? [];
+  }
+
+  async opsArrears(): Promise<OpsArrear[]> {
+    const out = await this.request<{ arrears: OpsArrear[] }>('GET', '/v1/ops/arrears');
+    return out.arrears ?? [];
+  }
+
+  opsToday(): Promise<OpsToday> {
+    return this.request('GET', '/v1/ops/today');
+  }
+
+  async opsActivity(): Promise<ActivityEntry[]> {
+    const out = await this.request<{ entries: ActivityEntry[] }>('GET', '/v1/ops/activity');
+    return out.entries ?? [];
   }
 }
 
