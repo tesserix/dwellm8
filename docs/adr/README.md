@@ -30,6 +30,7 @@ stays readable.
 | [0027](0027-identity-gip-tenants.md) | Identity: a GIP tenant per app, a bearer token per request, and a membership lookup between them | Accepted |
 | [0028](0028-periodic-jobs.md) | Periodic jobs: a CronJob per organisation, and when not to use a workflow | Accepted |
 | [0029](0029-the-resident-scope.md) | The resident scope: a renter is not a small organisation | Accepted |
+| [0030](0030-the-stay-model.md) | The stay model: a guest is not a tenant, and one flat cannot be twice occupied | Accepted |
 
 0004 is missing on purpose: the identity and authorisation decision it was
 reserved for was closed as not planned, and the numbers are not reused.
