@@ -19,6 +19,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	discoveryhttp "github.com/tesserix/dwellm8/services/api/internal/discovery/http"
+	discoveryservice "github.com/tesserix/dwellm8/services/api/internal/discovery/service"
+	discoverystore "github.com/tesserix/dwellm8/services/api/internal/discovery/store"
 	identityhttp "github.com/tesserix/dwellm8/services/api/internal/identity/http"
 	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 	identitystore "github.com/tesserix/dwellm8/services/api/internal/identity/store"
@@ -272,6 +275,18 @@ func run() error {
 			if err != nil {
 				return fmt.Errorf("authz projector consumer: %w", err)
 			}
+			// A third durable on the discovery stream: a published listing and a
+			// received enquiry are relationship-bearing facts too (ADR-0019).
+			ensureCtx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+			discCons, err := eventsConn.EnsureConsumer(ensureCtx, natsx.ConsumerSpec{
+				Name:     "authz-tupler-discovery",
+				Stream:   "DWELLM8_DISCOVERY",
+				Subjects: []string{"dwellm8.discovery.>"},
+			})
+			cancel()
+			if err != nil {
+				return fmt.Errorf("authz projector consumer: %w", err)
+			}
 			proj := &authz.Projector{FGA: fga, Log: logger}
 			go func() {
 				if err := natsx.Consume(relayCtx, cons, proj.Handle, logger); err != nil && !errors.Is(err, context.Canceled) {
@@ -283,8 +298,13 @@ func run() error {
 					logger.Error("authz identity projector stopped", "error", err)
 				}
 			}()
+			go func() {
+				if err := natsx.Consume(relayCtx, discCons, proj.Handle, logger); err != nil && !errors.Is(err, context.Canceled) {
+					logger.Error("authz discovery projector stopped", "error", err)
+				}
+			}()
 			logger.Info("authz projector running",
-				"consumers", "authz-tupler, authz-tupler-identity")
+				"consumers", "authz-tupler, authz-tupler-identity, authz-tupler-discovery")
 		}
 	} else {
 		logger.Warn("authz is not configured; route checks are declared but dark",
@@ -335,14 +355,67 @@ func run() error {
 			}
 		}()
 		logger.Info("automations running", "consumers", "automations-lease, automations-identity")
+
+		// The listing closer, ADR-0019 #135: a tenancy starting kills every
+		// advert for its unit, with no manual step. Its own durable name, for
+		// the automations' reason — a listing that fails to close must not
+		// stop a move-in checklist starting, and vice versa.
+		ensureCtx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		letCons, err := eventsConn.EnsureConsumer(ensureCtx, natsx.ConsumerSpec{
+			Name:     "discovery-listings",
+			Stream:   "DWELLM8_LEASE",
+			Subjects: []string{"dwellm8.lease.tenancy.>"},
+		})
+		cancel()
+		if err != nil {
+			return fmt.Errorf("discovery consumer: %w", err)
+		}
+		letMarker := discoveryservice.Consumer{
+			Marker: discoverystore.NewLetMarker(tenancy.NewPlatformPool(platformPool)),
+			Log:    logger,
+		}
+		go func() {
+			if err := natsx.Consume(relayCtx, letCons, letMarker.Handle, logger); err != nil &&
+				!errors.Is(err, context.Canceled) {
+				logger.Error("discovery consumer stopped", "consumer", "discovery-listings", "error", err)
+			}
+		}()
+		logger.Info("discovery listing closer running", "consumer", "discovery-listings")
 	} else {
 		logger.Warn("the event-triggered automations are off; a tenancy going live will not " +
 			"start its move-in until somebody does. The scheduled ones are unaffected.")
 	}
 
+	// The discovery funnel, ADR-0019: listings from live inventory, the public
+	// site, prospects and their enquiries, and the conversion back into a
+	// lease. The occupancy guard and the conversion drafter are both the lease
+	// module — the funnel starts and ends at the tenancy, and both couplings
+	// are visible on these lines.
+	listingsStore := discoverystore.NewListings(pool)
+	prospectsStore := discoverystore.NewProspects(tenancy.NewPlatformPool(platformPool))
+	enquiriesStore := discoverystore.NewEnquiries(pool, tenancy.NewPlatformPool(platformPool))
+	listings := discoveryservice.NewListings(listingsStore, discoverystore.NewPublic(pool),
+		routine.Today, logger).WithOccupancy(leases)
+	enquiries := discoveryservice.NewEnquiries(enquiriesStore, listingsStore, prospectsStore, logger).
+		WithDrafter(discoveryservice.FromLeases{Leases: leases})
+
+	// The OTP verifier and the masked-calling bridge are dev fakes outside
+	// production and absent in it until a provider lands (#22): verification
+	// answers 503, search and shortlisting still work. A fake that verified
+	// nobody must not run where a real prospect can reach it.
+	var phoneVerifier discoveryservice.PhoneVerifier
+	if !cfg.IsProd() {
+		phoneVerifier = discoveryservice.DevVerifier{Log: logger}
+		enquiries = enquiries.WithBridges(discoveryservice.DevBridge{Log: logger})
+	} else {
+		logger.Warn("no OTP provider; prospect verification answers 503 until one is wired")
+	}
+	prospects := discoveryservice.NewProspects(prospectsStore, phoneVerifier, logger)
+
 	// Routes that a person authenticates for.
 	protected := http.NewServeMux()
 	leasehttp.NewLeases(leases, logger).Routes(authz.NewRegistrar(protected, guard))
+	discoveryhttp.NewListings(listings, enquiries, logger).Routes(authz.NewRegistrar(protected, guard))
 	maintenancehttp.NewChecklists(checklists, logger).Routes(authz.NewRegistrar(protected, guard))
 	automationsurface.New(automations, automationStore, logger).Routes(authz.NewRegistrar(protected, guard))
 
@@ -386,6 +459,13 @@ func run() error {
 	// else, and it is the one route rate limited without a key for exactly that
 	// reason.
 	moneyhttp.NewWebhooks(payments, logger).Routes(authz.NewRegistrar(mux, guard))
+
+	// The public listing site, outside authentication for the stranger's
+	// reason: a prospect has no account by definition. Reads traverse the
+	// schema's one public branch; writes require a browsing token and, past
+	// the verification point, a verified phone. ADR-0019.
+	discoveryhttp.NewPublic(listings, prospects, enquiries, logger).
+		Routes(authz.NewRegistrar(mux, guard))
 
 	// The eSign docUrl fetch, #212 — outside authentication for the webhook's
 	// reason: the caller is a signer following an ESP's hyperlink, not a
@@ -532,6 +612,12 @@ func webhookRoutes(r *http.Request) string {
 	}
 	if strings.HasPrefix(r.URL.Path, "/v1/esign/documents/") {
 		return "esign-documents"
+	}
+	// The public listing site: anonymous by design, so limited as one shared
+	// bucket rather than per caller. Its own bucket, not the webhooks' — a
+	// scraper must not shed a payment confirmation.
+	if strings.HasPrefix(r.URL.Path, "/v1/public/") {
+		return "public-discovery"
 	}
 	return ""
 }

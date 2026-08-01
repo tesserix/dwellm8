@@ -53,8 +53,8 @@ func seedListing(t *testing.T, plat tenancy.PlatformPool, token string) (live, d
 	err := tenancy.Platform(ctx, plat, "seeding listings", func(ctx context.Context, tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO listings (tenant_id, property_id, unit_id, state, published_at, headline,
-			                      locality, city, state_code, rent_minor)
-			VALUES ($1, $2, $3, 'live', now(), $4, 'Indiranagar', 'Bengaluru', 'KA', 2500000)
+			                      locality, city, state_code, rent_minor, costs_confirmed)
+			VALUES ($1, $2, $3, 'live', now(), $4, 'Indiranagar', 'Bengaluru', 'KA', 2500000, true)
 			RETURNING id`,
 			isolationtest.OrgA.String(), prop, unitA, "Live "+token).Scan(&live); err != nil {
 			return err
@@ -160,10 +160,12 @@ func TestAnAnonymousVisitorCannotWriteAListing(t *testing.T) {
 			t.Error("an anonymous visitor edited a listing's rent")
 		}
 	}
+	// costs_confirmed is set so the refusal below is the policy's, not the
+	// disclosure constraint's — this asserts RLS, not #134.
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO listings (tenant_id, property_id, unit_id, state, headline, locality, city,
-		                      state_code, rent_minor)
-		VALUES ($1, gen_random_uuid(), gen_random_uuid(), 'live', 'Forged', 'X', 'Y', 'KA', 1)`,
+		                      state_code, rent_minor, costs_confirmed)
+		VALUES ($1, gen_random_uuid(), gen_random_uuid(), 'live', 'Forged', 'X', 'Y', 'KA', 1, true)`,
 		isolationtest.OrgA.String()); err == nil {
 		t.Error("an anonymous visitor created a listing")
 	}

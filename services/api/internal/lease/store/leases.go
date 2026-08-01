@@ -263,6 +263,24 @@ func startedEvent(ctx context.Context, tx pgx.Tx, tenant, id string, by domain.A
 		events.Actor{Kind: events.ActorSystem}, data)
 }
 
+// ActiveOnUnit returns the tenancy occupying a unit on a date, "" when none.
+// Active and in-notice count: a tenancy under notice still occupies the flat.
+func (s *Leases) ActiveOnUnit(ctx context.Context, unitID string, on effective.Date) (string, error) {
+	var id string
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `
+			SELECT id::text
+			  FROM leases
+			 WHERE unit_id = $1 AND state IN ('active', 'in_notice')
+			   AND validity @> $2::date
+			 LIMIT 1`, unitID, on.Time()).Scan(&id)
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return id, err
+}
+
 // conflicting finds the tenancy that blocked an activation, so the refusal can
 // name it rather than describe it.
 func (s *Leases) conflicting(ctx context.Context, id string) (string, error) {

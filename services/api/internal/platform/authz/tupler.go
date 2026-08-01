@@ -66,6 +66,41 @@ func TuplesFor(e events.Envelope) (writes, deletes []Tuple, err error) {
 		// evidence of a process that happened, and the people who could see it are
 		// the people who should still be able to.
 		return nil, nil, nil
+	case "discovery.listing.published":
+		// A listing's edge is its property: can_edit flows down the management
+		// chain from there (ADR-0019). Written at publication rather than at
+		// draft because a draft is reached only through the owner's session,
+		// which RLS already scopes.
+		var data struct {
+			PropertyID string `json:"property_id"`
+		}
+		if err := json.Unmarshal(e.Data, &data); err != nil {
+			return nil, nil, fmt.Errorf("authz: decoding %s %s: %w", e.Type, e.ID, err)
+		}
+		if data.PropertyID == "" {
+			return nil, nil, nil
+		}
+		return []Tuple{{User: "property:" + data.PropertyID, Relation: "property",
+			Object: "listing:" + e.Subject.ID}}, nil, nil
+	case "discovery.listing.let", "discovery.listing.withdrawn":
+		// Deliberately no deletes, the checklist's reasoning: a closed listing
+		// is the record of what was advertised, and the people who could see it
+		// are the people who should still be able to.
+		return nil, nil, nil
+	case "discovery.enquiry.received":
+		// An enquiry hangs off its listing, so can_respond reaches whoever can
+		// edit the listing.
+		var data struct {
+			ListingID string `json:"listing_id"`
+		}
+		if err := json.Unmarshal(e.Data, &data); err != nil {
+			return nil, nil, fmt.Errorf("authz: decoding %s %s: %w", e.Type, e.ID, err)
+		}
+		if data.ListingID == "" {
+			return nil, nil, nil
+		}
+		return []Tuple{{User: "listing:" + data.ListingID, Relation: "listing",
+			Object: "listing_enquiry:" + e.Subject.ID}}, nil, nil
 	case "lease.tenancy.started":
 		w, err := agreementTuples(e)
 		return w, nil, err

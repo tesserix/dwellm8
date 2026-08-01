@@ -164,6 +164,41 @@ func Scoped(ctx context.Context, p Pool, fn func(context.Context, pgx.Tx) error)
 	return nil
 }
 
+// Public runs fn in a deliberately unscoped transaction on the request pool,
+// for the one read path that serves strangers: the listing site (ADR-0019).
+//
+// This is not a bypass. The connection is the ordinary request role, every
+// policy still applies, and an unscoped session matches only the public branch
+// on listings — live, published rows — and sees nothing anywhere else. The
+// settings are still written, to '', for Scoped's reason: a pooled connection
+// must not carry the previous request's tenant into this one, which here would
+// turn an anonymous search into somebody's scoped read.
+//
+// Writes have no public branch by construction, so fn is enforced read-only at
+// the database as well as by convention.
+func Public(ctx context.Context, p Pool, fn func(context.Context, pgx.Tx) error) error {
+	tx, err := p.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return fmt.Errorf("tenancy: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx,
+		`SELECT set_config('app.tenant_id', '', true),
+		        set_config('app.grant_id', '', true),
+		        set_config('app.resident_party_id', '', true)`); err != nil {
+		return fmt.Errorf("tenancy: clear scope: %w", err)
+	}
+
+	if err := fn(ctx, tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("tenancy: commit: %w", err)
+	}
+	return nil
+}
+
 // PlatformPool is a pool connected as dwellm8_platform — the role the policies
 // exempt through is_platform_session().
 //
