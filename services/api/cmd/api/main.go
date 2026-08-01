@@ -47,6 +47,7 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/platform/docurl"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/events"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/events/natsx"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/ginx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
 	tdsstore "github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
@@ -427,6 +428,12 @@ func run() error {
 	// Routes that a person authenticates for.
 	protected := http.NewServeMux()
 	leasehttp.NewLeases(leases, logger).Routes(authz.NewRegistrar(protected, guard))
+	// The Gin layer (platform/ginx): new surfaces standardise on Gin behind
+	// the same guard, mounted per-pattern so the two routers never fight over
+	// a subtree. Rent revisions, #36, is its first tenant.
+	ginEngine := ginx.Engine()
+	leasehttp.NewRevisions(leases, logger).Routes(ginx.New(ginEngine, guard))
+	protected.Handle("POST /v1/leases/{id}/rent-revisions", ginEngine)
 	// Registering inventory, #32 — the rows everything else points back to.
 	propertyhttp.New(propertyservice.New(propertystore.New(pool)), logger).
 		Routes(authz.NewRegistrar(protected, guard))

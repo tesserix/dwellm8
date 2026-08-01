@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/tesserix/dwellm8/services/api/internal/lease/domain"
+	"github.com/tesserix/dwellm8/services/api/internal/lease/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 )
@@ -80,6 +81,17 @@ func (s *Leases) DraftFromApplication(ctx context.Context, a Application) (Creat
 		}},
 	}
 	return s.Create(ctx, d)
+}
+
+// ReviseRent changes what a tenancy owes from a future date — issue #36,
+// effective-dated per ADR-0008, never an in-place update.
+func (s *Leases) ReviseRent(ctx context.Context, leaseID string, r store.Revision) error {
+	if err := s.store.ReviseRent(ctx, leaseID, r); err != nil {
+		return err
+	}
+	s.log.Info("rent revised", "lease", leaseID,
+		"amount_minor", r.AmountMinor, "effective", r.From.String())
+	return nil
 }
 
 // ActiveOnUnit reports the tenancy occupying a unit on a date, "" when it is

@@ -83,6 +83,11 @@ func Subject(ctx context.Context) (string, error) {
 	return "", errors.New("no principal in context")
 }
 
+// Wrap applies the guard to any http.Handler. Exported for the Gin registrar
+// (platform/ginx): a second router must sit behind the same guard, not a copy
+// of it.
+func (g *Guard) Wrap(c Check, next http.Handler) http.Handler { return g.wrap(c, next) }
+
 func (g *Guard) wrap(c Check, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !g.Enforce {
