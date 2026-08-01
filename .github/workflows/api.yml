@@ -679,6 +679,13 @@ jobs:
               -- these reference it, and neither cascades on purpose: what was
               -- deducted and what the tenant declared are answers to a notice.
               DELETE FROM tds_obligation_steps; DELETE FROM tds_obligations;
+              -- ADR-0032's checklists name the tenancy they are about, so they go
+              -- before it does, and the tasks go before the checklist they belong to.
+              ALTER TABLE checklist_tasks NO FORCE ROW LEVEL SECURITY;
+              ALTER TABLE checklists NO FORCE ROW LEVEL SECURITY;
+              DELETE FROM checklist_tasks; DELETE FROM checklists;
+              ALTER TABLE checklists FORCE ROW LEVEL SECURITY;
+              ALTER TABLE checklist_tasks FORCE ROW LEVEL SECURITY;
               DELETE FROM lease_tax_facts; DELETE FROM leases;
               ALTER TABLE tds_obligation_steps FORCE ROW LEVEL SECURITY;
               ALTER TABLE tds_obligations FORCE ROW LEVEL SECURITY;
