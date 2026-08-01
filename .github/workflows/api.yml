@@ -82,12 +82,20 @@ jobs:
           PGPASSWORD: bootstrap
         run: |
           set -euo pipefail
-          # Cache-busted, because raw.githubusercontent.com is a CDN with a
-          # minutes-long TTL: a schema change pushed to tesserix-k8s and an app
-          # change pushed straight after it race, and the loser is a run that
-          # fails with "relation does not exist" against a schema that does.
-          curl -fsSL -H 'Cache-Control: no-cache' -o /tmp/dwellm8.sql \
-            "https://raw.githubusercontent.com/tesserix/tesserix-k8s/main/charts/apps/db-schema-bootstrap/schemas/dwellm8/dwellm8/dwellm8.sql?run=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          # The schema ships as ordered chapters (000_… through 230_…); their
+          # lexical concatenation is the schema, exactly as the bootstrap's
+          # combineInto applies it. The listing comes from the API rather than
+          # the raw CDN so a chapter pushed a minute ago is already visible;
+          # each fetch stays cache-busted for the same reason the single file
+          # was.
+          mkdir -p /tmp/schema-chapters
+          for f in $(curl -fsSL "https://api.github.com/repos/tesserix/tesserix-k8s/contents/charts/apps/db-schema-bootstrap/schemas/dwellm8/dwellm8?ref=main" \
+                     | jq -r '.[].name | select(endswith(".sql"))' | sort); do
+            curl -fsSL -H 'Cache-Control: no-cache' -o "/tmp/schema-chapters/$f" \
+              "https://raw.githubusercontent.com/tesserix/tesserix-k8s/main/charts/apps/db-schema-bootstrap/schemas/dwellm8/dwellm8/$f?run=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          done
+          cat /tmp/schema-chapters/*.sql > /tmp/dwellm8.sql
+          echo "assembled $(ls /tmp/schema-chapters | wc -l) chapters, $(wc -c < /tmp/dwellm8.sql) bytes"
           psql -h localhost -U postgres -c "CREATE ROLE dwellm8 LOGIN CREATEROLE PASSWORD 'ci'"
           psql -h localhost -U postgres -c "CREATE DATABASE dwellm8 OWNER dwellm8"
           PGPASSWORD=ci psql -h localhost -U dwellm8 -d dwellm8 -v ON_ERROR_STOP=1 -f /tmp/dwellm8.sql
