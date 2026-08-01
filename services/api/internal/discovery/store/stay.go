@@ -227,12 +227,12 @@ func (s *Stay) Hold(ctx context.Context, listingID, prospectID string, checkIn, 
 			var l StayListing
 			var tenant string
 			err := tx.QueryRow(ctx, `
-				SELECT tenant_id::text, unit_id::text, nightly_minor, cleaning_minor,
-				       max_guests, min_nights, max_nights
+				SELECT tenant_id::text, property_id::text, unit_id::text, nightly_minor,
+				       cleaning_minor, max_guests, min_nights, max_nights
 				  FROM stay_listings
 				 WHERE id = $1 AND state = 'live' AND published_at IS NOT NULL
 				 FOR UPDATE`, listingID).
-				Scan(&tenant, &l.UnitID, &l.NightlyMinor, &l.CleaningMinor,
+				Scan(&tenant, &l.PropertyID, &l.UnitID, &l.NightlyMinor, &l.CleaningMinor,
 					&l.MaxGuests, &l.MinNights, &l.MaxNights)
 			if errors.Is(err, pgx.ErrNoRows) {
 				return ErrNoStay
@@ -253,15 +253,16 @@ func (s *Stay) Hold(ctx context.Context, listingID, prospectID string, checkIn, 
 			total := int64(nights)*l.NightlyMinor + l.CleaningMinor
 
 			err = tx.QueryRow(ctx, `
-				INSERT INTO stay_bookings (tenant_id, listing_id, unit_id, prospect_id, guests,
-				                           check_in, check_out, nightly_minor, cleaning_minor,
-				                           total_minor, hold_expires_at)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now() + $11::interval)
+				INSERT INTO stay_bookings (tenant_id, listing_id, property_id, unit_id,
+				                           prospect_id, guests, check_in, check_out,
+				                           nightly_minor, cleaning_minor, total_minor,
+				                           hold_expires_at)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now() + $12::interval)
 				RETURNING id::text, listing_id::text, unit_id::text, prospect_id::text, state,
 				          guests, check_in, check_out, nightly_minor, cleaning_minor,
 				          total_minor, hold_expires_at`,
-				tenant, listingID, l.UnitID, prospectID, guests, checkIn, checkOut,
-				l.NightlyMinor, l.CleaningMinor, total, holdTTL.String()).
+				tenant, listingID, l.PropertyID, l.UnitID, prospectID, guests, checkIn,
+				checkOut, l.NightlyMinor, l.CleaningMinor, total, holdTTL.String()).
 				Scan(&b.ID, &b.ListingID, &b.UnitID, &b.ProspectID, &b.State, &b.Guests,
 					&b.CheckIn, &b.CheckOut, &b.NightlyMinor, &b.CleaningMinor,
 					&b.TotalMinor, &b.HoldExpiresAt)
