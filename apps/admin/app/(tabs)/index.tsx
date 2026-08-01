@@ -8,6 +8,7 @@ import {
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { admin, alerts, health } from '../../src/data/mock';
+import { DemoNotice } from '../../src/components/DemoNotice';
 
 /**
  * Alerts and platform health — the on-call screen.
@@ -41,6 +42,7 @@ export default function Alerts() {
         right={<StatusPill text={admin.onCall ? 'On call' : 'Off call'} tone={admin.onCall ? 'green' : 'neutral'} dot />}
       />
       <Screen>
+        <DemoNotice />
         {toast ? <Toast text={toast} /> : null}
 
         <Card>

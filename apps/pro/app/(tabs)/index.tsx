@@ -8,6 +8,7 @@ import {
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { earnings, jobs, tech } from '../../src/data/mock';
+import { DemoNotice } from '../../src/components/DemoNotice';
 
 /**
  * The technician's day.
@@ -36,6 +37,7 @@ export default function Today() {
         left={<AvatarButton onPress={() => router.push('/profile')} />}
       />
       <Screen>
+        <DemoNotice />
         <View style={s.greetWrap}>
           <Text style={s.greet}>{todays.length} jobs today</Text>
           <Text style={s.date}>Wednesday, 29 July · {tech.trade}</Text>

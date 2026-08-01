@@ -8,6 +8,7 @@ import {
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { disputes, reconciliation } from '../../src/data/mock';
+import { DemoNotice } from '../../src/components/DemoNotice';
 
 /** Dispute and reconciliation triage — decide, or route it to the right desk. */
 
@@ -23,6 +24,7 @@ export default function Triage() {
     <>
       <AppHeader title="Triage" showCaret={false} left={<AvatarButton onPress={() => router.push('/profile')} />} />
       <Screen>
+        <DemoNotice />
         <View style={{ marginTop: space(3), marginBottom: space(2) }}>
           <Segmented items={['Disputes', 'Reconciliation']} value={tab} onChange={setTab} />
         </View>

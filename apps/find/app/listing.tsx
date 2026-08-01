@@ -7,6 +7,7 @@ import {
   color, font, inr, radius, space,
 } from '@dwellm8/mobile-shared';
 import { listings, photos } from '../src/data/mock';
+import { api, prospectToken, useListing } from '../src/data/source';
 
 /**
  * A listing.
@@ -20,13 +21,32 @@ import { listings, photos } from '../src/data/mock';
 export default function ListingScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const l = listings.find((x) => x.id === id) ?? listings[0];
+  const live = useListing(id);
+  const l = live.listing ?? listings.find((x) => x.id === id) ?? listings[0];
   const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const say = (m: string) => {
     setToast(m);
     setTimeout(() => setToast(null), 2600);
+  };
+
+  // Saving works without an account: the browsing token is minted on first
+  // use, and the shortlist follows it (ADR-0019).
+  const save = async () => {
+    const client = api();
+    if (client && l.id) {
+      try {
+        const token = await prospectToken(client);
+        if (saved) await client.shortlistRemove(token, l.id);
+        else await client.shortlistAdd(token, l.id);
+      } catch {
+        say('Could not update your saved homes');
+        return;
+      }
+    }
+    setSaved(!saved);
+    say(saved ? 'Removed from saved' : 'Saved');
   };
 
   const v = l.verification;
@@ -43,7 +63,7 @@ export default function ListingScreen() {
         title={l.title}
         subtitle={`${l.locality}, ${l.city}`}
         onBack={() => router.back()}
-        right={<Button label={saved ? 'Saved' : 'Save'} tone="secondary" small onPress={() => { setSaved(!saved); say(saved ? 'Removed from saved' : 'Saved — we will tell you if the rent changes'); }} />}
+        right={<Button label={saved ? 'Saved' : 'Save'} tone="secondary" small onPress={save} />}
       />
       <Screen>
         {toast ? <Toast text={toast} /> : null}

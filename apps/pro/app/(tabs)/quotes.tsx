@@ -8,6 +8,7 @@ import {
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { quotes, parts } from '../../src/data/mock';
+import { DemoNotice } from '../../src/components/DemoNotice';
 
 /** Quotes raised against jobs, and the parts price list they are built from. */
 
@@ -22,6 +23,7 @@ export default function Quotes() {
     <>
       <AppHeader title="Quotes" showCaret={false} left={<AvatarButton onPress={() => router.push('/profile')} />} />
       <Screen>
+        <DemoNotice />
         <View style={s.metrics}>
           <Metric value={String(quotes.length)} label="quotes raised" tone="blue" />
           <Metric value={String(approved.length)} label="approved" tone="green" />

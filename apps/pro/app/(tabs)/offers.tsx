@@ -8,6 +8,7 @@ import {
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { jobs } from '../../src/data/mock';
+import { DemoNotice } from '../../src/components/DemoNotice';
 
 /**
  * Offers and the job history.
@@ -39,6 +40,7 @@ export default function Offers() {
     <>
       <AppHeader title="Offers" showCaret={false} left={<AvatarButton onPress={() => router.push('/profile')} />} />
       <Screen>
+        <DemoNotice />
         {toast ? <Toast text={toast} /> : null}
 
         <View style={{ marginTop: space(3), marginBottom: space(2) }}>

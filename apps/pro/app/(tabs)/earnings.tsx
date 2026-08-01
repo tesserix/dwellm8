@@ -7,6 +7,7 @@ import {
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
 import { earnings, tech } from '../../src/data/mock';
+import { DemoNotice } from '../../src/components/DemoNotice';
 
 /**
  * Earnings.
@@ -23,6 +24,7 @@ export default function Earnings() {
     <>
       <AppHeader title="Earnings" showCaret={false} left={<AvatarButton onPress={() => router.push('/profile')} />} />
       <Screen>
+        <DemoNotice />
         <Card>
           <Text style={s.label}>Earned this month</Text>
           <Text style={s.big}>{inr(earnings.monthPaise, { noPaise: true })}</Text>

@@ -7,10 +7,13 @@ import {
   BedIcon, CalendarIcon, ChatIcon, ClipboardIcon, ShieldIcon,
   color, font, inr, radius, space,
 } from '@dwellm8/mobile-shared';
-import { currentInvoice, notices, receipts, tenancy, tickets, totalDue } from '../../src/data/mock';
+import { currentInvoice } from '../../src/data/mock';
+import { useLiveData } from '../../src/data/source';
 
 export default function Home() {
   const router = useRouter();
+  const { mode, tenancy, dueMinor, dueAsOf, receipts, tickets, notices } = useLiveData();
+  const totalDue = dueMinor;
   const open = tickets.filter((t) => t.status !== 'Resolved');
 
   return (
@@ -23,9 +26,15 @@ export default function Home() {
       <Screen>
         {/* the one thing a tenant opens the app for */}
         <Card style={{ marginTop: space(3) }}>
-          <Text style={s.dueLabel}>Due in {currentInvoice.daysToDue} days</Text>
+          <Text style={s.dueLabel}>
+            {mode === 'live' ? (dueAsOf ? `Due as of ${dueAsOf}` : 'Due now') : `Due in ${currentInvoice.daysToDue} days`}
+          </Text>
           <Text style={s.dueAmount}>{inr(totalDue)}</Text>
-          <Text style={s.duePeriod}>{currentInvoice.period} · due {currentInvoice.dueOn}</Text>
+          <Text style={s.duePeriod}>
+            {mode === 'live'
+              ? `Rent ${inr(tenancy.rentPaise, { noPaise: true })} · due day ${tenancy.dueDay}`
+              : `${currentInvoice.period} · due ${currentInvoice.dueOn}`}
+          </Text>
 
           <Pressable style={s.payBtn} onPress={() => router.push('/(tabs)/pay')}>
             <Text style={s.payBtnText}>Pay now</Text>

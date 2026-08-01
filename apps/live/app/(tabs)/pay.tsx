@@ -5,11 +5,13 @@ import {
   ActivityRow, AppHeader, AvatarButton, Card, ClipboardIcon, DottedRule,
   MoneyRow, Screen, SectionTitle, Segmented, color, font, inr, radius, space,
 } from '@dwellm8/mobile-shared';
-import { currentInvoice, methods, receipts, totalDue } from '../../src/data/mock';
+import { currentInvoice, methods } from '../../src/data/mock';
+import { pay, useLiveData, type LiveData } from '../../src/data/source';
 
 export default function Pay() {
   const router = useRouter();
   const [tab, setTab] = useState('Pay');
+  const data = useLiveData();
 
   return (
     <>
@@ -18,28 +20,61 @@ export default function Pay() {
         <Segmented items={['Pay', 'Receipts']} value={tab} onChange={setTab} />
       </View>
       <Screen>
-        {tab === 'Pay' ? <PayTab /> : <ReceiptsTab />}
+        {tab === 'Pay' ? <PayTab data={data} /> : <ReceiptsTab data={data} />}
       </Screen>
     </>
   );
 }
 
-function PayTab() {
+function PayTab({ data }: { data: LiveData }) {
   const router = useRouter();
   const [method, setMethod] = useState('upi');
+  const [busy, setBusy] = useState(false);
   const chosen = methods.find((m) => m.id === method)!;
+  const totalDue = data.dueMinor;
   const payable = totalDue + chosen.feePaise;
+
+  // In live mode the payment goes to the ledger through the provider chain
+  // (ADR-0011); the UPI URL comes back and the OS opens it. Demo mode keeps
+  // the walkthrough screens.
+  const start = async () => {
+    if (data.mode === 'demo' || !data.leaseId) {
+      router.push(method === 'autopay' ? '/autopay' : '/pay-confirm');
+      return;
+    }
+    if (method === 'autopay') {
+      router.push('/autopay');
+      return;
+    }
+    setBusy(true);
+    try {
+      const out = await pay(data.leaseId, totalDue, method === 'offline' ? 'offline' : 'upi');
+      router.push(`/pay-confirm?status=${out.status}${out.payUrl ? `&url=${encodeURIComponent(out.payUrl)}` : ''}`);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <>
       <SectionTitle style={{ marginTop: space(4) }}>What you owe</SectionTitle>
       <Card>
-        <Text style={s.invNo}>Invoice {currentInvoice.number}</Text>
-        <Text style={s.invPeriod}>{currentInvoice.period}</Text>
-        <View style={{ height: space(3) }} />
-        {currentInvoice.lines.map((l) => (
-          <MoneyRow key={l.label} label={l.label} value={inr(l.paise)} />
-        ))}
+        {data.mode === 'demo' ? (
+          <>
+            <Text style={s.invNo}>Invoice {currentInvoice.number}</Text>
+            <Text style={s.invPeriod}>{currentInvoice.period}</Text>
+            <View style={{ height: space(3) }} />
+            {currentInvoice.lines.map((l) => (
+              <MoneyRow key={l.label} label={l.label} value={inr(l.paise)} />
+            ))}
+          </>
+        ) : (
+          <>
+            <Text style={s.invNo}>{data.tenancy.unit}</Text>
+            <Text style={s.invPeriod}>{data.dueAsOf ? `As of ${data.dueAsOf}` : 'Current position'}</Text>
+            <View style={{ height: space(3) }} />
+          </>
+        )}
         <MoneyRow label="Total due" value={inr(totalDue)} strong last />
       </Card>
 
@@ -79,12 +114,12 @@ function PayTab() {
         <MoneyRow label="You pay" value={inr(payable)} strong last />
       </Card>
 
-      <Pressable
-        style={s.cta}
-        onPress={() => router.push(method === 'autopay' ? '/autopay' : '/pay-confirm')}
-      >
+      <Pressable style={[s.cta, busy && { opacity: 0.6 }]} onPress={start} disabled={busy}>
         <Text style={s.ctaText}>
-          {method === 'offline' ? 'Record this payment' : method === 'autopay' ? 'Set up autopay' : `Pay ${inr(payable)}`}
+          {busy ? 'Starting…'
+            : method === 'offline' ? 'Record this payment'
+            : method === 'autopay' ? 'Set up autopay'
+            : `Pay ${inr(payable)}`}
         </Text>
       </Pressable>
       <Text style={s.ctaNote}>
@@ -94,10 +129,14 @@ function PayTab() {
   );
 }
 
-function ReceiptsTab() {
+function ReceiptsTab({ data }: { data: LiveData }) {
+  const receipts = data.receipts;
   return (
     <>
       <SectionTitle style={{ marginTop: space(4) }}>Your receipts</SectionTitle>
+      {!receipts.length ? (
+        <Card><Text style={s.recSub}>No receipts yet — they appear the moment a payment confirms.</Text></Card>
+      ) : null}
       {receipts.map((r) => (
         <ActivityRow
           key={r.id}

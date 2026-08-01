@@ -6,7 +6,7 @@ import {
   color, font, space,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
-import { enquiries, listings } from '../../src/data/mock';
+import { useMyFind } from '../../src/data/source';
 
 /** Every home you are talking to somebody about, and where it stands. */
 
@@ -17,10 +17,19 @@ const tone: Record<string, Tone> = {
   Applied: 'amber',
   'Offer made': 'green',
   'Not proceeding': 'red',
+  // The API's pipeline vocabulary (ADR-0019).
+  new: 'neutral',
+  owner_responded: 'blue',
+  scheduled: 'violet',
+  completed: 'green',
+  closed: 'red',
 };
 
 export default function Enquiries() {
   const router = useRouter();
+  const { enquiries } = useMyFind();
+  const booked = enquiries.filter((e) => e.state === 'scheduled' || e.state === 'Inspection booked').length;
+  const applied = enquiries.filter((e) => e.state === 'Applied' || e.state === 'completed').length;
 
   return (
     <>
@@ -28,25 +37,25 @@ export default function Enquiries() {
       <Screen>
         <View style={s.metrics}>
           <Metric value={String(enquiries.length)} label="homes in play" tone="blue" />
-          <Metric value="1" label="inspection booked" tone="violet" />
-          <Metric value="1" label="application out" tone="amber" />
+          <Metric value={String(booked)} label="inspections booked" tone="violet" />
+          <Metric value={String(applied)} label="moving forward" tone="amber" />
         </View>
 
         <Card padded={false} style={{ paddingHorizontal: space(4) }}>
-          {enquiries.map((e, i) => {
-            const l = listings.find((x) => x.id === e.listingId)!;
-            return (
-              <ListRow
-                key={e.id}
-                title={l.title}
-                subtitle={`${l.locality} · ${e.detail}`}
-                meta={e.at}
-                right={<StatusPill text={e.state} tone={tone[e.state]} />}
-                onPress={() => router.push(`/listing?id=${l.id}`)}
-                last={i === enquiries.length - 1}
-              />
-            );
-          })}
+          {enquiries.map((e, i) => (
+            <ListRow
+              key={e.id}
+              title={e.title}
+              subtitle={e.state.replace(/_/g, ' ')}
+              meta={e.when}
+              right={<StatusPill text={e.state.replace(/_/g, ' ')} tone={tone[e.state] ?? 'neutral'} />}
+              onPress={() => {}}
+              last={i === enquiries.length - 1}
+            />
+          ))}
+          {!enquiries.length ? (
+            <Text style={s.empty}>Nothing yet — enquire on a home and it appears here.</Text>
+          ) : null}
         </Card>
 
         <Card>
@@ -71,6 +80,7 @@ export default function Enquiries() {
 
 const s = StyleSheet.create({
   metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4), marginBottom: space(3) },
+  empty: { ...font.body, color: color.inkSoft, textAlign: 'center', paddingVertical: space(6) },
   h: { ...font.h3, color: color.inkStrong, marginBottom: space(2) },
   note: { ...font.small, color: color.inkSoft, marginTop: space(4), lineHeight: 18 },
 });

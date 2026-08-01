@@ -5,11 +5,12 @@ import {
   AppHeader, AvatarButton, Card, ChipRow, DottedRule, EmptyState, HouseArt,
   Screen, WrenchIcon, color, font, inr, radius, space,
 } from '@dwellm8/mobile-shared';
-import { tickets } from '../../src/data/mock';
+import { useLiveData } from '../../src/data/source';
 
 export default function Requests() {
   const router = useRouter();
   const [filter, setFilter] = useState('Open');
+  const { tickets } = useLiveData();
   const list = tickets.filter((t) => (filter === 'Open' ? t.status !== 'Resolved' : t.status === 'Resolved'));
 
   return (

@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   AppHeader, AvatarButton, Screen, SearchBar, ChipRow, Card, Segmented,
   StatusPill, Button, MapPinIcon,
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
-import { listings } from '../../src/data/mock';
+import { useSearch } from '../../src/data/source';
 import { ListingCard } from '../../src/components/ListingCard';
 
 /**
@@ -22,6 +22,7 @@ export default function Search() {
   const [q, setQ] = useState('');
   const [bhk, setBhk] = useState('Any');
   const [sort, setSort] = useState('Relevant');
+  const { loading, listings, error } = useSearch();
 
   const list = useMemo(() => {
     let out = listings.filter(
@@ -36,7 +37,7 @@ export default function Search() {
     else if (sort === 'Rent') out = out.slice().sort((a, b) => a.rentPaise - b.rentPaise);
     else out = out.slice().sort((a, b) => Number(b.boosted) - Number(a.boosted));
     return out;
-  }, [q, bhk, sort]);
+  }, [q, bhk, sort, listings]);
 
   return (
     <>
@@ -67,11 +68,23 @@ export default function Search() {
           <Text style={s.countSub}>Verified listings only</Text>
         </View>
 
+        {loading ? (
+          <View style={{ paddingVertical: space(8), alignItems: 'center' }}>
+            <ActivityIndicator />
+          </View>
+        ) : null}
+        {error ? (
+          <Card>
+            <Text style={s.emptyTitle}>Could not reach Dwellm8</Text>
+            <Text style={s.emptyBody}>{error}</Text>
+          </Card>
+        ) : null}
+
         {list.map((l) => (
           <ListingCard key={l.id} l={l} onPress={() => router.push(`/listing?id=${l.id}`)} />
         ))}
 
-        {!list.length ? (
+        {!list.length && !loading && !error ? (
           <Card>
             <Text style={s.emptyTitle}>Nothing here yet</Text>
             <Text style={s.emptyBody}>

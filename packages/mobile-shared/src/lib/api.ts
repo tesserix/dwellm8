@@ -103,6 +103,137 @@ export type OpsToday = {
   tenancies_in_arrears: number;
 };
 
+/** One public listing card (GET /v1/public/listings), the true cost stated. */
+export type PublicListing = {
+  id: string;
+  headline: string;
+  locality: string;
+  city: string;
+  state_code: string;
+  bedrooms?: number;
+  carpet_area_sqft?: number;
+  available_from?: string;
+  rent_minor: number;
+  maintenance_minor: number;
+  parking_minor: number;
+  other_monthly_minor: number;
+  deposit_minor: number;
+  one_time_minor: number;
+  total_monthly_minor: number;
+  total_one_time_minor: number;
+  currency: string;
+  published_at: string;
+};
+
+export type PublicSearch = {
+  city?: string;
+  locality?: string;
+  maxRentMinor?: number;
+  bedrooms?: number;
+  availableBy?: string; // YYYY-MM-DD
+  after?: string; // cursor from the previous page
+  limit?: number;
+};
+
+/** One bookable viewing time (GET /v1/public/listings/{id}/slots). */
+export type PublicSlot = {
+  id: string;
+  starts_at: string;
+  duration_mins: number;
+  remaining: number;
+};
+
+/** A confirmed booking — the meeting point arrives only here. */
+export type BookedInspection = {
+  id: string;
+  state: string;
+  starts_at: string;
+  meeting_point?: string;
+};
+
+/** One of the prospect's own enquiries (GET /v1/public/enquiries). */
+export type ProspectEnquiry = {
+  id: string;
+  listing_id: string;
+  headline?: string;
+  kind: string;
+  state: string;
+  message?: string;
+  scheduled_for?: string;
+  created_at: string;
+};
+
+export type ShortlistItem = {
+  listing_id: string;
+  headline: string;
+  locality: string;
+  city: string;
+  rent_minor: number;
+  state: string;
+};
+
+/** One residency as the tenant sees it (GET /v1/resident/tenancies). */
+export type ResidentTenancy = {
+  lease_id: string;
+  state: string;
+  live: boolean;
+  organisation: string;
+  property: string;
+  unit: string;
+  locality: string;
+  city: string;
+  start_on: string;
+  end_on?: string;
+  ended_on?: string;
+  notice_days: number;
+  lock_in_until?: string;
+  rent_amount_minor: number;
+  due_day: number;
+  currency: string;
+  dues?: ResidentDues;
+};
+
+export type ResidentDues = {
+  due_amount_minor: number;
+  rent_amount_minor: number;
+  late_fee_amount_minor: number;
+  adjustment_amount_minor: number;
+  paid_amount_minor: number;
+  advance_amount_minor: number;
+  deposit_amount_minor: number;
+  as_of: string;
+};
+
+export type ResidentHistoryEntry = {
+  entry_id: string;
+  kind: string;
+  occurred_on: string;
+  amount_minor: number;
+  memo?: string;
+  reversed?: boolean;
+};
+
+export type ResidentPayment = {
+  payment_id: string;
+  amount_minor: number;
+  currency: string;
+  method: string;
+  status: string;
+  created_at: string;
+  received_at?: string;
+  failure_code?: string;
+  receipt_number?: string;
+};
+
+/** What starting a payment answers with (POST .../payments). */
+export type PaymentStarted = {
+  payment_id: string;
+  status: string;
+  pay_url?: string;
+  pay_token?: string;
+  provider_order_id?: string;
+};
+
 export type ApiConfig = {
   /** e.g. https://api.dwellm8.com — no trailing slash. */
   baseUrl: string;
@@ -126,8 +257,9 @@ export class DwellmApi {
     this.cfg = { ...cfg, baseUrl: cfg.baseUrl.replace(/\/+$/, '') };
   }
 
-  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const headers: Record<string, string> = { Accept: 'application/json' };
+  private async request<T>(method: string, path: string, body?: unknown,
+    extra?: Record<string, string>): Promise<T> {
+    const headers: Record<string, string> = { Accept: 'application/json', ...extra };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     const token = this.cfg.getToken ? await this.cfg.getToken() : null;
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -203,6 +335,121 @@ export class DwellmApi {
 
   async opsActivity(): Promise<ActivityEntry[]> {
     const out = await this.request<{ entries: ActivityEntry[] }>('GET', '/v1/ops/activity');
+    return out.entries ?? [];
+  }
+
+  /* ---------------------------------------------- public discovery (Find) */
+  // Anonymous by design (ADR-0019): browsing needs no account, making contact
+  // needs a verified phone. The prospect token is a browsing key, sent as its
+  // own header so a future sign-in can coexist with it.
+
+  async publicSearch(q: PublicSearch): Promise<{ listings: PublicListing[]; nextAfter?: string }> {
+    const p = new URLSearchParams();
+    if (q.city) p.set('city', q.city);
+    if (q.locality) p.set('locality', q.locality);
+    if (q.maxRentMinor) p.set('max_rent_minor', String(q.maxRentMinor));
+    if (q.bedrooms) p.set('bedrooms', String(q.bedrooms));
+    if (q.availableBy) p.set('available_by', q.availableBy);
+    if (q.after) p.set('after', q.after);
+    if (q.limit) p.set('limit', String(q.limit));
+    const qs = p.toString();
+    const out = await this.request<{ listings: PublicListing[]; next_after?: string }>(
+      'GET', `/v1/public/listings${qs ? `?${qs}` : ''}`);
+    return { listings: out.listings ?? [], nextAfter: out.next_after };
+  }
+
+  publicListing(id: string): Promise<PublicListing> {
+    return this.request('GET', `/v1/public/listings/${id}`);
+  }
+
+  async prospectStart(): Promise<string> {
+    const out = await this.request<{ token: string }>('POST', '/v1/public/prospects', {});
+    return out.token;
+  }
+
+  prospectVerify(token: string, phone: string): Promise<void> {
+    return this.request('POST', '/v1/public/prospects/verify', { phone },
+      { 'X-Dwellm8-Prospect': token });
+  }
+
+  prospectConfirm(token: string, phone: string, code: string): Promise<void> {
+    return this.request('POST', '/v1/public/prospects/confirm', { phone, code },
+      { 'X-Dwellm8-Prospect': token });
+  }
+
+  async shortlist(token: string): Promise<ShortlistItem[]> {
+    const out = await this.request<{ shortlist: ShortlistItem[] }>(
+      'GET', '/v1/public/shortlist', undefined, { 'X-Dwellm8-Prospect': token });
+    return out.shortlist ?? [];
+  }
+
+  shortlistAdd(token: string, listingId: string): Promise<void> {
+    return this.request('POST', '/v1/public/shortlist', { listing_id: listingId },
+      { 'X-Dwellm8-Prospect': token });
+  }
+
+  shortlistRemove(token: string, listingId: string): Promise<void> {
+    return this.request('DELETE', `/v1/public/shortlist/${listingId}`, undefined,
+      { 'X-Dwellm8-Prospect': token });
+  }
+
+  enquire(token: string, listingId: string, message: string): Promise<{ id: string; state: string }> {
+    return this.request('POST', '/v1/public/enquiries',
+      { listing_id: listingId, kind: 'enquiry', message },
+      { 'X-Dwellm8-Prospect': token });
+  }
+
+  async myEnquiries(token: string): Promise<ProspectEnquiry[]> {
+    const out = await this.request<{ enquiries: ProspectEnquiry[] }>(
+      'GET', '/v1/public/enquiries', undefined, { 'X-Dwellm8-Prospect': token });
+    return out.enquiries ?? [];
+  }
+
+  async listingSlots(listingId: string): Promise<PublicSlot[]> {
+    const out = await this.request<{ slots: PublicSlot[] }>(
+      'GET', `/v1/public/listings/${listingId}/slots`);
+    return out.slots ?? [];
+  }
+
+  /** A full slot answers 409 with `alternatives` — surface them, never silence. */
+  bookInspection(token: string, listingId: string, slotId: string): Promise<BookedInspection> {
+    return this.request('POST', '/v1/public/inspections',
+      { listing_id: listingId, slot_id: slotId },
+      { 'X-Dwellm8-Prospect': token });
+  }
+
+  cancelInspection(token: string, enquiryId: string): Promise<void> {
+    return this.request('POST', `/v1/public/inspections/${enquiryId}/cancel`, {},
+      { 'X-Dwellm8-Prospect': token });
+  }
+
+  /* --------------------------------------------- resident surface (Live) */
+
+  async residentTenancies(): Promise<ResidentTenancy[]> {
+    const out = await this.request<{ tenancies: ResidentTenancy[] }>(
+      'GET', '/v1/resident/tenancies');
+    return out.tenancies ?? [];
+  }
+
+  residentTenancy(leaseId: string): Promise<ResidentTenancy> {
+    return this.request('GET', `/v1/resident/tenancies/${leaseId}`);
+  }
+
+  async residentHistory(leaseId: string): Promise<{ charges: ResidentHistoryEntry[]; payments: ResidentPayment[] }> {
+    const out = await this.request<{ charges?: ResidentHistoryEntry[]; payments?: ResidentPayment[] }>(
+      'GET', `/v1/resident/tenancies/${leaseId}/history`);
+    return { charges: out.charges ?? [], payments: out.payments ?? [] };
+  }
+
+  residentPay(leaseId: string, amountMinor: number, method: string,
+    idempotencyKey: string): Promise<PaymentStarted> {
+    return this.request('POST', `/v1/resident/tenancies/${leaseId}/payments`,
+      { amount_minor: amountMinor, method, idempotency_key: idempotencyKey });
+  }
+
+  async residentActivity(leaseId: string): Promise<ActivityEntry[]> {
+    const out = await this.request<{ entries: ActivityEntry[] }>(
+      'GET', `/v1/resident/tenancies/${leaseId}/activity`);
     return out.entries ?? [];
   }
 }

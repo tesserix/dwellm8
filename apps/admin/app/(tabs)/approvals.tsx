@@ -7,6 +7,7 @@ import {
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { approvals, webOnly } from '../../src/data/mock';
+import { DemoNotice } from '../../src/components/DemoNotice';
 
 /**
  * The approval queue.
@@ -26,6 +27,7 @@ export default function Approvals() {
     <>
       <AppHeader title="Approvals" showCaret={false} left={<AvatarButton onPress={() => router.push('/profile')} />} />
       <Screen>
+        <DemoNotice />
         {toast ? <Toast text={toast} /> : null}
 
         <View style={s.metrics}>

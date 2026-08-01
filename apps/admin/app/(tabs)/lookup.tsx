@@ -8,6 +8,7 @@ import {
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { customers } from '../../src/data/mock';
+import { DemoNotice } from '../../src/components/DemoNotice';
 
 /**
  * Customer lookup for a support call.
@@ -30,6 +31,7 @@ export default function Lookup() {
     <>
       <AppHeader title="Lookup" showCaret={false} left={<AvatarButton onPress={() => router.push('/profile')} />} />
       <Screen>
+        <DemoNotice />
         <View style={{ marginTop: space(4) }}>
           <SearchBar value={q} onChange={setQ} placeholder="Organisation, person, phone or reference" />
         </View>

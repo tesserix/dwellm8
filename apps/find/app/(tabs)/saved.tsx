@@ -5,7 +5,8 @@ import {
   AppHeader, AvatarButton, Screen, Card, Segmented, ListRow, StatusPill, Button,
   color, font, space,
 } from '@dwellm8/mobile-shared';
-import { listings, savedSearches } from '../../src/data/mock';
+import { savedSearches } from '../../src/data/mock';
+import { useMyFind } from '../../src/data/source';
 import { ListingCard } from '../../src/components/ListingCard';
 
 /** Saved homes, and the searches that watch for new ones. */
@@ -13,7 +14,7 @@ import { ListingCard } from '../../src/components/ListingCard';
 export default function Saved() {
   const router = useRouter();
   const [tab, setTab] = useState('Homes');
-  const saved = listings.slice(0, 2);
+  const { saved } = useMyFind();
 
   return (
     <>
