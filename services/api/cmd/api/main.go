@@ -224,6 +224,12 @@ func run() error {
 	protected := http.NewServeMux()
 	leasehttp.NewLeases(leases, logger).Routes(authz.NewRegistrar(protected, guard))
 
+	// The impersonated-owner control, #227. Changes fail closed without the
+	// fingerprint key; the payout run (#80) is the reader.
+	payoutAccounts := moneyservice.NewPayoutAccounts(
+		moneystore.NewPayoutAccounts(pool), cfg.PayoutFingerprintKey, logger)
+	moneyhttp.NewPayoutAccounts(payoutAccounts, logger).Routes(authz.NewRegistrar(protected, guard))
+
 	// The tenant view, on its own tree. Issue #51, ADR-0029.
 	//
 	// Separate because it resolves a sign-in differently: the ordinary resolver

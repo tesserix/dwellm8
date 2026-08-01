@@ -58,6 +58,9 @@ type Config struct {
 	// answer is enforced. Configured-but-not-enforced is the rollout state —
 	// the store and model are bootstrapped and checks run dark.
 	Authz Authz
+
+	// PayoutFingerprintKey keys the payout-account fingerprint HMAC (#227).
+	PayoutFingerprintKey string
 }
 
 // Authz configures the OpenFGA guard. ADR-0020, dwellm8#150.
@@ -246,6 +249,11 @@ func Load() (Config, error) {
 		Enforce:  os.Getenv("AUTHZ_ENFORCE") == "true",
 		CacheTTL: envDur("AUTHZ_CACHE_TTL_MS", 10000),
 	}
+
+	// The payout-account fingerprint key (#227). Unset disables changes rather
+	// than the process: the control fails closed per request, and the rest of
+	// the API owes nothing to it.
+	c.PayoutFingerprintKey = os.Getenv("PAYOUT_FP_KEY")
 
 	c.PaymentProviders = splitList(get("PAYMENT_PROVIDERS", "offline"))
 	if !contains(c.PaymentProviders, "offline") {
