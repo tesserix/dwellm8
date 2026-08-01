@@ -5,10 +5,17 @@ and **not** for production. The "proper" column is the work owed before launch;
 nothing here is optional, and each names where the shortcut lives so it can be
 found and removed.
 
+**The standing secrets rule.** Every secret follows one path: a GCP Secret
+Manager entry (created with a random development value if the real one is not
+to hand), an ExternalSecret in the chart, and a `secretKeyRef` in the pod spec.
+Values files carry secret *names*, never values — a value in git fires
+GitGuardian and is burnt the moment it lands. "Set properly for prod" always
+means: add a new SM version with the real value; nothing in git changes.
+
 | # | Area | Shortcut in place today | Proper prod treatment |
 |---|------|------------------------|----------------------|
 | 1 | **GIP tenants** (#229) | Not created; dev impersonation shim (`DEV_IMPERSONATE_ORG` / `DEV_IMPERSONATE_RESIDENT`) serves requests with `AUTH_ENFORCE=false` in dev | Create the six tenants (`dwellm8-own/ops/live/find/pro/admin`) with the curl loop on issue #229, enable phone OTP on all six and Google on own/ops/pro (ADR-0027 §5), then remove the impersonation shim per #229's acceptance criteria |
-| 2 | **Payout fingerprint key** (#227) | `PAYOUT_FP_KEY` set as a plain value in `tesserix-k8s/charts/apps/dwellm8-api/values.yaml` — a secret visible in git, rotated never | Create `prod-dwellm8-payout-fp-key` in GCP Secret Manager, wire an ExternalSecret + `secretKeyRef` in the api chart, delete the values entry. Rotating the key orphans old fingerprints, so rotation needs `jobs authz`-style re-fingerprinting or an epoch column — decide before rotating, not during |
+| 2 | **Payout fingerprint key** (#227) | `prod-dwellm8-payout-fp-key` exists in Secret Manager with a **development-grade random value**, wired through the payments ExternalSecret + `secretKeyRef` — no value in git | Replace the SM version with the operationally-owned key before real payout accounts exist. Rotating later orphans old fingerprints, so rotation needs re-fingerprinting or an epoch column — decide before rotating, not during |
 | 3 | **Authz enforcement** (ADR-0020) | `AUTHZ_ENFORCE` unset (false): checks run dark, every route passes | Flip to `true` in values only after (1) is done and `jobs authz --mode reconcile` exits clean on the deployed image. Flipping earlier denies everything — fail-closed is the design |
 | 4 | **Statutory rule rows** (#210, #207, #215) | Stamp-duty and deposit-cap rows seeded from secondary sources, statuses `unverified`/`conflicting`, `enforcement=record_only` | Counsel verifies each row against the bare act, sets `verified` + `verified_by`/`verified_on`, and only then raises enforcement. The `jobs review` CronJob goes red when `review_due` passes — that red is the reminder, do not silence it by moving the date |
 | 5 | **Support/impersonation windows** | `organisation#support` tuples must be written manually (no admin surface exists) | The admin console (#157) owns creating support sessions with MFA, justification and expiry; until then any support tuple written by hand must be deleted by hand |
