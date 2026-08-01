@@ -57,14 +57,6 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
-      # A real OpenFGA for the dwellm8#154 combined harness: the graph half of
-      # ADR-0020 must be exercised by a real evaluator — CEL conditions and the
-      # write API's refusal shapes are exactly what a fake gets subtly wrong.
-      # Memory engine (the image's default `run`), so no migrate step.
-      openfga:
-        image: openfga/openfga:v1.18.1
-        ports:
-          - 8090:8080
 
     steps:
       - uses: actions/checkout@v4
@@ -115,6 +107,20 @@ jobs:
 
       # Includes internal/platform/arch — the ADR-0001 boundary tests — and the
       # ADR-0003 isolation harness, which needs both DSNs to run rather than skip.
+      # A real OpenFGA for the dwellm8#154 combined harness: the graph half of
+      # ADR-0020 must be exercised by a real evaluator — CEL conditions and the
+      # write API's refusal shapes are exactly what a fake gets subtly wrong.
+      # A step rather than a service container because the image needs its
+      # `run` argument, which services cannot pass. Memory engine, no migrate.
+      - name: Start OpenFGA
+        run: |
+          docker run -d --name openfga -p 8090:8080 openfga/openfga:v1.18.1 run
+          for i in $(seq 1 20); do
+            curl -fs http://localhost:8090/healthz >/dev/null && exit 0
+            sleep 1
+          done
+          echo "openfga never became healthy"; docker logs openfga; exit 1
+
       - name: Test
         env:
           TEST_DATABASE_URL: postgres://dwellm8_api:ci@localhost:5432/dwellm8?sslmode=disable
