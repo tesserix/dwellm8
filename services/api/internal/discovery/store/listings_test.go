@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -44,9 +45,14 @@ func pools(t *testing.T) (tenancy.Pool, tenancy.PlatformPool) {
 	return req, tenancy.NewPlatformPool(p)
 }
 
+// seq makes unit codes unique within a run: a nanosecond residue cycles every
+// millisecond, and two fixtures a millisecond apart collided on it once.
+var seq atomic.Int64
+
 // unit seeds a fresh unit of OrgOwner's, because the one-live-advert index is
 // real and a shared unit would fail tests for the wrong reason.
 func unit(t *testing.T, plat tenancy.PlatformPool, code string) string {
+	code = fmt.Sprintf("%s-%d", code, seq.Add(1))
 	t.Helper()
 	isolationtest.SeedPropertyTree(t, plat)
 	var id string

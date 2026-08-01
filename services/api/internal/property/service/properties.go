@@ -37,3 +37,14 @@ func (p *Properties) Get(ctx context.Context, id string) (Property, error) {
 func (p *Properties) TenantOf(ctx context.Context, propertyID string) (string, error) {
 	return p.store.TenantOf(ctx, propertyID)
 }
+
+// Register creates a property (issue #32) — the start of everything: a
+// listing, a lease and a ledger all point at what this writes.
+func (p *Properties) Register(ctx context.Context, d domain.PropertyDraft) (string, error) {
+	return p.store.Create(ctx, d)
+}
+
+// AddUnit adds a lettable unit or its parking to a property.
+func (p *Properties) AddUnit(ctx context.Context, propertyID string, d domain.UnitDraft) (string, error) {
+	return p.store.CreateUnit(ctx, propertyID, d)
+}

@@ -338,6 +338,27 @@ export class DwellmApi {
     return out.entries ?? [];
   }
 
+  /* ------------------------------------------ inventory registration (#32) */
+
+  /** Register a building — the row every listing, lease and ledger entry
+   * points back to. Requires can_administer on the organisation. */
+  registerProperty(p: {
+    code: string; name: string; kind: string;
+    address_line1: string; address_line2?: string;
+    locality: string; city: string; district?: string;
+    state_code: string; pin: string;
+  }): Promise<{ id: string; code: string }> {
+    return this.request('POST', '/v1/properties', p);
+  }
+
+  /** Add a lettable unit, or the parking that attaches to one. */
+  addUnit(propertyId: string, u: {
+    code: string; unit_kind: string; floor?: number;
+    carpet_area_sqft?: number; parent_unit_id?: string;
+  }): Promise<{ id: string; code: string }> {
+    return this.request('POST', `/v1/properties/${propertyId}/units`, u);
+  }
+
   /* ---------------------------------------------- public discovery (Find) */
   // Anonymous by design (ADR-0019): browsing needs no account, making contact
   // needs a verified phone. The prospect token is a browsing key, sent as its

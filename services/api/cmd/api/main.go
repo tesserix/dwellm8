@@ -34,6 +34,7 @@ import (
 	moneyhttp "github.com/tesserix/dwellm8/services/api/internal/money/http"
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	moneystore "github.com/tesserix/dwellm8/services/api/internal/money/store"
+	propertyhttp "github.com/tesserix/dwellm8/services/api/internal/property/http"
 	propertyservice "github.com/tesserix/dwellm8/services/api/internal/property/service"
 	propertystore "github.com/tesserix/dwellm8/services/api/internal/property/store"
 
@@ -426,6 +427,9 @@ func run() error {
 	// Routes that a person authenticates for.
 	protected := http.NewServeMux()
 	leasehttp.NewLeases(leases, logger).Routes(authz.NewRegistrar(protected, guard))
+	// Registering inventory, #32 — the rows everything else points back to.
+	propertyhttp.New(propertyservice.New(propertystore.New(pool)), logger).
+		Routes(authz.NewRegistrar(protected, guard))
 	discoveryhttp.NewListings(listings, enquiries, logger).Routes(authz.NewRegistrar(protected, guard))
 	discoveryhttp.NewInspections(inspections, logger).OwnerRoutes(authz.NewRegistrar(protected, guard))
 	maintenancehttp.NewChecklists(checklists, logger).Routes(authz.NewRegistrar(protected, guard))
