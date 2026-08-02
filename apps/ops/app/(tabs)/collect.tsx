@@ -1,49 +1,56 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   AppHeader, AvatarButton, Card, Screen, Segmented, SearchBar, ListRow, Avatar,
-  StatusPill, Button, Metric, RupeeIcon,
-  color, font, inr, space,
+  StatusPill, Metric,
+  apiFromEnv, color, font, inr, space,
 } from '@dwellm8/mobile-shared';
-import type { Tone } from '@dwellm8/mobile-shared';
-import { arrears } from '../../src/data/mock';
+import type { OpsArrear } from '@dwellm8/mobile-shared';
 
 /**
- * Collections worklist.
- *
- * Ordered by what recovers money fastest, not by amount: a failed mandate is
- * one tap from a retry, a broken promise to pay outranks a fresh reminder.
+ * Collections worklist — the live roster and what each tenancy owes today,
+ * from ledger postings (GET /v1/ops/arrears). Mandate retries and
+ * promise-to-pay tracking arrive with their own legs; nothing here stages
+ * them.
  */
-
-const stageTone: Record<string, Tone> = {
-  Reminder: 'blue',
-  'Follow-up': 'amber',
-  Notice: 'red',
-  Escalated: 'violet',
-};
-
-const bucketOf = (days: number) => (days <= 7 ? '1–7 days' : days <= 30 ? '8–30 days' : '30+ days');
 
 export default function Collect() {
   const router = useRouter();
-  const [tab, setTab] = useState('Arrears');
+  const api = useMemo(() => apiFromEnv(), []);
+  const [tab, setTab] = useState('In arrears');
   const [q, setQ] = useState('');
+  const [rows, setRows] = useState<OpsArrear[]>([]);
+  const [loading, setLoading] = useState(!!api);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!api) {
+      setError('The API is not configured on this build.');
+      setLoading(false);
+      return;
+    }
+    let alive = true;
+    api.opsArrears()
+      .then((list) => { if (alive) { setRows(list); setLoading(false); } })
+      .catch((err: Error) => { if (alive) { setError(err.message); setLoading(false); } });
+    return () => { alive = false; };
+  }, [api]);
 
   const list = useMemo(() => {
-    const filtered = arrears.filter(
-      (a) =>
-        !q ||
-        a.tenant.toLowerCase().includes(q.toLowerCase()) ||
-        a.unit.toLowerCase().includes(q.toLowerCase()),
+    const needle = q.toLowerCase();
+    const filtered = rows.filter(
+      (a) => !q
+        || a.unit.toLowerCase().includes(needle)
+        || a.property.toLowerCase().includes(needle)
+        || (a.phone ?? '').includes(q),
     );
-    if (tab === 'Mandates') return filtered.filter((a) => a.mandate !== 'Active');
-    if (tab === 'Promises') return filtered.filter((a) => a.promiseToPay);
-    return filtered.slice().sort((a, b) => b.daysLate - a.daysLate);
-  }, [tab, q]);
+    const view = tab === 'In arrears' ? filtered.filter((a) => a.due_amount_minor > 0) : filtered;
+    return view.slice().sort((a, b) => b.due_amount_minor - a.due_amount_minor);
+  }, [rows, tab, q]);
 
-  const totalDue = list.reduce((sum, a) => sum + a.duePaise, 0);
-  const failedMandates = arrears.filter((a) => a.mandate === 'Failed' || a.mandate === 'Paused').length;
+  const outstanding = list.reduce((sum, a) => sum + Math.max(0, a.due_amount_minor), 0);
+  const inArrears = rows.filter((a) => a.due_amount_minor > 0).length;
 
   return (
     <>
@@ -54,53 +61,54 @@ export default function Collect() {
       />
       <Screen>
         <View style={{ marginTop: space(3) }}>
-          <Segmented items={['Arrears', 'Mandates', 'Promises']} value={tab} onChange={setTab} />
+          <Segmented items={['In arrears', 'Whole roster']} value={tab} onChange={setTab} />
         </View>
 
         <View style={s.metrics}>
-          <Metric value={inr(totalDue, { noPaise: true })} label="outstanding in view" tone="red" />
-          <Metric value={String(failedMandates)} label="mandates need a retry" tone="amber" />
+          <Metric value={loading ? '…' : inr(outstanding, { noPaise: true })} label="outstanding in view" tone={outstanding ? 'red' : 'green'} />
+          <Metric value={loading ? '…' : String(inArrears)} label="tenancies in arrears" tone={inArrears ? 'amber' : 'green'} />
         </View>
 
         <View style={{ marginTop: space(3) }}>
-          <SearchBar value={q} onChange={setQ} placeholder="Tenant or unit" />
+          <SearchBar value={q} onChange={setQ} placeholder="Unit, property or phone" />
         </View>
 
         <Card padded={false} style={{ paddingHorizontal: space(4) }}>
+          {loading ? (
+            <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View>
+          ) : null}
+          {error ? <Text style={s.empty}>{error}</Text> : null}
           {list.map((a, i) => (
             <ListRow
-              key={a.id}
-              left={<Avatar initials={a.initials} tone={a.daysLate > 20 ? 'red' : 'blue'} />}
-              title={`${a.tenant} — ${inr(a.duePaise, { noPaise: true })}`}
-              subtitle={a.unit}
-              meta={`${a.daysLate} days late · ${bucketOf(a.daysLate)} · ${a.lastContact}`}
+              key={a.lease_id}
+              left={<Avatar initials={a.unit.slice(0, 2).toUpperCase()} tone={a.due_amount_minor > 0 ? 'red' : 'green'} />}
+              title={`${a.unit}, ${a.property} — ${inr(Math.max(0, a.due_amount_minor), { noPaise: true })}`}
+              subtitle={`${a.locality}${a.phone ? ` · ${a.phone}` : ''}`}
+              meta={`rent ${inr(a.rent_amount_minor, { noPaise: true })} · as of ${a.as_of}`}
               right={
-                <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                  <StatusPill text={a.stage} tone={stageTone[a.stage]} />
-                  {a.mandate !== 'Active' ? (
-                    <Text style={s.mandate}>Mandate {a.mandate.toLowerCase()}</Text>
-                  ) : null}
-                </View>
+                <StatusPill
+                  text={a.due_amount_minor > 0 ? 'Owes' : 'Clear'}
+                  tone={a.due_amount_minor > 0 ? 'red' : 'green'}
+                />
               }
-              onPress={() => router.push(`/arrear?id=${a.id}`)}
+              onPress={() => router.push(`/thread?id=${a.lease_id}`)}
               last={i === list.length - 1}
             />
           ))}
-          {!list.length ? <Text style={s.empty}>Nothing in this view. Good.</Text> : null}
+          {!loading && !error && !list.length ? (
+            <Text style={s.empty}>
+              {tab === 'In arrears' ? 'Nobody owes anything. Good.' : 'No live tenancies on this portfolio yet.'}
+            </Text>
+          ) : null}
         </Card>
 
         <Card>
-          <Text style={s.helpTitle}>Collected today</Text>
+          <Text style={s.helpTitle}>Recording payments</Text>
           <Text style={s.helpBody}>
-            {inr(2_26_500_00, { noPaise: true })} across 6 tenancies. Cash and
-            transfers you record here post to the ledger immediately and issue a receipt to the tenant.
+            A tenant's UPI payment posts to the ledger and issues a receipt the moment it confirms.
+            Cash and transfers are recorded by the tenant from the Live app and confirmed by you —
+            tap a row to message them about what's owed.
           </Text>
-          <Button
-            label="Record a payment"
-            icon={<RupeeIcon size={19} c="#FFF" />}
-            onPress={() => router.push('/receipt')}
-            style={{ marginTop: space(4) }}
-          />
         </Card>
       </Screen>
     </>
@@ -109,7 +117,6 @@ export default function Collect() {
 
 const s = StyleSheet.create({
   metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(3), marginBottom: space(1) },
-  mandate: { ...font.small, color: color.negative, fontWeight: '600' },
   empty: { ...font.body, color: color.inkSoft, paddingVertical: space(6), textAlign: 'center' },
   helpTitle: { ...font.h3, color: color.inkStrong },
   helpBody: { ...font.body, color: color.inkSoft, marginTop: 6, lineHeight: 21 },
