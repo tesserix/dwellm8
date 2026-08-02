@@ -47,6 +47,11 @@ type Tenancy struct {
 	NoticeDays  int
 	LockInUntil effective.Date
 
+	// NoticeServedOn and NoticeMoveOutOn are set while the tenancy is in
+	// notice — the announcement's facts, distinct from EndedOn's reality. #239.
+	NoticeServedOn  effective.Date
+	NoticeMoveOutOn effective.Date
+
 	// RentMinor and DueDay are the schedule in force on the day asked about, not
 	// the one the lease opened with: a rent revised in April is what the tenant
 	// owes in May, and showing them the opening figure would be showing them a
@@ -68,15 +73,17 @@ func (t Tenancy) Live() bool {
 // distinguishing them would confirm that a lease exists.
 func (s *Leases) Tenancy(ctx context.Context, leaseID string, on effective.Date) (Tenancy, error) {
 	var (
-		t        Tenancy
-		state    string
-		from     time.Time
-		to       *time.Time
-		ended    *time.Time
-		lockIn   *time.Time
-		rent     *int64
-		dueDay   *int
-		tenantID = ""
+		t         Tenancy
+		state     string
+		from      time.Time
+		to        *time.Time
+		ended     *time.Time
+		lockIn    *time.Time
+		servedOn  *time.Time
+		moveOutOn *time.Time
+		rent      *int64
+		dueDay    *int
+		tenantID  = ""
 	)
 	if id, ok := tenancy.From(ctx); ok {
 		tenantID = id.String()
@@ -86,6 +93,7 @@ func (s *Leases) Tenancy(ctx context.Context, leaseID string, on effective.Date)
 		return tx.QueryRow(ctx, `
 			SELECT l.id::text, l.state, l.valid_from, l.valid_to, l.ended_on,
 			       l.notice_days, l.lock_in_until,
+			       l.notice_served_on, l.notice_move_out_on,
 			       l.property_id::text, l.unit_id::text,
 			       p.name, p.locality, p.city, u.code::text,
 			       r.amount_minor, r.due_day
@@ -100,6 +108,7 @@ func (s *Leases) Tenancy(ctx context.Context, leaseID string, on effective.Date)
 			        AND r.retired_at IS NULL AND r.validity @> $2::date
 			 WHERE l.id = $1::uuid`, leaseID, on.Time(),
 		).Scan(&t.LeaseID, &state, &from, &to, &ended, &t.NoticeDays, &lockIn,
+			&servedOn, &moveOutOn,
 			&t.PropertyID, &t.UnitID,
 			&t.PropertyName, &t.Locality, &t.City, &t.UnitCode, &rent, &dueDay)
 	})
@@ -124,6 +133,12 @@ func (s *Leases) Tenancy(ctx context.Context, leaseID string, on effective.Date)
 	}
 	if lockIn != nil {
 		t.LockInUntil = effective.DateOf(*lockIn, time.UTC)
+	}
+	if servedOn != nil {
+		t.NoticeServedOn = effective.DateOf(*servedOn, time.UTC)
+	}
+	if moveOutOn != nil {
+		t.NoticeMoveOutOn = effective.DateOf(*moveOutOn, time.UTC)
 	}
 	if rent != nil {
 		t.RentMinor, t.DueDay = *rent, *dueDay

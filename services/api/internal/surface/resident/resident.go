@@ -148,6 +148,8 @@ func (h *Handler) Routes(r *authz.Registrar) {
 		Relation: "tenant", Object: authz.PathObject("agreement", "lease")}, h.CreatePass)
 	r.Handle("POST /v1/resident/tenancies/{lease}/passes/{pass}/cancel", authz.Check{
 		Relation: "tenant", Object: authz.PathObject("agreement", "lease")}, h.CancelPass)
+	r.Handle("POST /v1/resident/tenancies/{lease}/notice", authz.Check{
+		Relation: "tenant", Object: authz.PathObject("agreement", "lease")}, h.ServeNotice)
 	r.Open("GET /v1/resident/me",
 		"the answer is the session itself — who signed in and what they may reach, nothing another person's id could widen",
 		h.Me)
@@ -174,6 +176,10 @@ type tenancyResponse struct {
 	EndedOn     string `json:"ended_on,omitempty"`
 	NoticeDays  int    `json:"notice_days"`
 	LockInUntil string `json:"lock_in_until,omitempty"`
+
+	// Set while the tenancy is in notice (#239).
+	NoticeServedOn  string `json:"notice_served_on,omitempty"`
+	NoticeMoveOutOn string `json:"notice_move_out_on,omitempty"`
 
 	RentMinor int64  `json:"rent_amount_minor"`
 	DueDay    int    `json:"due_day"`
@@ -623,6 +629,12 @@ func present(t leaseservice.Tenancy, res identityservice.Residency, _ effective.
 	}
 	if !t.LockInUntil.Zero() {
 		out.LockInUntil = t.LockInUntil.String()
+	}
+	if !t.NoticeServedOn.Zero() {
+		out.NoticeServedOn = t.NoticeServedOn.String()
+	}
+	if !t.NoticeMoveOutOn.Zero() {
+		out.NoticeMoveOutOn = t.NoticeMoveOutOn.String()
 	}
 	return out
 }

@@ -189,6 +189,8 @@ export type ResidentTenancy = {
   ended_on?: string;
   notice_days: number;
   lock_in_until?: string;
+  notice_served_on?: string;
+  notice_move_out_on?: string;
   rent_amount_minor: number;
   due_day: number;
   currency: string;
@@ -758,6 +760,12 @@ export class DwellmApi {
 
   residentCancelPass(leaseId: string, passId: string): Promise<ResidentPass> {
     return this.request('POST', `/v1/resident/tenancies/${leaseId}/passes/${passId}/cancel`, {});
+  }
+
+  /** Serve notice to vacate. moveOutOn is ISO YYYY-MM-DD; served the moment
+   * it posts — the review step lives in the app. */
+  residentServeNotice(leaseId: string, moveOutOn: string): Promise<ResidentTenancy> {
+    return this.request('POST', `/v1/resident/tenancies/${leaseId}/notice`, { move_out_on: moveOutOn });
   }
 }
 

@@ -25,6 +25,19 @@ func (s *Leases) Tenancy(ctx context.Context, leaseID string, on effective.Date)
 	return s.store.Tenancy(ctx, leaseID, on)
 }
 
+// ServeNotice records notice served on a live tenancy and returns its new
+// summary. #239. The domain refuses the illegal cases: wrong actor, wrong
+// state, a move-out inside the notice period or outside the term.
+func (s *Leases) ServeNotice(ctx context.Context, leaseID string, n domain.Notice) (Tenancy, error) {
+	if leaseID == "" {
+		return Tenancy{}, store.ErrNoLease
+	}
+	if _, err := s.store.ServeNotice(ctx, leaseID, n); err != nil {
+		return Tenancy{}, err
+	}
+	return s.store.Tenancy(ctx, leaseID, n.ServedOn)
+}
+
 // ActiveOnProperty reads the property's current tenancy, if it has one. The
 // bool reports whether it does — a vacant property is a normal answer, not
 // store.ErrNoLease.

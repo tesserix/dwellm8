@@ -51,7 +51,11 @@ export type TenancyView = {
   startOn: string;
   endOn: string;
   lockInUntil: string;
+  /** ISO date the lock-in ends, for date arithmetic; '' when none. */
+  lockInUntilIso: string;
   state: string;
+  noticeServedOn: string;
+  noticeMoveOutOn: string;
 };
 
 export type ReceiptView = {
@@ -97,7 +101,8 @@ export const payMethods = [
 const emptyTenancy: TenancyView = {
   id: '', unit: '', locality: '', agency: '', rentPaise: 0, dueDay: 0,
   paidTo: '—', leaseExpires: '—', depositPaise: 0, noticeDays: 0,
-  startOn: '', endOn: '', lockInUntil: '', state: '',
+  startOn: '', endOn: '', lockInUntil: '', lockInUntilIso: '', state: '',
+  noticeServedOn: '', noticeMoveOutOn: '',
 };
 
 export type LiveData = {
@@ -128,7 +133,10 @@ function toTenancy(t: ResidentTenancy): TenancyView {
     startOn: fmtDate(t.start_on),
     endOn: t.end_on ? fmtDate(t.end_on) : '',
     lockInUntil: t.lock_in_until ? fmtDate(t.lock_in_until) : '',
+    lockInUntilIso: t.lock_in_until ?? '',
     state: t.state,
+    noticeServedOn: t.notice_served_on ? fmtDate(t.notice_served_on) : '',
+    noticeMoveOutOn: t.notice_move_out_on ? fmtDate(t.notice_move_out_on) : '',
   };
 }
 
@@ -397,6 +405,15 @@ export function usePasses(leaseId: string | undefined): {
   };
 
   return { ...state, create, cancel };
+}
+
+/** serveNotice posts the renter's notice to vacate — served the moment it
+ * posts; the review step is the screen's job. moveOutOn is ISO YYYY-MM-DD. */
+export async function serveNotice(leaseId: string, moveOutOn: string): Promise<void> {
+  const client = apiFromEnv();
+  if (!client) throw new Error('The API is not configured on this build.');
+  await client.residentServeNotice(leaseId, moveOutOn);
+  refreshLive();
 }
 
 /** raiseTicket records a repair request and refreshes every mounted screen. */
