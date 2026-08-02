@@ -40,6 +40,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tesserix/dwellm8/services/api/internal/e2e"
+	discoverystore "github.com/tesserix/dwellm8/services/api/internal/discovery/store"
 	identitystore "github.com/tesserix/dwellm8/services/api/internal/identity/store"
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
 	leasestore "github.com/tesserix/dwellm8/services/api/internal/lease/store"
@@ -340,6 +341,18 @@ func poll(ctx context.Context, args []string, cfg config.Config, pool *pgxpool.P
 		total.Moved += out.Moved
 		total.Unchanged += out.Unchanged
 		total.Failed += out.Failed
+	}
+
+	// The stay hold sweep rides the same ten-minute heartbeat (#233): a hold
+	// whose clock lapsed with no payment attached releases its nights. Lazy
+	// expiry already refuses confirming one; this is what stops the calendar
+	// showing nights nobody is going to take.
+	released, err := discoverystore.NewStay(pool, tenancy.NewPlatformPool(platformPool)).
+		SweepExpiredHolds(ctx)
+	if err != nil {
+		log.Error("sweeping expired stay holds", "error", err)
+	} else if released > 0 {
+		log.Info("expired stay holds released", "released", released)
 	}
 
 	log.Info("polling finished",

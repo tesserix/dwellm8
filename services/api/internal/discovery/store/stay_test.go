@@ -158,6 +158,100 @@ func TestStayPaymentConfirms(t *testing.T) {
 	}
 }
 
+// The sweep releases lapsed unpaid holds and nothing else — a paid hold is
+// the money consumer's to confirm, never the timer's to kill.
+func TestSweepReleasesOnlyUnpaidLapsedHolds(t *testing.T) {
+	stay, prospects, plat, listing := stayFixture(t)
+	in := time.Now().AddDate(0, 0, 120).Truncate(24 * time.Hour)
+
+	lapse := func(id string) {
+		if err := tenancy.Platform(context.Background(), plat, "test: lapsing",
+			func(ctx context.Context, tx pgx.Tx) error {
+				_, err := tx.Exec(ctx,
+					`UPDATE stay_bookings SET hold_expires_at = now() - interval '1 minute' WHERE id = $1`, id)
+				return err
+			}); err != nil {
+			t.Fatalf("lapsing: %v", err)
+		}
+	}
+
+	unpaid, err := stay.Hold(context.Background(), listing,
+		verifiedGuest(t, prospects).ID, in, in.AddDate(0, 0, 2), 1)
+	if err != nil {
+		t.Fatalf("unpaid hold: %v", err)
+	}
+	paidGuest := verifiedGuest(t, prospects)
+	paid, err := stay.Hold(context.Background(), listing, paidGuest.ID,
+		in.AddDate(0, 0, 5), in.AddDate(0, 0, 7), 1)
+	if err != nil {
+		t.Fatalf("paid hold: %v", err)
+	}
+	if err := stay.AttachPayment(context.Background(), paidGuest.ID, paid.ID, uuid.NewString()); err != nil {
+		t.Fatalf("attaching: %v", err)
+	}
+	lapse(unpaid.ID)
+	lapse(paid.ID)
+
+	if _, err := stay.SweepExpiredHolds(context.Background()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	// The unpaid one released its nights; the paid one still holds them.
+	if _, err := stay.Hold(context.Background(), listing,
+		verifiedGuest(t, prospects).ID, in, in.AddDate(0, 0, 2), 1); err != nil {
+		t.Fatalf("rebooking swept nights: %v", err)
+	}
+	if _, err := stay.Hold(context.Background(), listing,
+		verifiedGuest(t, prospects).ID, in.AddDate(0, 0, 5), in.AddDate(0, 0, 7), 1); !errors.Is(err, store.ErrDatesTaken) {
+		t.Fatalf("a paid hold was swept: %v", err)
+	}
+}
+
+// Date-filtered search answers only with listings genuinely free for the
+// asked nights, within their own rules.
+func TestSearchByDates(t *testing.T) {
+	stay, prospects, _, listing := stayFixture(t)
+	l, err := stay.Live(context.Background(), listing)
+	if err != nil {
+		t.Fatalf("reading the listing: %v", err)
+	}
+	city := l.City
+	in := time.Now().AddDate(0, 0, 150).Truncate(24 * time.Hour)
+	out := in.AddDate(0, 0, 3)
+	day := func(t2 time.Time) time.Time { return t2 }
+
+	free, err := stay.Search(context.Background(), store.StaySearch{
+		City: city, CheckIn: day(in), CheckOut: day(out), Guests: 2})
+	if err != nil || len(free) != 1 {
+		t.Fatalf("free search = %d, %v; want the listing", len(free), err)
+	}
+	// Too many guests, or a stay shorter than min_nights: filtered by the
+	// listing's own rules.
+	if got, _ := stay.Search(context.Background(), store.StaySearch{
+		City: city, CheckIn: in, CheckOut: out, Guests: 9}); len(got) != 0 {
+		t.Fatalf("nine guests matched a max_guests=3 listing")
+	}
+	if got, _ := stay.Search(context.Background(), store.StaySearch{
+		City: city, CheckIn: in, CheckOut: in.AddDate(0, 0, 1)}); len(got) != 0 {
+		t.Fatalf("one night matched a min_nights=2 listing")
+	}
+
+	// Book the middle night: the span no longer fits, adjacent nights do.
+	g := verifiedGuest(t, prospects)
+	if _, err := stay.Hold(context.Background(), listing, g.ID,
+		in.AddDate(0, 0, 1), in.AddDate(0, 0, 3), 1); err != nil {
+		t.Fatalf("blocking hold: %v", err)
+	}
+	if got, _ := stay.Search(context.Background(), store.StaySearch{
+		City: city, CheckIn: in, CheckOut: out}); len(got) != 0 {
+		t.Fatalf("a blocked span still matched")
+	}
+	if got, _ := stay.Search(context.Background(), store.StaySearch{
+		City: city, CheckIn: in.AddDate(0, 0, 5), CheckOut: in.AddDate(0, 0, 8)}); len(got) != 1 {
+		t.Fatalf("free later nights did not match")
+	}
+}
+
 func TestStayCancelReleasesAndExpiredHoldRefusesConfirm(t *testing.T) {
 	stay, prospects, plat, listing := stayFixture(t)
 	in := time.Now().AddDate(0, 0, 60).Truncate(24 * time.Hour)

@@ -168,16 +168,40 @@ func (s *Stay) HostListings(ctx context.Context) ([]StayListing, error) {
 	return out, err
 }
 
-// Search is the guest's browse: live listings in a city. Platform session,
-// slots' reasoning — no public RLS branch exists for this table.
-func (s *Stay) Search(ctx context.Context, city string) ([]StayListing, error) {
+// StaySearch is the guest's question: where, when, how many.
+type StaySearch struct {
+	City   string
+	Guests int
+	// CheckIn/CheckOut filter to listings actually free for those nights —
+	// derived from the bookings that block them, never a manual flag (#133's
+	// rule, applied to nights).
+	CheckIn  time.Time
+	CheckOut time.Time
+}
+
+// Search is the guest's browse: live listings in a city, free for the asked
+// nights. Platform session, slots' reasoning — no public RLS branch exists
+// for this table.
+func (s *Stay) Search(ctx context.Context, q StaySearch) ([]StayListing, error) {
+	datesAsked := !q.CheckIn.IsZero() && !q.CheckOut.IsZero()
 	var out []StayListing
 	err := tenancy.Platform(ctx, s.platform, "anonymous stay search (#233, ADR-0019)",
 		func(ctx context.Context, tx pgx.Tx) error {
 			rows, err := tx.Query(ctx, selectStayListing+`
 				 WHERE state = 'live' AND published_at IS NOT NULL
 				   AND ($1 = '' OR lower(city) = lower($1))
-				 ORDER BY nightly_minor LIMIT 50`, city)
+				   AND ($2 = 0 OR max_guests >= $2)
+				   AND (NOT $3::boolean OR (
+				        -- The asked nights fit the listing's own rules…
+				        ($4::date - $5::date) BETWEEN min_nights AND max_nights
+				        -- …and nobody holds any of them.
+				        AND NOT EXISTS (
+				            SELECT 1 FROM stay_bookings b
+				             WHERE b.unit_id = stay_listings.unit_id
+				               AND b.state IN ('held', 'confirmed')
+				               AND b.stay && daterange($5::date, $4::date, '[)'))))
+				 ORDER BY nightly_minor LIMIT 50`,
+				q.City, q.Guests, datesAsked, q.CheckOut, q.CheckIn)
 			if err != nil {
 				return err
 			}
@@ -352,6 +376,57 @@ func (s *Stay) hostMove(ctx context.Context, id, to, event, guard string, miss e
 		}
 		return events.Append(ctx, tx, env)
 	})
+}
+
+// SweepExpiredHolds releases every hold whose clock lapsed with no payment
+// attached — the poll job's platform-wide pass. A paid hold survives the
+// sweep: its confirmation belongs to the money consumer, and cancelling a
+// booking somebody paid for because a timer fired would be theft with extra
+// steps.
+func (s *Stay) SweepExpiredHolds(ctx context.Context) (int, error) {
+	var released int
+	err := tenancy.Platform(ctx, s.platform, "releasing expired stay holds (#233)",
+		func(ctx context.Context, tx pgx.Tx) error {
+			rows, err := tx.Query(ctx, `
+				UPDATE stay_bookings
+				   SET state = 'cancelled', cancelled_by = 'guest', updated_at = now()
+				 WHERE state = 'held' AND hold_expires_at < now() AND payment_id IS NULL
+				 RETURNING id::text, tenant_id::text`)
+			if err != nil {
+				return err
+			}
+			type hit struct{ id, tenant string }
+			var hits []hit
+			for rows.Next() {
+				var h hit
+				if err := rows.Scan(&h.id, &h.tenant); err != nil {
+					rows.Close()
+					return err
+				}
+				hits = append(hits, h)
+			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				return err
+			}
+			for _, h := range hits {
+				env, err := events.New("discovery.stay.cancelled", h.tenant,
+					events.Subject{Kind: "stay_booking", ID: h.id},
+					events.Actor{Kind: events.ActorSystem},
+					struct {
+						By string `json:"by"`
+					}{"hold_expired"})
+				if err != nil {
+					return err
+				}
+				if err := events.Append(ctx, tx, env); err != nil {
+					return err
+				}
+			}
+			released = len(hits)
+			return nil
+		})
+	return released, err
 }
 
 // AttachPayment names the collection that pays a held booking, guest-scoped:

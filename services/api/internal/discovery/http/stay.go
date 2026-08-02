@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -166,9 +167,34 @@ func (h *Stay) Complete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"id": c.Param("id"), "state": "completed"})
 }
 
-// Search is the guest's browse.
+// Search is the guest's browse — city, party size, and the nights they want,
+// answered only with listings genuinely free for them.
 func (h *Stay) Search(c *gin.Context) {
-	list, err := h.stay.Search(c.Request.Context(), c.Query("city"))
+	q := store.StaySearch{City: c.Query("city")}
+	if v := c.Query("guests"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 20 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "guests must be between 1 and 20"})
+			return
+		}
+		q.Guests = n
+	}
+	in, out := c.Query("check_in"), c.Query("check_out")
+	if (in == "") != (out == "") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "check_in and check_out come together"})
+		return
+	}
+	if in != "" {
+		var err1, err2 error
+		q.CheckIn, err1 = time.Parse("2006-01-02", in)
+		q.CheckOut, err2 = time.Parse("2006-01-02", out)
+		if err1 != nil || err2 != nil || !q.CheckOut.After(q.CheckIn) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "check_in and check_out are dates, as YYYY-MM-DD, check_out after check_in"})
+			return
+		}
+	}
+
+	list, err := h.stay.Search(c.Request.Context(), q)
 	if err != nil {
 		h.fail(c, "searching stays", err)
 		return
