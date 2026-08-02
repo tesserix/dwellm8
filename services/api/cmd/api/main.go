@@ -511,6 +511,7 @@ func run() error {
 	for _, p := range []string{
 		"GET /v1/moderation/listings",
 		"POST /v1/listings/{id}/suspend",
+		"POST /v1/listings/{id}/warn",
 		"POST /v1/listings/{id}/reinstate",
 		"POST /v1/listings/{id}/reports/dismiss",
 	} {

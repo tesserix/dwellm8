@@ -548,6 +548,11 @@ export class DwellmApi {
     return this.request('POST', `/v1/listings/${id}/suspend`, { reason });
   }
 
+  /** The middle judgement: live, but the lister is on notice. */
+  warnListing(id: string, reason: string): Promise<void> {
+    return this.request('POST', `/v1/listings/${id}/warn`, { reason });
+  }
+
   reinstateListing(id: string): Promise<void> {
     return this.request('POST', `/v1/listings/${id}/reinstate`, {});
   }

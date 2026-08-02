@@ -34,6 +34,7 @@ func (h *ModerationHandler) OwnerRoutes(r *ginx.Registrar) {
 	admin := authz.Check{Relation: "can_administer", Object: authz.Organisation()}
 	r.Handle(http.MethodGet, "/v1/moderation/listings", admin, h.Queue)
 	r.Handle(http.MethodPost, "/v1/listings/:id/suspend", admin, h.Suspend)
+	r.Handle(http.MethodPost, "/v1/listings/:id/warn", admin, h.Warn)
 	r.Handle(http.MethodPost, "/v1/listings/:id/reinstate", admin, h.Reinstate)
 	r.Handle(http.MethodPost, "/v1/listings/:id/reports/dismiss", admin, h.Dismiss)
 }
@@ -97,6 +98,23 @@ func (h *ModerationHandler) Suspend(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"id": c.Param("id"), "state": "suspended"})
+}
+
+// Warn keeps the listing live with the lister on notice, reason required.
+func (h *ModerationHandler) Warn(c *gin.Context) {
+	var req struct {
+		Reason string `json:"reason" binding:"required,min=3"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "a warning carries its reason"})
+		return
+	}
+	if err := h.mod.Warn(c.Request.Context(), c.Param("id"), req.Reason,
+		events.Actor{Kind: events.ActorSystem}); err != nil {
+		h.fail(c, "warning the lister", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"id": c.Param("id"), "warned": true})
 }
 
 // Reinstate lifts a suspension.

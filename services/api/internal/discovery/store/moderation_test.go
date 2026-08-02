@@ -80,6 +80,24 @@ func TestModerationStory(t *testing.T) {
 	}
 }
 
+func TestWarnKeepsTheListingLive(t *testing.T) {
+	mod, _, public, listing := moderationFixture(t)
+	if err := mod.ReportListing(context.Background(), listing, "incorrect"); err != nil {
+		t.Fatalf("reporting: %v", err)
+	}
+	if err := mod.Warn(owner(), listing, "rent stated does not match the advert",
+		events.Actor{Kind: events.ActorSystem}); err != nil {
+		t.Fatalf("warning: %v", err)
+	}
+	// Live throughout, and the queue has moved on.
+	if _, err := public.Detail(context.Background(), listing); err != nil {
+		t.Fatalf("a warned listing stopped serving: %v", err)
+	}
+	if queue, _ := mod.Queue(owner()); flagged(queue, listing) != nil {
+		t.Fatal("a warned listing is still queued")
+	}
+}
+
 func TestDismissReports(t *testing.T) {
 	mod, _, public, listing := moderationFixture(t)
 	if err := mod.ReportListing(context.Background(), listing, "other"); err != nil {

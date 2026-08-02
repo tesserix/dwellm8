@@ -47,6 +47,7 @@ const (
 	EventLet       Event = "discovery.listing.let"
 
 	EventReported   Event = "discovery.listing.reported"
+	EventWarned     Event = "discovery.listing.warned"
 	EventSuspended  Event = "discovery.listing.suspended"
 	EventReinstated Event = "discovery.listing.reinstated"
 

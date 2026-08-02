@@ -110,6 +110,37 @@ func (s *Moderation) judge(ctx context.Context, id string, to domain.State,
 	})
 }
 
+// Warn records the middle judgement between dismiss and suspend: the listing
+// stays live, the lister is on notice, and the fact is on the outbox — the
+// notify module delivers it once that channel exists. The report clears, so
+// the queue moves.
+func (s *Moderation) Warn(ctx context.Context, id, reason string, actor events.Actor) error {
+	tenant, ok := tenancy.From(ctx)
+	if !ok {
+		return tenancy.ErrNoTenant
+	}
+	return tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `
+			UPDATE listings SET reported_at = NULL, report_count = 0, updated_at = now()
+			 WHERE id = $1 AND state IN ('live', 'paused')`, id)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrNoListing
+		}
+		env, err := events.New(string(domain.EventWarned), tenant.String(),
+			events.Subject{Kind: "listing", ID: id}, actor,
+			struct {
+				Reason string `json:"reason"`
+			}{reason})
+		if err != nil {
+			return err
+		}
+		return events.Append(ctx, tx, env)
+	})
+}
+
 // DismissReports clears a report the reviewer judged wrong, leaving the
 // listing exactly where it was.
 func (s *Moderation) DismissReports(ctx context.Context, id string) error {
