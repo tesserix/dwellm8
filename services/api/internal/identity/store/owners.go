@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/auth"
@@ -239,6 +240,47 @@ func (s *Principals) ClaimOwner(ctx context.Context, p auth.Principal) (Person, 
 		return Person{}, err
 	}
 	return out, nil
+}
+
+// ManagedPortfolio is one owner's books this firm holds a live mandate over.
+type ManagedPortfolio struct {
+	GrantID     string
+	OwnerOrgID  string
+	OwnerName   string
+	Permissions []string
+	Since       time.Time
+}
+
+// PortfoliosFor lists the live mandates a firm holds, named — the Ops app's
+// portfolio switcher. Platform-mediated because the grantor's organisation
+// row is not the firm's to read under its own scope.
+func (s *Principals) PortfoliosFor(ctx context.Context, firmOrgID string) ([]ManagedPortfolio, error) {
+	var out []ManagedPortfolio
+	err := tenancy.Platform(ctx, s.platform, "listing a firm's managed portfolios",
+		func(ctx context.Context, tx pgx.Tx) error {
+			rows, err := tx.Query(ctx, `
+				SELECT g.id::text, g.tenant_id::text, o.name, g.permissions, g.created_at
+				  FROM delegation_grants g
+				  JOIN organisations o ON o.id = g.tenant_id
+				 WHERE g.grantee_org_id = $1::uuid
+				   AND g.revoked_at IS NULL
+				   AND now() >= g.valid_from
+				   AND (g.valid_to IS NULL OR now() < g.valid_to)
+				 ORDER BY o.name`, firmOrgID)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var p ManagedPortfolio
+				if err := rows.Scan(&p.GrantID, &p.OwnerOrgID, &p.OwnerName, &p.Permissions, &p.Since); err != nil {
+					return err
+				}
+				out = append(out, p)
+			}
+			return rows.Err()
+		})
+	return out, err
 }
 
 // Profile is the person as they present themselves: the verified anchors and

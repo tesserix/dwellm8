@@ -638,6 +638,10 @@ func run() error {
 	opsHandler.Routes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.WorklistRoutes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.OnboardingRoutes(authz.NewRegistrar(opsMux, guard))
+	opsHandler.PortfolioRoutes(authz.NewRegistrar(opsMux, guard))
+	// Every ops request may declare the mandate it acts under (ADR-0005);
+	// the wrapped mux is what both mounts below serve.
+	opsSurface := opssurface.ActingUnderGrant(opsMux)
 
 	// The tenant view, on its own tree. Issue #51, ADR-0029.
 	//
@@ -731,7 +735,7 @@ func run() error {
 			auth.RequireSurface(auth.SurfaceOwn, resolver.Middleware(ownerMux))))
 		// Same shape, the Ops app's own sign-ins only.
 		mux.Handle("/v1/ops/", auth.Middleware(verifier,
-			auth.RequireSurface(auth.SurfaceOps, resolver.Middleware(opsMux))))
+			auth.RequireSurface(auth.SurfaceOps, resolver.Middleware(opsSurface))))
 	} else {
 		// The renter every tenant-surface request acts as while authentication is
 		// off. Unset is a supported state and answers 503 per request rather than
@@ -764,7 +768,7 @@ func run() error {
 		// Dev only, like everything in this branch: the Own app pointed at a
 		// local API reads the impersonated organisation's portfolio.
 		mux.Handle("/v1/owner/", resolver.Middleware(ownerMux))
-		mux.Handle("/v1/ops/", resolver.Middleware(opsMux))
+		mux.Handle("/v1/ops/", resolver.Middleware(opsSurface))
 	}
 
 	tenantLimiter := httpx.NewLimiter(cfg.RateLimits.Tenant, nil)

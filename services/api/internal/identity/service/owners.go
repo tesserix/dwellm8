@@ -21,10 +21,16 @@ func NewOwners(p *store.Principals, log *slog.Logger) *Owners {
 
 // Re-exported request/response shapes.
 type (
-	OwnerOnboarding = store.OwnerOnboarding
-	OwnerOnboarded  = store.OwnerOnboarded
-	Profile         = store.Profile
+	OwnerOnboarding  = store.OwnerOnboarding
+	OwnerOnboarded   = store.OwnerOnboarded
+	Profile          = store.Profile
+	ManagedPortfolio = store.ManagedPortfolio
 )
+
+// Portfolios lists the live mandates a firm holds, named.
+func (o *Owners) Portfolios(ctx context.Context, firmOrgID string) ([]ManagedPortfolio, error) {
+	return o.principals.PortfoliosFor(ctx, firmOrgID)
+}
 
 // PreOnboard reserves the owner's identity, organisation and the firm's
 // mandate. Idempotent — a second property joins the existing organisation.

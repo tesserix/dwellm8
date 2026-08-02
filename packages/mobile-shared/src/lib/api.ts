@@ -132,6 +132,15 @@ export type OpsMessage = {
   sent_at: string;
 };
 
+/** One owner's books this firm manages (GET /v1/ops/portfolios). */
+export type OpsPortfolio = {
+  grant_id: string;
+  owner_org_id: string;
+  owner_name: string;
+  permissions: string[];
+  since: string;
+};
+
 /** One gate pass on the org worklist (GET /v1/ops/passes). */
 export type OpsPass = {
   pass_id: string;
@@ -422,6 +431,19 @@ export class ApiError extends Error {
   }
 }
 
+/** The mandate every Ops request acts under (ADR-0005), app-wide: null is
+ * the firm's own books; a grant id opens the grantor's rows and nothing
+ * else. Module-level because apiFromEnv() builds a client per hook. */
+let actingGrant: string | null = null;
+
+export function setActingGrant(grantId: string | null): void {
+  actingGrant = grantId;
+}
+
+export function getActingGrant(): string | null {
+  return actingGrant;
+}
+
 export class DwellmApi {
   private cfg: ApiConfig;
   constructor(cfg: ApiConfig) {
@@ -431,6 +453,7 @@ export class DwellmApi {
   private async request<T>(method: string, path: string, body?: unknown,
     extra?: Record<string, string>): Promise<T> {
     const headers: Record<string, string> = { Accept: 'application/json', ...extra };
+    if (actingGrant && path.startsWith('/v1/ops/')) headers['X-Dwellm8-Grant'] = actingGrant;
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     const token = this.cfg.getToken ? await this.cfg.getToken() : null;
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -554,6 +577,11 @@ export class DwellmApi {
 
   opsSetPassState(id: string, state: 'arrived' | 'inside' | 'left' | 'denied'): Promise<OpsPass> {
     return this.request('POST', `/v1/ops/passes/${id}/state`, { state });
+  }
+
+  async opsPortfolios(): Promise<OpsPortfolio[]> {
+    const out = await this.request<{ portfolios?: OpsPortfolio[] }>('GET', '/v1/ops/portfolios');
+    return out.portfolios ?? [];
   }
 
   /* ------------------------------------------ inventory registration (#32) */
