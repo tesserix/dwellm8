@@ -74,6 +74,12 @@ export default function Home() {
       <Screen>
         {/* property card */}
         <Card padded={false} style={{ overflow: 'hidden', marginTop: space(3) }}>
+          {/* The art panel owns the card's whole top; the pill floats over it.
+              The old negative-margin overlap left a white notch beside the
+              pill whenever the pill outgrew the overlap. */}
+          <View style={s.art}>
+            <HouseArt size={168} />
+          </View>
           <View style={s.agencyPill}>
             <Text style={s.agencyName}>{scope.agency}</Text>
             {scope.manager ? (
@@ -85,10 +91,6 @@ export default function Home() {
                 <Text style={s.pmName}>{scope.manager}</Text>
               </>
             ) : null}
-          </View>
-
-          <View style={s.art}>
-            <HouseArt size={168} />
           </View>
 
           <View style={{ padding: space(4), paddingTop: space(3) }}>
@@ -225,10 +227,11 @@ const Quick = ({ icon, label, onPress }: { icon: React.ReactNode; label: string;
 
 const s = StyleSheet.create({
   agencyPill: {
+    position: 'absolute', top: 0, left: 0,
     flexDirection: 'row', alignItems: 'center', gap: 9,
-    backgroundColor: '#FFF', alignSelf: 'flex-start',
+    backgroundColor: '#FFF',
     paddingRight: space(5), paddingLeft: space(4), paddingVertical: space(3),
-    borderBottomRightRadius: radius.lg, zIndex: 2,
+    borderBottomRightRadius: radius.lg,
   },
   agencyName: { ...font.title, color: color.inkStrong },
   agencyDivider: { width: 1, height: 20, backgroundColor: color.line },
@@ -239,7 +242,7 @@ const s = StyleSheet.create({
   pmDotText: { ...font.tiny, color: color.accentDeep },
   pmName: { ...font.label, color: color.ink },
 
-  art: { backgroundColor: '#EAF1FB', alignItems: 'center', paddingVertical: space(4), marginTop: -space(6), paddingTop: space(10) },
+  art: { backgroundColor: '#EAF1FB', alignItems: 'center', paddingBottom: space(4), paddingTop: space(12) },
 
   addr: { ...font.h3, color: color.inkStrong, textAlign: 'center' },
   locality: { ...font.small, color: color.inkSoft, textAlign: 'center', marginTop: 3 },
