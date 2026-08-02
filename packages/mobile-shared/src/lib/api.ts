@@ -919,6 +919,7 @@ export class DwellmApi {
       start_on: string; end_on?: string;
       rent_amount_minor: number; deposit_amount_minor?: number;
       due_day: number; notice_days?: number; lock_in_until?: string;
+      deductor_class?: string; landlord_residency?: string;
     };
   }): Promise<OwnerOnboarded> {
     return this.request('POST', '/v1/ops/onboardings', {
@@ -945,6 +946,8 @@ export class DwellmApi {
         deposit_amount_minor: req.tenancy.deposit_amount_minor ?? 0,
         due_day: req.tenancy.due_day, notice_days: req.tenancy.notice_days ?? 0,
         lock_in_until: req.tenancy.lock_in_until ?? '',
+        deductor_class: req.tenancy.deductor_class ?? '',
+        landlord_residency: req.tenancy.landlord_residency ?? '',
       } : null,
     });
   }

@@ -61,6 +61,8 @@ export default function Onboard() {
   const [dueDay, setDueDay] = useState('5');
   const [startOn, setStartOn] = useState(todayIso());
   const [endOn, setEndOn] = useState(plusMonthsIso(11));
+  const [ownerIndividual, setOwnerIndividual] = useState(true);
+  const [ownerResident, setOwnerResident] = useState(true);
 
   const unitList = units.split(',').map((c) => c.trim()).filter(Boolean);
 
@@ -98,6 +100,8 @@ export default function Onboard() {
           rent_amount_minor: Math.round(Number(rent) * 100),
           deposit_amount_minor: Math.round(Number(deposit || 0) * 100),
           due_day: Number(dueDay) || 5,
+          deductor_class: ownerIndividual ? 'individual_no_audit' : 'business',
+          landlord_residency: ownerResident ? 'resident' : 'non_resident',
         } : undefined,
       });
       setDone(out);
@@ -135,7 +139,12 @@ export default function Onboard() {
             {done.lease_note ? <Text style={s.note}>{done.lease_note}</Text> : null}
             <Text style={s.note}>
               The moment {ownerName.split(' ')[0]} signs into Dwellm8 Own with {phone}, all of this
-              is already theirs{withTenant ? ` — and ${tenantName.split(' ')[0]} sees the tenancy in Dwellm8 Live the same way` : ''}.
+              is already theirs
+              {withTenant && done.lease_state === 'active'
+                ? ` — and ${tenantName.split(' ')[0]} sees the tenancy in Dwellm8 Live the same way`
+                : withTenant
+                  ? `. ${tenantName.split(' ')[0]}'s tenancy appears in Live once it activates`
+                  : ''}.
               Nobody sets anything up twice.
             </Text>
           </Card>
@@ -221,6 +230,8 @@ export default function Onboard() {
                 <Field label="Rent due day" value={dueDay} onChange={setDueDay} placeholder="5" keyboardType="numeric" />
                 <Field label="Starts on (YYYY-MM-DD)" value={startOn} onChange={setStartOn} placeholder={todayIso()} />
                 <Field label="Ends on — 11 months is the usual" value={endOn} onChange={setEndOn} placeholder={plusMonthsIso(11)} />
+                <SwitchRow label="The owner is an individual" hint="Not a company or firm — decides the TDS section" value={ownerIndividual} onChange={setOwnerIndividual} />
+                <SwitchRow label="The owner lives in India" hint="Tax residency, not citizenship" value={ownerResident} onChange={setOwnerResident} last />
               </>
             ) : null}
           </Card>
@@ -237,12 +248,16 @@ export default function Onboard() {
               <>
                 <KeyValue k="First tenancy" v={`${tenantName} in ${tenantUnit}`} />
                 <KeyValue k="Rent" v={`${inr(Math.round(Number(rent || 0) * 100))} · due day ${dueDay}`} />
-                <KeyValue k="Term" v={`${startOn} → ${endOn || 'open-ended'}`} last />
+                <KeyValue k="Term" v={`${startOn} → ${endOn || 'open-ended'}`} />
+                <KeyValue k="TDS facts" v={`${ownerIndividual ? 'Individual' : 'Business'}, ${ownerResident ? 'Indian resident' : 'non-resident'}`} last />
               </>
             ) : (
               <KeyValue k="First tenancy" v="Not yet — add one any time" last />
             )}
             <Text style={s.note}>
+              {withTenant
+                ? 'Confirming here acknowledges the TDS facts on the owner’s behalf — they decide which section governs the rent. '
+                : ''}
               Nothing here needs the owner to do anything. Their number claims it all.
             </Text>
           </Card>

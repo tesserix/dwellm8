@@ -9,6 +9,7 @@ import (
 	leasedomain "github.com/tesserix/dwellm8/services/api/internal/lease/domain"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 	propertydomain "github.com/tesserix/dwellm8/services/api/internal/property/domain"
 )
@@ -71,6 +72,11 @@ type onboardOwnerRequest struct {
 		DueDay       int    `json:"due_day"`
 		NoticeDays   int    `json:"notice_days"`
 		LockInUntil  string `json:"lock_in_until"`
+		// The two TDS facts activation demands (ADR-0024), confirmed by the
+		// manager on the review step. Defaults: an individual, resident owner
+		// — the ordinary Indian landlord.
+		DeductorClass     string `json:"deductor_class"`
+		LandlordResidency string `json:"landlord_residency"`
 	} `json:"tenancy"`
 }
 
@@ -244,6 +250,32 @@ func onboardingDraft(propertyID, unitID string, req onboardOwnerRequest) (leased
 		if d.LockInUntil, err = effective.ParseDate(t.LockInUntil); err != nil {
 			return leasedomain.Draft{}, errors.New("tenancy.lock_in_until must be a date, as YYYY-MM-DD")
 		}
+	}
+
+	// The TDS facts, so activation can pass ADR-0024's gate. The manager
+	// confirms them on the review step; the source names this flow.
+	deductor := t.DeductorClass
+	if deductor == "" {
+		deductor = string(tds.IndividualNoAudit)
+	}
+	residency := t.LandlordResidency
+	if residency == "" {
+		residency = string(tds.Resident)
+	}
+	iv, err := effective.Since(start)
+	if err != nil {
+		return leasedomain.Draft{}, err
+	}
+	d.Tax, err = tds.NewHistory([]effective.Record[tds.Facts]{{
+		ID: "1", Range: iv, Kind: effective.KindChange,
+		Value: tds.Facts{
+			Deductor: tds.DeductorClass(deductor), Residency: tds.Residency(residency),
+			From: start, Source: "ops_onboarding",
+			AcknowledgedBy: "manager", AcknowledgedOn: start,
+		},
+	}})
+	if err != nil {
+		return leasedomain.Draft{}, err
 	}
 	return d, nil
 }
