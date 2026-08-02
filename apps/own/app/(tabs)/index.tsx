@@ -101,6 +101,7 @@ export default function Home() {
               <Quick icon={<ChatIcon size={20} />} label="Contact" onPress={() => router.push('/property?tab=Contact')} />
               <Quick icon={<HomeIcon size={20} />} label="Details" onPress={() => router.push('/property?tab=Details')} />
               <Quick icon={<DocIcon size={20} />} label="Documents" onPress={() => router.push('/property?tab=Documents')} />
+              <Quick icon={<ChatIcon size={20} />} label="Applicants" onPress={() => router.push('/applications')} />
             </View>
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: space(3) }}>
