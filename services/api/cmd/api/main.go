@@ -495,11 +495,29 @@ func run() error {
 		"PUT /v1/listings/{id}/media/order",
 		"GET /v1/listings/{id}/media",
 		"POST /v1/listings/{id}/media/{mid}/takedown",
+		"GET /v1/moderation/media",
+		"POST /v1/listings/{id}/media/{mid}/clear",
 	} {
 		protected.Handle(p, mediaOwner)
 	}
 	mediaPublic := ginx.Engine()
 	discoveryhttp.NewMedia(mediaStore, blobStore, logger).PublicRoutes(ginx.New(mediaPublic, guard))
+
+	// Listing moderation, #143: the public reports, the admin judges, the
+	// outbox remembers. Publication guardrails fire in the domain on publish.
+	moderationStore := discoverystore.NewModeration(pool, tenancy.NewPlatformPool(platformPool))
+	moderationOwner := ginx.Engine()
+	discoveryhttp.NewModeration(moderationStore, logger).OwnerRoutes(ginx.New(moderationOwner, guard))
+	for _, p := range []string{
+		"GET /v1/moderation/listings",
+		"POST /v1/listings/{id}/suspend",
+		"POST /v1/listings/{id}/reinstate",
+		"POST /v1/listings/{id}/reports/dismiss",
+	} {
+		protected.Handle(p, moderationOwner)
+	}
+	moderationPublic := ginx.Engine()
+	discoveryhttp.NewModeration(moderationStore, logger).PublicRoutes(ginx.New(moderationPublic, guard))
 
 	// Applications, #142: the formal step between enquiry and lease.
 	appsStore := discoverystore.NewApplications(pool, tenancy.NewPlatformPool(platformPool))

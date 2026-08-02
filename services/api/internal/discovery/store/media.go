@@ -145,6 +145,63 @@ func (s *MediaStore) Takedown(ctx context.Context, listingID, mediaID, reason st
 	})
 }
 
+// ReportedItem is one row of the moderation queue: the photo, where it hangs,
+// and how long it has waited.
+type ReportedItem struct {
+	Media
+	Headline   string
+	ReportedAt string
+}
+
+// ReviewQueue is the moderation queue (#143): every reported photo on the
+// organisation's listings, oldest report first — the one the reporter has
+// been waiting on longest is the one reviewed next.
+func (s *MediaStore) ReviewQueue(ctx context.Context) ([]ReportedItem, error) {
+	var out []ReportedItem
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT m.id::text, m.listing_id::text, m.object_path, m.content_type,
+			       m.position, m.state, coalesce(l.headline, ''),
+			       to_char(m.reported_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+			  FROM listing_media m
+			  LEFT JOIN listings l ON l.id = m.listing_id
+			 WHERE m.tenant_id = current_tenant_id() AND m.state = 'reported'
+			 ORDER BY m.reported_at
+			 LIMIT 200`)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var it ReportedItem
+			if err := rows.Scan(&it.ID, &it.ListingID, &it.ObjectPath, &it.ContentType,
+				&it.Position, &it.State, &it.Headline, &it.ReportedAt); err != nil {
+				return err
+			}
+			out = append(out, it)
+		}
+		return rows.Err()
+	})
+	return out, err
+}
+
+// Clear returns a reported photo to live — the reviewer's judgement that the
+// report was wrong, as deliberate as the takedown.
+func (s *MediaStore) Clear(ctx context.Context, listingID, mediaID string) error {
+	return tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `
+			UPDATE listing_media SET state = 'live', updated_at = now()
+			 WHERE id = $1 AND listing_id = $2 AND state = 'reported'`, mediaID, listingID)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrNoMedia
+		}
+		return nil
+	})
+}
+
 // ForListing is the owner's view: everything not removed, in order.
 func (s *MediaStore) ForListing(ctx context.Context, listingID string) ([]Media, error) {
 	var out []Media

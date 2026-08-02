@@ -43,6 +43,12 @@ func (h *MediaHandler) OwnerRoutes(r *ginx.Registrar) {
 	// Takedown is the moderation act — administrative, not day-to-day editing.
 	r.Handle(http.MethodPost, "/v1/listings/:id/media/:mid/takedown", authz.Check{
 		Relation: "can_administer", Object: authz.Organisation()}, h.Takedown)
+	// The moderation queue (#143): reported photos, oldest first, with the
+	// two judgements — takedown above, or clear below.
+	r.Handle(http.MethodGet, "/v1/moderation/media", authz.Check{
+		Relation: "can_administer", Object: authz.Organisation()}, h.Queue)
+	r.Handle(http.MethodPost, "/v1/listings/:id/media/:mid/clear", authz.Check{
+		Relation: "can_administer", Object: authz.Organisation()}, h.Clear)
 }
 
 // PublicRoutes mounts the report route: anyone may pull the cord.
@@ -141,6 +147,37 @@ func (h *MediaHandler) Takedown(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"id": c.Param("mid"), "state": "removed"})
+}
+
+// Queue is the moderation queue: reported photos across the organisation's
+// listings, oldest report first, each with a fresh signed URL to look at.
+func (h *MediaHandler) Queue(c *gin.Context) {
+	list, err := h.media.ReviewQueue(c.Request.Context())
+	if err != nil {
+		h.fail(c, "reading the moderation queue", err)
+		return
+	}
+	out := make([]gin.H, 0, len(list))
+	for _, it := range list {
+		v := gin.H{"id": it.ID, "listing_id": it.ListingID, "headline": it.Headline,
+			"reported_at": it.ReportedAt, "content_type": it.ContentType}
+		if h.blob != nil {
+			if url, err := h.blob.DownloadURL(c.Request.Context(), auth.SurfaceFind, it.ObjectPath); err == nil {
+				v["url"] = url
+			}
+		}
+		out = append(out, v)
+	}
+	c.JSON(http.StatusOK, gin.H{"queue": out, "waiting": len(list)})
+}
+
+// Clear returns a reported photo to live — the report judged wrong.
+func (h *MediaHandler) Clear(c *gin.Context) {
+	if err := h.media.Clear(c.Request.Context(), c.Param("id"), c.Param("mid")); err != nil {
+		h.fail(c, "clearing a report", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"id": c.Param("mid"), "state": "live"})
 }
 
 // Report flags a photo from the public side. One answer whatever happened —

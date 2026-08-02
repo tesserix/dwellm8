@@ -31,6 +31,9 @@ const (
 	StateLet State = "let"
 	// StateWithdrawn is the terminal abandonment.
 	StateWithdrawn State = "withdrawn"
+	// StateSuspended is off the market by moderation, not by the owner (#143).
+	// It holds the unit's advertising slot and vanishes from public view.
+	StateSuspended State = "suspended"
 )
 
 // Event names the facts this module publishes. ADR-0002 §2.
@@ -42,6 +45,10 @@ const (
 	EventResumed   Event = "discovery.listing.resumed"
 	EventWithdrawn Event = "discovery.listing.withdrawn"
 	EventLet       Event = "discovery.listing.let"
+
+	EventReported   Event = "discovery.listing.reported"
+	EventSuspended  Event = "discovery.listing.suspended"
+	EventReinstated Event = "discovery.listing.reinstated"
 
 	EventEnquiryReceived  Event = "discovery.enquiry.received"
 	EventEnquiryResponded Event = "discovery.enquiry.responded"
@@ -143,6 +150,11 @@ func (d Draft) PublishableNow() error {
 		return fmt.Errorf("%w: every cost component must be supplied or explicitly marked "+
 			"not applicable before publication — set costs.confirmed", ErrDisclosure)
 	}
+	// The compliance gate (#143): a prohibited claim blocks publication with
+	// the rule cited and the wording that must change.
+	if v := CheckClaims(d.Headline); len(v) > 0 {
+		return v[0].Err()
+	}
 	return nil
 }
 
@@ -156,10 +168,17 @@ var transitions = map[State]map[State]Event{
 		StatePaused:    EventPaused,
 		StateLet:       EventLet,
 		StateWithdrawn: EventWithdrawn,
+		StateSuspended: EventSuspended,
 	},
 	StatePaused: {
 		StateLive:      EventResumed,
 		StateLet:       EventLet,
+		StateWithdrawn: EventWithdrawn,
+		StateSuspended: EventSuspended,
+	},
+	// Suspension is moderation's act, and only moderation lifts it.
+	StateSuspended: {
+		StateLive:      EventReinstated,
 		StateWithdrawn: EventWithdrawn,
 	},
 }

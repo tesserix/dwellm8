@@ -96,6 +96,53 @@ func TestMediaOrderAndModeration(t *testing.T) {
 	}
 }
 
+// The moderation queue (#143): a report queues the photo for the owning
+// organisation only, and clearing it is as deliberate — and as final on a
+// second try — as the takedown.
+func TestModerationQueue(t *testing.T) {
+	media, listings, listing := mediaFixture(t)
+	ctx := owner()
+	id, err := media.Record(ctx, listing, "org/x/q.jpg", "image/jpeg", 0)
+	if err != nil {
+		t.Fatalf("recording: %v", err)
+	}
+	if err := listings.Move(ctx, listing, domain.StateLive, events.Actor{Kind: events.ActorSystem}); err != nil {
+		t.Fatalf("publishing: %v", err)
+	}
+	if err := media.Report(context.Background(), listing, id); err != nil {
+		t.Fatalf("reporting: %v", err)
+	}
+
+	queue, err := media.ReviewQueue(ctx)
+	if err != nil {
+		t.Fatalf("reading the queue: %v", err)
+	}
+	var mine *store.ReportedItem
+	for i := range queue {
+		if queue[i].ID == id {
+			mine = &queue[i]
+		}
+	}
+	if mine == nil || mine.Headline == "" || mine.ReportedAt == "" {
+		t.Fatalf("the reported photo is missing from its owner's queue: %+v", queue)
+	}
+	if other, _ := media.ReviewQueue(otherOrg()); len(other) != 0 {
+		t.Fatalf("another organisation's queue holds %d of my reports", len(other))
+	}
+
+	// Cleared: serving again, out of the queue, and a second clear is a no-op
+	// with a name.
+	if err := media.Clear(ctx, listing, id); err != nil {
+		t.Fatalf("clearing: %v", err)
+	}
+	if pub, _ := media.PublicForListing(context.Background(), listing); len(pub) != 1 {
+		t.Fatalf("a cleared photo is not serving: %d", len(pub))
+	}
+	if err := media.Clear(ctx, listing, id); !errors.Is(err, store.ErrNoMedia) {
+		t.Fatalf("double clear = %v, want ErrNoMedia", err)
+	}
+}
+
 // Another organisation can neither attach media to my listing nor see mine.
 func TestMediaIsolation(t *testing.T) {
 	media, _, listing := mediaFixture(t)
