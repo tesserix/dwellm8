@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/tesserix/dwellm8/services/api/internal/discovery/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
@@ -104,6 +105,57 @@ func TestStayBookingStory(t *testing.T) {
 	// Completed nights stay booked history; the same dates are free again only
 	// through cancellation, which the next test walks.
 	_ = plat
+}
+
+// The money leg (#233→#234): a payment attaches to the guest's own held
+// booking exactly once, and the received fact confirms it — even after the
+// hold clock lapsed, because money that moved beats a timer.
+func TestStayPaymentConfirms(t *testing.T) {
+	stay, prospects, plat, listing := stayFixture(t)
+	in := time.Now().AddDate(0, 0, 90).Truncate(24 * time.Hour)
+	out := in.AddDate(0, 0, 2)
+
+	guest := verifiedGuest(t, prospects)
+	b, err := stay.Hold(context.Background(), listing, guest.ID, in, out, 2)
+	if err != nil {
+		t.Fatalf("holding: %v", err)
+	}
+
+	// Only the guest's own held booking takes a payment, and only once.
+	paymentID := uuid.NewString()
+	other := verifiedGuest(t, prospects)
+	if err := stay.AttachPayment(context.Background(), other.ID, b.ID, paymentID); !errors.Is(err, store.ErrNoStay) {
+		t.Fatalf("another guest attached a payment: %v", err)
+	}
+	if err := stay.AttachPayment(context.Background(), guest.ID, b.ID, paymentID); err != nil {
+		t.Fatalf("attaching: %v", err)
+	}
+	if err := stay.AttachPayment(context.Background(), guest.ID, b.ID, uuid.NewString()); !errors.Is(err, store.ErrNoStay) {
+		t.Fatalf("a second payment attached over the first: %v", err)
+	}
+
+	// The hold lapses; the payment arrives anyway. Money wins.
+	if err := tenancy.Platform(context.Background(), plat, "test: lapsing a paid hold",
+		func(ctx context.Context, tx pgx.Tx) error {
+			_, err := tx.Exec(ctx,
+				`UPDATE stay_bookings SET hold_expires_at = now() - interval '1 minute' WHERE id = $1`, b.ID)
+			return err
+		}); err != nil {
+		t.Fatalf("lapsing: %v", err)
+	}
+	confirmed, err := stay.ConfirmByPayment(context.Background(), paymentID)
+	if err != nil || confirmed != b.ID {
+		t.Fatalf("ConfirmByPayment = %q, %v; want %s", confirmed, err, b.ID)
+	}
+	// Idempotent: the same fact redelivered confirms nothing twice.
+	again, err := stay.ConfirmByPayment(context.Background(), paymentID)
+	if err != nil || again != "" {
+		t.Fatalf("redelivery = %q, %v; want quiet", again, err)
+	}
+	// And an unknown payment is the consumer's ordinary silence.
+	if id, err := stay.ConfirmByPayment(context.Background(), uuid.NewString()); err != nil || id != "" {
+		t.Fatalf("unknown payment = %q, %v; want quiet", id, err)
+	}
 }
 
 func TestStayCancelReleasesAndExpiredHoldRefusesConfirm(t *testing.T) {

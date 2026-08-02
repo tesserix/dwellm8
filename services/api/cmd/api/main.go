@@ -378,8 +378,22 @@ func run() error {
 		if err != nil {
 			return fmt.Errorf("discovery consumer: %w", err)
 		}
+		// One handler, two streams: lease facts close adverts, money facts
+		// confirm stays (#233 — a webhook alone never moves a booking; the
+		// received fact, already in the ledger's transaction, does).
+		ensureCtx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		payCons, err := eventsConn.EnsureConsumer(ensureCtx, natsx.ConsumerSpec{
+			Name:     "discovery-stay-payments",
+			Stream:   "DWELLM8_MONEY",
+			Subjects: []string{"dwellm8.money.payment.>"},
+		})
+		cancel()
+		if err != nil {
+			return fmt.Errorf("discovery payments consumer: %w", err)
+		}
 		letMarker := discoveryservice.Consumer{
 			Marker: discoverystore.NewLetMarker(tenancy.NewPlatformPool(platformPool)),
+			Stay:   discoverystore.NewStay(pool, tenancy.NewPlatformPool(platformPool)),
 			Log:    logger,
 		}
 		go func() {
@@ -388,7 +402,14 @@ func run() error {
 				logger.Error("discovery consumer stopped", "consumer", "discovery-listings", "error", err)
 			}
 		}()
-		logger.Info("discovery listing closer running", "consumer", "discovery-listings")
+		go func() {
+			if err := natsx.Consume(relayCtx, payCons, letMarker.Handle, logger); err != nil &&
+				!errors.Is(err, context.Canceled) {
+				logger.Error("discovery consumer stopped", "consumer", "discovery-stay-payments", "error", err)
+			}
+		}()
+		logger.Info("discovery consumers running",
+			"consumers", "discovery-listings, discovery-stay-payments")
 	} else {
 		logger.Warn("the event-triggered automations are off; a tenancy going live will not " +
 			"start its move-in until somebody does. The scheduled ones are unaffected.")
@@ -443,7 +464,8 @@ func run() error {
 	discoveryhttp.NewStay(stayStore, prospects, logger).HostRoutes(ginx.New(stayHost, guard))
 	protected.Handle("/v1/stay/", stayHost)
 	stayPublic := ginx.Engine()
-	discoveryhttp.NewStay(stayStore, prospects, logger).PublicRoutes(ginx.New(stayPublic, guard))
+	discoveryhttp.NewStay(stayStore, prospects, logger).WithPayments(payments).
+		PublicRoutes(ginx.New(stayPublic, guard))
 	// Registering inventory, #32 — the rows everything else points back to.
 	propertyhttp.New(propertyservice.New(propertystore.New(pool)), logger).
 		Routes(authz.NewRegistrar(protected, guard))

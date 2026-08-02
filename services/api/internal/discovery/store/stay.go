@@ -203,7 +203,9 @@ func (s *Stay) Live(ctx context.Context, id string) (StayListing, error) {
 // Booking is a row of stay_bookings.
 type Booking struct {
 	ID            string
+	TenantID      string
 	ListingID     string
+	PropertyID    string
 	UnitID        string
 	ProspectID    string
 	State         string
@@ -214,6 +216,28 @@ type Booking struct {
 	CleaningMinor int64
 	TotalMinor    int64
 	HoldExpiresAt *time.Time
+}
+
+// GuestBooking reads one booking as its guest — the token holder's own, or
+// nothing.
+func (s *Stay) GuestBooking(ctx context.Context, prospectID, bookingID string) (Booking, error) {
+	var b Booking
+	err := tenancy.Platform(ctx, s.platform, "reading a guest's own stay (#233)",
+		func(ctx context.Context, tx pgx.Tx) error {
+			return tx.QueryRow(ctx, `
+				SELECT id::text, tenant_id::text, listing_id::text, property_id::text,
+				       unit_id::text, prospect_id::text, state, guests, check_in, check_out,
+				       nightly_minor, cleaning_minor, total_minor, hold_expires_at
+				  FROM stay_bookings
+				 WHERE id = $1 AND prospect_id = $2`, bookingID, prospectID).
+				Scan(&b.ID, &b.TenantID, &b.ListingID, &b.PropertyID, &b.UnitID, &b.ProspectID,
+					&b.State, &b.Guests, &b.CheckIn, &b.CheckOut,
+					&b.NightlyMinor, &b.CleaningMinor, &b.TotalMinor, &b.HoldExpiresAt)
+		})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Booking{}, ErrNoStay
+	}
+	return b, err
 }
 
 // Hold takes the nights for a verified prospect, priced at the listing's
@@ -328,6 +352,61 @@ func (s *Stay) hostMove(ctx context.Context, id, to, event, guard string, miss e
 		}
 		return events.Append(ctx, tx, env)
 	})
+}
+
+// AttachPayment names the collection that pays a held booking, guest-scoped:
+// only the prospect who holds the nights can pay for them, and only once.
+func (s *Stay) AttachPayment(ctx context.Context, prospectID, bookingID, paymentID string) error {
+	return tenancy.Platform(ctx, s.platform, "attaching a payment to a stay (#233)",
+		func(ctx context.Context, tx pgx.Tx) error {
+			tag, err := tx.Exec(ctx, `
+				UPDATE stay_bookings SET payment_id = $3, updated_at = now()
+				 WHERE id = $1 AND prospect_id = $2 AND state = 'held'
+				   AND hold_expires_at > now() AND payment_id IS NULL`,
+				bookingID, prospectID, paymentID)
+			if err != nil {
+				return err
+			}
+			if tag.RowsAffected() == 0 {
+				return ErrNoStay
+			}
+			return nil
+		})
+}
+
+// ConfirmByPayment commits the booking a received payment pays for — the
+// consumer's path, so it is platform-scoped and idempotent, and it ignores
+// the hold clock deliberately: a held row still blocks its nights, and money
+// that actually arrived beats a lapsed timer.
+func (s *Stay) ConfirmByPayment(ctx context.Context, paymentID string) (bookingID string, err error) {
+	err = tenancy.Platform(ctx, s.platform, "confirming a stay on payment (#233)",
+		func(ctx context.Context, tx pgx.Tx) error {
+			var tenant string
+			err := tx.QueryRow(ctx, `
+				UPDATE stay_bookings SET state = 'confirmed', updated_at = now()
+				 WHERE payment_id = $1 AND state = 'held'
+				 RETURNING id::text, tenant_id::text`, paymentID).Scan(&bookingID, &tenant)
+			if errors.Is(err, pgx.ErrNoRows) {
+				// No held booking names this payment: not a stay collection, or
+				// already confirmed. Both are the consumer's ordinary silence.
+				bookingID = ""
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			env, err := events.New("discovery.stay.confirmed", tenant,
+				events.Subject{Kind: "stay_booking", ID: bookingID},
+				events.Actor{Kind: events.ActorSystem},
+				struct {
+					PaymentID string `json:"payment_id"`
+				}{paymentID})
+			if err != nil {
+				return err
+			}
+			return events.Append(ctx, tx, env)
+		})
+	return bookingID, err
 }
 
 // CancelByGuest releases the nights, prospect-scoped on the platform pool.

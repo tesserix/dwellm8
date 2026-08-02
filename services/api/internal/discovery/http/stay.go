@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/tesserix/dwellm8/services/api/internal/discovery/service"
 	"github.com/tesserix/dwellm8/services/api/internal/discovery/store"
+	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/ginx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
@@ -22,12 +23,21 @@ import (
 type Stay struct {
 	stay      *store.Stay
 	prospects *service.Prospects
+	payments  *moneyservice.Payments
 	log       *slog.Logger
 }
 
 // NewStay builds the handler.
 func NewStay(s *store.Stay, p *service.Prospects, log *slog.Logger) *Stay {
 	return &Stay{stay: s, prospects: p, log: log}
+}
+
+// WithPayments teaches the guest side to take money through the provider
+// chain (ADR-0011). Optional: nil answers 503 on the pay route rather than
+// the process failing to start, the DocURLKey shape.
+func (h *Stay) WithPayments(p *moneyservice.Payments) *Stay {
+	h.payments = p
+	return h
 }
 
 // HostRoutes mounts the authenticated side.
@@ -51,6 +61,7 @@ func (h *Stay) PublicRoutes(r *ginx.Registrar) {
 	r.Open(http.MethodGet, "/v1/public/stay", openReason, h.Search)
 	r.Open(http.MethodGet, "/v1/public/stay/:id", openReason, h.Detail)
 	r.Open(http.MethodPost, "/v1/public/stay/:id/bookings", openReason, h.Book)
+	r.Open(http.MethodPost, "/v1/public/stay/bookings/:id/pay", openReason, h.Pay)
 	r.Open(http.MethodPost, "/v1/public/stay/bookings/:id/cancel", openReason, h.GuestCancel)
 }
 
@@ -218,6 +229,64 @@ func (h *Stay) Book(c *gin.Context) {
 	default:
 		h.fail(c, "booking a stay", err)
 	}
+}
+
+// Pay starts the collection that turns a hold into a stay: UPI through the
+// provider chain (ADR-0011), the amount frozen at booking, one payment per
+// booking however many times the button is pressed. Confirmation is the
+// money.payment.received consumer's — a webhook alone moves the state, this
+// route only starts the attempt.
+func (h *Stay) Pay(c *gin.Context) {
+	if h.payments == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "payments are not configured"})
+		return
+	}
+	p, err := h.prospects.Resolve(c.Request.Context(), c.GetHeader(tokenHeader))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "start a session first"})
+		return
+	}
+	b, err := h.stay.GuestBooking(c.Request.Context(), p.ID, c.Param("id"))
+	if err != nil {
+		h.fail(c, "reading the booking", err)
+		return
+	}
+	if b.State != "held" {
+		c.JSON(http.StatusConflict, gin.H{"error": "only a held booking can be paid for — this one is " + b.State})
+		return
+	}
+	if b.HoldExpiresAt != nil && b.HoldExpiresAt.Before(time.Now()) {
+		c.JSON(http.StatusConflict, gin.H{"error": "the hold has expired — book again"})
+		return
+	}
+
+	// The collection is written into the host's organisation, scoped here the
+	// way the resident surface scopes into the landlord's: from the row the
+	// server read, never from anything the caller sent.
+	ctx := tenancy.With(c.Request.Context(), tenancy.ID(b.TenantID))
+	payment, order, err := h.payments.Collect(ctx, moneyservice.CollectRequest{
+		TenantID: b.TenantID, Property: b.PropertyID, Unit: b.UnitID,
+		PayerID: p.ID, PayerName: "HomeStay guest", PayerContact: p.ContactMasked,
+		Amount: moneyservice.Minor(b.TotalMinor), Method: moneyservice.MethodUPIIntent,
+		IdempotencyKey: "stay:" + b.ID,
+	})
+	if err != nil {
+		h.log.Error("starting a stay collection", "booking", b.ID, "error", err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "could not start the payment — try again shortly"})
+		return
+	}
+	if err := h.stay.AttachPayment(c.Request.Context(), p.ID, b.ID, payment.ID); err != nil &&
+		!errors.Is(err, store.ErrNoStay) {
+		// ErrNoStay here means a retry already attached this payment; anything
+		// else is real.
+		h.fail(c, "attaching the payment", err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{
+		"booking_id": b.ID, "payment_id": payment.ID, "status": string(payment.Status),
+		"amount_minor": b.TotalMinor, "provider_order_id": order.ProviderOrderID,
+		"pay_url": order.PayURL, "pay_token": order.PayToken,
+	})
 }
 
 // GuestCancel releases the token holder's own booking.

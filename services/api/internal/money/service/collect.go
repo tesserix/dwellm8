@@ -73,6 +73,14 @@ func receipt(p collect.Payment, outstanding domain.Minor, at time.Time) (domain.
 		})
 }
 
+// Minor and the method names are re-exported so another module can build a
+// CollectRequest through this seam alone — ADR-0001 §3, the same reason
+// property re-exports its domain types.
+type Minor = domain.Minor
+
+// MethodUPIIntent is the tap-to-pay UPI flow, the guest-facing default.
+const MethodUPIIntent = collect.MethodUPIIntent
+
 // CollectRequest is one attempt to take money.
 type CollectRequest struct {
 	TenantID string

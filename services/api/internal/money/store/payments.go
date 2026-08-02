@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/tesserix/dwellm8/services/api/internal/money/domain"
 	"github.com/tesserix/dwellm8/services/api/internal/money/domain/collect"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/events"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 )
 
@@ -180,6 +181,28 @@ func (s *Payments) ApplyConfirmedAndPost(ctx context.Context, id string, to coll
 				return err
 			}
 			p.EntryID = entryID
+
+			// The fact, in the transaction that makes it true (ADR-0002): money
+			// arrived and the ledger says so. Emitted once — on the transition
+			// that created the entry, not on every later status the provider
+			// confirms. HomeStay's booking confirmation is the first consumer.
+			env, err := events.New("money.payment.received", tenant.String(),
+				events.Subject{Kind: "payment", ID: p.ID},
+				events.Actor{Kind: events.ActorProvider},
+				struct {
+					AmountMinor    int64  `json:"amount_minor"`
+					PropertyID     string `json:"property_id,omitempty"`
+					UnitID         string `json:"unit_id,omitempty"`
+					LeaseID        string `json:"lease_id,omitempty"`
+					IdempotencyKey string `json:"idempotency_key"`
+					Method         string `json:"method"`
+				}{int64(p.Amount), p.Property, p.Unit, p.Lease, p.IdempotencyKey, string(p.Method)})
+			if err != nil {
+				return err
+			}
+			if err := events.Append(ctx, tx, env); err != nil {
+				return err
+			}
 		}
 
 		out = p
