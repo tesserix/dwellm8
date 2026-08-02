@@ -173,6 +173,24 @@ export default function ListingScreen() {
             <KeyValue k="This listing" v="2% below the median" tone="green" last />
           </View>
         </Card>
+
+        <Card>
+          <Text style={s.h}>Something wrong with this listing?</Text>
+          <Text style={s.body}>
+            Wrong rent, photographs that are not the flat, a fee to be shown around — report it
+            and a person reviews it. The lister is not told who reported.
+          </Text>
+          <Button
+            label="Report this listing"
+            tone="secondary"
+            small
+            onPress={() => {
+              api()?.reportListing(l.id, 'other').catch(() => {});
+              say('Reported — thank you, this will be reviewed');
+            }}
+            style={{ marginTop: space(3) }}
+          />
+        </Card>
       </Screen>
 
       <ActionBar>
