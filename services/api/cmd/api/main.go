@@ -616,6 +616,7 @@ func run() error {
 		WithMedia(mediaStore, blobStore).
 		Routes(authz.NewRegistrar(mux, guard))
 	mux.Handle("POST /v1/public/listings/{id}/media/{mid}/report", mediaPublic)
+	mux.Handle("POST /v1/public/listings/{id}/report", moderationPublic)
 	mux.Handle("POST /v1/public/listings/{id}/applications", appsPublic)
 	mux.Handle("GET /v1/public/applications", appsPublic)
 	mux.Handle("POST /v1/public/applications/{id}/withdraw", appsPublic)
