@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import {
-  AppHeader, AvatarButton, Card, Screen, SearchBar, ListRow, StatusPill, Metric,
-  SectionTitle, BedIcon, BuildingIcon, ClipboardIcon, RefreshIcon, ShieldIcon, UsersIcon, ChartIcon,
+  AppHeader, AvatarButton, Button, Card, Screen, SearchBar, ListRow, StatusPill, Metric,
+  SectionTitle, BedIcon, BuildingIcon, ClipboardIcon, PlusIcon, RefreshIcon, ShieldIcon, UsersIcon, ChartIcon,
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
@@ -64,6 +64,15 @@ export default function Portfolio() {
           <Metric value={String(vacant)} label="vacant now" tone="amber" />
           <Metric value={`${today.occupancyPct}%`} label="occupancy" tone="green" />
         </View>
+
+        <Button
+          label="Onboard a new owner"
+          icon={<PlusIcon size={19} c="#FFF" />}
+          // The route union regenerates on the next expo start; the cast
+          // bridges until then.
+          onPress={() => router.push('/onboard' as Href)}
+          style={{ marginHorizontal: space(4), marginTop: space(3) }}
+        />
 
         <Card>
           <Text style={s.rollLabel}>Monthly rent roll</Text>

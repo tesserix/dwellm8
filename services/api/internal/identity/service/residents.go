@@ -121,6 +121,17 @@ func (r *Residents) Contact(ctx context.Context, partyID string) (phone, email s
 	return r.principals.Contact(ctx, partyID)
 }
 
+// Profile reads a party's self-presented profile (#240).
+func (r *Residents) Profile(ctx context.Context, partyID string) (store.Profile, error) {
+	return r.principals.ProfileByParty(ctx, partyID)
+}
+
+// UpdateProfile is the renter filling in their own PI after onboarding. The
+// verified phone never moves here.
+func (r *Residents) UpdateProfile(ctx context.Context, partyID, displayName, email string) (store.Profile, error) {
+	return r.principals.UpdateProfileByParty(ctx, partyID, displayName, email)
+}
+
 // ErrNoTenancy is a verified renter who is on no lease.
 //
 // Distinct from a refusal: the sign-in is genuine and there is simply nothing

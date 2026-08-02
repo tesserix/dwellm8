@@ -36,6 +36,91 @@ func (h *Onboarding) Routes(r *authz.Registrar) {
 	r.Open("POST /v1/onboarding",
 		"the caller has no organisation yet — this is the call that creates it; the verified token authenticates them and the surface decides what kind they may create",
 		h.Onboard)
+	r.Open("GET /v1/me",
+		"the subject is the verified sign-in itself — nothing another person's id could widen",
+		h.Me)
+	r.Open("PATCH /v1/me",
+		"the subject is the verified sign-in itself — a person editing their own name and email",
+		h.UpdateMe)
+}
+
+type meResponse struct {
+	PartyID     string `json:"party_id"`
+	Phone       string `json:"phone,omitempty"`
+	Email       string `json:"email,omitempty"`
+	DisplayName string `json:"display_name,omitempty"`
+}
+
+// Me answers who this verified sign-in is — the Own app's profile (#240).
+func (h *Onboarding) Me(w http.ResponseWriter, r *http.Request) {
+	p, ok := auth.From(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "sign in first")
+		return
+	}
+	person, err := h.principals.Lookup(r.Context(), p)
+	if errors.Is(err, store.ErrUnknownPrincipal) {
+		writeError(w, http.StatusNotFound, "this sign-in has no account yet")
+		return
+	}
+	if err != nil {
+		h.log.Error("reading a profile", "surface", p.Surface, "error", err)
+		writeError(w, http.StatusInternalServerError, "could not read the profile")
+		return
+	}
+	prof, err := h.principals.ProfileByParty(r.Context(), person.PartyID)
+	if err != nil {
+		h.log.Error("reading a profile", "party", person.PartyID, "error", err)
+		writeError(w, http.StatusInternalServerError, "could not read the profile")
+		return
+	}
+	writeJSON(w, http.StatusOK, meResponse{
+		PartyID: prof.PartyID, Phone: prof.Phone, Email: prof.Email, DisplayName: prof.DisplayName,
+	})
+}
+
+type updateMeRequest struct {
+	DisplayName string `json:"display_name"`
+	Email       string `json:"email"`
+}
+
+// UpdateMe is the person filling in their own PI after onboarding (#240).
+// The verified phone never moves here.
+func (h *Onboarding) UpdateMe(w http.ResponseWriter, r *http.Request) {
+	p, ok := auth.From(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "sign in first")
+		return
+	}
+	person, err := h.principals.Lookup(r.Context(), p)
+	if errors.Is(err, store.ErrUnknownPrincipal) {
+		writeError(w, http.StatusNotFound, "this sign-in has no account yet")
+		return
+	}
+	if err != nil {
+		h.log.Error("updating a profile", "surface", p.Surface, "error", err)
+		writeError(w, http.StatusInternalServerError, "could not save the details")
+		return
+	}
+	var req updateMeRequest
+	body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
+	if err != nil || json.Unmarshal(body, &req) != nil {
+		writeError(w, http.StatusBadRequest, "send display_name and/or email")
+		return
+	}
+	if req.DisplayName == "" && req.Email == "" {
+		writeError(w, http.StatusUnprocessableEntity, "send display_name or email — there is nothing else to change here")
+		return
+	}
+	prof, err := h.principals.UpdateProfileByParty(r.Context(), person.PartyID, req.DisplayName, req.Email)
+	if err != nil {
+		h.log.Error("updating a profile", "party", person.PartyID, "error", err)
+		writeError(w, http.StatusInternalServerError, "could not save the details")
+		return
+	}
+	writeJSON(w, http.StatusOK, meResponse{
+		PartyID: prof.PartyID, Phone: prof.Phone, Email: prof.Email, DisplayName: prof.DisplayName,
+	})
 }
 
 type onboardRequest struct {

@@ -630,12 +630,14 @@ func run() error {
 	opsMux := http.NewServeMux()
 	tickets := maintenanceservice.NewTickets(maintenancestore.NewTickets(pool), logger)
 	community := communityservice.New(communitystore.New(pool), logger)
+	owners := identityservice.NewOwners(principals, logger)
 	opsHandler := opssurface.New(
 		propertyservice.New(propertystore.New(pool)),
 		leases, statements, residents, feed, logger, nil).
-		WithTickets(tickets).WithCommunity(community)
+		WithTickets(tickets).WithCommunity(community).WithOwners(owners)
 	opsHandler.Routes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.WorklistRoutes(authz.NewRegistrar(opsMux, guard))
+	opsHandler.OnboardingRoutes(authz.NewRegistrar(opsMux, guard))
 
 	// The tenant view, on its own tree. Issue #51, ADR-0029.
 	//
@@ -714,6 +716,9 @@ func run() error {
 		onboardingMux := http.NewServeMux()
 		identityhttp.NewOnboarding(principals, logger).Routes(authz.NewRegistrar(onboardingMux, guard))
 		mux.Handle("POST /v1/onboarding", auth.Middleware(verifier, onboardingMux))
+		// The profile sits beside onboarding for the same reason: a verified
+		// sign-in editing their own name needs no membership resolved. #240.
+		mux.Handle("/v1/me", auth.Middleware(verifier, onboardingMux))
 
 		resolver := identityservice.NewResolver(principals, logger)
 		mux.Handle("/", auth.Middleware(verifier, resolver.Middleware(protected)))

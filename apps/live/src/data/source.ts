@@ -272,21 +272,32 @@ export function useTicket(leaseId: string | undefined, ticketId: string | undefi
   return state;
 }
 
-/** The signed-in renter, for the profile screen. */
-export function useMe(): { loading: boolean; phone: string; email: string } {
+/** The signed-in renter, for the profile screen — read and self-serve edit (#240). */
+export function useMe(): {
+  loading: boolean; phone: string; email: string; name: string;
+  save: (patch: { name?: string; email?: string }) => Promise<void>;
+} {
   const client = useMemo(() => apiFromEnv(), []);
-  const [state, setState] = useState({ loading: !!client, phone: '', email: '' });
+  const [state, setState] = useState({ loading: !!client, phone: '', email: '', name: '' });
 
   useEffect(() => {
     if (!client) return;
     let alive = true;
     client.residentMe()
-      .then((me) => { if (alive) setState({ loading: false, phone: me.phone ?? '', email: me.email ?? '' }); })
+      .then((me) => {
+        if (alive) setState({ loading: false, phone: me.phone ?? '', email: me.email ?? '', name: me.display_name ?? '' });
+      })
       .catch(() => { if (alive) setState((p) => ({ ...p, loading: false })); });
     return () => { alive = false; };
   }, [client]);
 
-  return state;
+  const save = async (patch: { name?: string; email?: string }) => {
+    if (!client) throw new Error('The API is not configured on this build.');
+    const me = await client.residentUpdateMe({ display_name: patch.name, email: patch.email });
+    setState({ loading: false, phone: me.phone ?? '', email: me.email ?? '', name: me.display_name ?? '' });
+  };
+
+  return { ...state, save };
 }
 
 export type MessageView = { id: string; mine: boolean; text: string; at: string; day: string };

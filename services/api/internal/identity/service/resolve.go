@@ -102,6 +102,14 @@ func (r *Resolver) Middleware(next http.Handler) http.Handler {
 		}
 
 		person, err := r.principals.Lookup(req.Context(), p)
+		if errors.Is(err, store.ErrUnknownPrincipal) && p.Surface == auth.SurfaceOwn && p.Phone != "" {
+			// An owner their manager onboarded before they ever signed in (#240):
+			// the verified number claims the reservation, the same move a
+			// renter's first sign-in makes. Only then is "unknown" final.
+			if _, claimErr := r.principals.ClaimOwner(req.Context(), p); claimErr == nil {
+				person, err = r.principals.Lookup(req.Context(), p)
+			}
+		}
 		switch {
 		case errors.Is(err, store.ErrUnknownPrincipal):
 			// Verified by Google and unknown here: a first sign-in. The answer is

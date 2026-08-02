@@ -328,7 +328,29 @@ export type ResidentMe = {
   party_id: string;
   phone?: string;
   email?: string;
+  display_name?: string;
   tenancies: { lease_id: string; organisation: string; state: string }[];
+};
+
+/** Any verified sign-in's own profile (GET /v1/me — the Own app's "me"). */
+export type Me = {
+  party_id: string;
+  phone?: string;
+  email?: string;
+  display_name?: string;
+};
+
+/** What manager-led owner onboarding produced (POST /v1/ops/onboardings). */
+export type OwnerOnboarded = {
+  owner_org_id: string;
+  owner_party_id: string;
+  grant_id: string;
+  created_organisation: boolean;
+  property_id?: string;
+  unit_ids?: string[];
+  lease_id?: string;
+  lease_state?: string;
+  lease_note?: string;
 };
 
 /** What starting a payment answers with (POST .../payments). */
@@ -832,6 +854,71 @@ export class DwellmApi {
 
   residentMe(): Promise<ResidentMe> {
     return this.request('GET', '/v1/resident/me');
+  }
+
+  /** Fill in self-served PI (#240). The verified phone never moves. */
+  residentUpdateMe(patch: { display_name?: string; email?: string }): Promise<ResidentMe> {
+    return this.request('PATCH', '/v1/resident/me',
+      { display_name: patch.display_name ?? '', email: patch.email ?? '' });
+  }
+
+  /** The verified sign-in's own profile — the Own app's "me" (#240). */
+  me(): Promise<Me> {
+    return this.request('GET', '/v1/me');
+  }
+
+  updateMe(patch: { display_name?: string; email?: string }): Promise<Me> {
+    return this.request('PATCH', '/v1/me',
+      { display_name: patch.display_name ?? '', email: patch.email ?? '' });
+  }
+
+  /** Manager-led owner onboarding (#240): the owner's identity reserved
+   * against their phone, their organisation, the firm's mandate, and the
+   * first property with its units. Idempotent per phone. */
+  opsOnboardOwner(req: {
+    owner: { name: string; phone: string; email?: string };
+    organisation_name?: string;
+    property?: {
+      code: string; name: string; kind: string;
+      address_line1?: string; address_line2?: string;
+      locality?: string; city?: string; district?: string;
+      state_code?: string; pin?: string;
+    };
+    units?: { code: string; kind: string; floor?: number; carpet_area_sqft?: number }[];
+    tenancy?: {
+      unit_code: string;
+      tenant: { name: string; phone: string; email?: string };
+      start_on: string; end_on?: string;
+      rent_amount_minor: number; deposit_amount_minor?: number;
+      due_day: number; notice_days?: number; lock_in_until?: string;
+    };
+  }): Promise<OwnerOnboarded> {
+    return this.request('POST', '/v1/ops/onboardings', {
+      owner: { name: req.owner.name, phone: req.owner.phone, email: req.owner.email ?? '' },
+      organisation_name: req.organisation_name ?? '',
+      property: {
+        code: req.property?.code ?? '', name: req.property?.name ?? '',
+        kind: req.property?.kind ?? '', address_line1: req.property?.address_line1 ?? '',
+        address_line2: req.property?.address_line2 ?? '', locality: req.property?.locality ?? '',
+        city: req.property?.city ?? '', district: req.property?.district ?? '',
+        state_code: req.property?.state_code ?? '', pin: req.property?.pin ?? '',
+      },
+      units: (req.units ?? []).map((u) => ({
+        code: u.code, kind: u.kind, floor: u.floor ?? null, carpet_area_sqft: u.carpet_area_sqft ?? 0,
+      })),
+      tenancy: req.tenancy ? {
+        unit_code: req.tenancy.unit_code,
+        tenant: {
+          name: req.tenancy.tenant.name, phone: req.tenancy.tenant.phone,
+          email: req.tenancy.tenant.email ?? '',
+        },
+        start_on: req.tenancy.start_on, end_on: req.tenancy.end_on ?? '',
+        rent_amount_minor: req.tenancy.rent_amount_minor,
+        deposit_amount_minor: req.tenancy.deposit_amount_minor ?? 0,
+        due_day: req.tenancy.due_day, notice_days: req.tenancy.notice_days ?? 0,
+        lock_in_until: req.tenancy.lock_in_until ?? '',
+      } : null,
+    });
   }
 
   async residentMessages(leaseId: string): Promise<ResidentMessage[]> {

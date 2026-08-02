@@ -153,6 +153,9 @@ func (h *Handler) Routes(r *authz.Registrar) {
 	r.Open("GET /v1/resident/me",
 		"the answer is the session itself — who signed in and what they may reach, nothing another person's id could widen",
 		h.Me)
+	r.Open("PATCH /v1/resident/me",
+		"the subject is the session itself — a person editing their own name and email, nothing another person's id could reach",
+		h.UpdateMe)
 }
 
 // tenancyResponse is one tenancy as the renter sees it.

@@ -47,6 +47,7 @@ type Handler struct {
 	activity   activity.Feeder
 	tickets    *maintenanceservice.Tickets
 	community  *communityservice.Community
+	owners     *identityservice.Owners
 	log        *slog.Logger
 	now        func() time.Time
 }
