@@ -137,11 +137,16 @@ func TestDrainPublishesAndMarks(t *testing.T) {
 
 	rec := &recorder{}
 	relay := events.NewRelay(plat, rec, discard(), events.RelayConfig{})
-	if _, err := relay.Drain(context.Background()); err != nil {
-		t.Fatalf("draining: %v", err)
+	// The suite's other packages commit to the shared outbox concurrently, so
+	// one batch may not reach this test's row. Drain until it does, bounded —
+	// a single-pass assertion here was the suite's steadiest flake.
+	var done bool
+	for i := 0; i < 50 && !done; i++ {
+		if _, err := relay.Drain(context.Background()); err != nil {
+			t.Fatalf("draining: %v", err)
+		}
+		done, _, _ = published(t, plat, e.ID)
 	}
-
-	done, _, _ := published(t, plat, e.ID)
 	if !done {
 		t.Fatal("a published event was not marked published")
 	}

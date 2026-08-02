@@ -21,7 +21,7 @@ export function ListingCard({ l, onPress }: { l: Listing; onPress: () => void })
   return (
     <Pressable style={s.card} onPress={onPress} accessibilityRole="button" accessibilityLabel={l.title}>
       <View style={s.imgWrap}>
-        <Image source={photos[l.photo]} style={s.img} resizeMode="cover" />
+        <Image source={l.photoUrl ? { uri: l.photoUrl } : photos[l.photo]} style={s.img} resizeMode="cover" />
         <View style={s.badges}>
           {l.boosted ? <StatusPill text="Promoted" tone="violet" /> : null}
           {l.managed ? <StatusPill text="Managed by Dwellm8" tone="green" /> : null}

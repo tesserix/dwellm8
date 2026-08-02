@@ -415,6 +415,23 @@ func run() error {
 			"start its move-in until somebody does. The scheduled ones are unaffected.")
 	}
 
+	// GCS-backed media and documents (platform/blob), used by discovery's
+	// listing photos and the owner surface alike. Optional the way DocURLKey
+	// is: unset serves everything except uploads and photo delivery.
+	var blobStore *blob.Store
+	if cfg.Blob.Configured() {
+		blobStore, err = blob.New(context.Background(), cfg.Blob.BucketPrefix, cfg.Blob.SignerServiceAccount)
+		if err != nil {
+			return fmt.Errorf("blob store: %w", err)
+		}
+		defer blobStore.Close()
+		logger.Info("blob store ready", "buckets", cfg.Blob.BucketPrefix+"-<surface>-assets",
+			"signer", cfg.Blob.SignerServiceAccount)
+	} else {
+		logger.Warn("no GCS signer; uploads and photo delivery are off",
+			"set", "GCS_SIGNER_SA_EMAIL")
+	}
+
 	// The discovery funnel, ADR-0019: listings from live inventory, the public
 	// site, prospects and their enquiries, and the conversion back into a
 	// lease. The occupancy guard and the conversion drafter are both the lease
@@ -466,6 +483,23 @@ func run() error {
 	stayPublic := ginx.Engine()
 	discoveryhttp.NewStay(stayStore, prospects, logger).WithPayments(payments).
 		PublicRoutes(ginx.New(stayPublic, guard))
+
+	// Listing media, #136: uploads on signed PUTs into the find bucket,
+	// ordering and moderation here, delivery on the public detail page.
+	mediaStore := discoverystore.NewMedia(pool, tenancy.NewPlatformPool(platformPool))
+	mediaOwner := ginx.Engine()
+	discoveryhttp.NewMedia(mediaStore, blobStore, logger).OwnerRoutes(ginx.New(mediaOwner, guard))
+	for _, p := range []string{
+		"POST /v1/listings/{id}/media/upload-url",
+		"POST /v1/listings/{id}/media",
+		"PUT /v1/listings/{id}/media/order",
+		"GET /v1/listings/{id}/media",
+		"POST /v1/listings/{id}/media/{mid}/takedown",
+	} {
+		protected.Handle(p, mediaOwner)
+	}
+	mediaPublic := ginx.Engine()
+	discoveryhttp.NewMedia(mediaStore, blobStore, logger).PublicRoutes(ginx.New(mediaPublic, guard))
 	// Registering inventory, #32 — the rows everything else points back to.
 	propertyhttp.New(propertyservice.New(propertystore.New(pool)), logger).
 		Routes(authz.NewRegistrar(protected, guard))
@@ -492,21 +526,7 @@ func run() error {
 
 	// The owner's view — the Own app's surface (#55). Composition only: the
 	// property module's read, the lease's active tenancy, money's owner
-	// statement, and the GCS-backed documents. The blob store is optional the
-	// way DocURLKey is: unset serves everything except uploads.
-	var blobStore *blob.Store
-	if cfg.Blob.Configured() {
-		blobStore, err = blob.New(context.Background(), cfg.Blob.BucketPrefix, cfg.Blob.SignerServiceAccount)
-		if err != nil {
-			return fmt.Errorf("blob store: %w", err)
-		}
-		defer blobStore.Close()
-		logger.Info("blob store ready", "buckets", cfg.Blob.BucketPrefix+"-<surface>-assets",
-			"signer", cfg.Blob.SignerServiceAccount)
-	} else {
-		logger.Warn("no GCS signer; document upload and download URLs are off",
-			"set", "GCS_SIGNER_SA_EMAIL")
-	}
+	// statement, and the GCS-backed documents.
 	ownerMux := http.NewServeMux()
 	ownersurface.New(
 		propertyservice.New(propertystore.New(pool)),
@@ -555,7 +575,9 @@ func run() error {
 	// schema's one public branch; writes require a browsing token and, past
 	// the verification point, a verified phone. ADR-0019.
 	discoveryhttp.NewPublic(listings, prospects, enquiries, logger).
+		WithMedia(mediaStore, blobStore).
 		Routes(authz.NewRegistrar(mux, guard))
+	mux.Handle("POST /v1/public/listings/{id}/media/{mid}/report", mediaPublic)
 	discoveryhttp.NewInspections(inspections, logger).PublicRoutes(authz.NewRegistrar(mux, guard))
 	// The guest side of HomeStay: the exact search path and its subtree, both
 	// into the same Gin engine, inside the public rate bucket.

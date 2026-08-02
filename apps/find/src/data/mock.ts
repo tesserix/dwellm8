@@ -54,6 +54,8 @@ export type Listing = {
   views: number;
   enquiries: number;
   photo: keyof typeof photos;
+  /** A real photograph's URL (#136) — when present the card shows it instead of the placeholder. */
+  photoUrl?: string;
   amenities: string[];
   about: string;
   inspections: { id: string; when: string; registered: number; attended?: number }[];

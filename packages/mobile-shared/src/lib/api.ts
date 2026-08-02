@@ -123,6 +123,8 @@ export type PublicListing = {
   total_one_time_minor: number;
   currency: string;
   published_at: string;
+  /** Short-lived signed photo URLs, cover first — present on detail only (#136). */
+  photos?: string[];
 };
 
 export type PublicSearch = {

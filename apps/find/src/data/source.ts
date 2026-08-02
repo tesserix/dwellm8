@@ -62,6 +62,7 @@ export function toListing(p: PublicListing, i: number): demo.Listing {
     views: 0,
     enquiries: 0,
     photo: PHOTO_KEYS[i % PHOTO_KEYS.length],
+    photoUrl: p.photos?.[0],
     amenities: [],
     about: '',
     inspections: [],

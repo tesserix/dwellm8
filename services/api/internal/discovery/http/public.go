@@ -10,7 +10,9 @@ import (
 
 	"github.com/tesserix/dwellm8/services/api/internal/discovery/service"
 	"github.com/tesserix/dwellm8/services/api/internal/discovery/store"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/auth"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/blob"
 )
 
 // tokenHeader carries the browsing token. A header rather than a bearer so the
@@ -28,12 +30,22 @@ type Public struct {
 	listings  *service.Listings
 	prospects *service.Prospects
 	enquiries *service.Enquiries
+	media     *store.MediaStore
+	blob      *blob.Store
 	log       *slog.Logger
 }
 
 // NewPublic builds the handler.
 func NewPublic(l *service.Listings, p *service.Prospects, e *service.Enquiries, log *slog.Logger) *Public {
 	return &Public{listings: l, prospects: p, enquiries: e, log: log}
+}
+
+// WithMedia teaches the detail page to serve photographs (#136): short-lived
+// signed URLs, live media of live listings only — the delivery rule lives in
+// the store's PublicForListing, not here. Optional, the DocURLKey shape.
+func (h *Public) WithMedia(m *store.MediaStore, b *blob.Store) *Public {
+	h.media, h.blob = m, b
+	return h
 }
 
 // Routes mounts the public surface as Open routes: deliberately unguarded,
@@ -74,6 +86,10 @@ type cardResponse struct {
 	Currency          string `json:"currency"`
 
 	PublishedAt string `json:"published_at"`
+
+	// Photos are short-lived signed URLs (#136), cover first, present only on
+	// the detail of a live listing when media storage is wired.
+	Photos []string `json:"photos,omitempty"`
 }
 
 func toCard(c store.Card) cardResponse {
@@ -160,7 +176,11 @@ func (h *Public) Detail(w http.ResponseWriter, r *http.Request) {
 	c, err := h.listings.Detail(r.Context(), r.PathValue("id"))
 	switch {
 	case err == nil:
-		writeJSON(w, http.StatusOK, toCard(c))
+		out := toCard(c)
+		if h.media != nil && h.blob != nil {
+			out.Photos = h.photoURLs(r, c.ID)
+		}
+		writeJSON(w, http.StatusOK, out)
 	case errors.Is(err, store.ErrNoListing):
 		writeJSON(w, http.StatusNotFound, map[string]string{
 			"error": "this listing is no longer available"})
@@ -354,6 +374,24 @@ func (h *Public) Timeline(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("reading a prospect timeline", "error", err)
 		writeError(w, http.StatusInternalServerError, "could not read the history")
 	}
+}
+
+// photoURLs mints the guest's signed GETs. The live-only rule is the store's
+// (PublicForListing); a failure to sign one photo drops that photo, never the
+// page.
+func (h *Public) photoURLs(r *http.Request, listingID string) []string {
+	media, err := h.media.PublicForListing(r.Context(), listingID)
+	if err != nil {
+		h.log.Error("reading public media", "listing", listingID, "error", err)
+		return nil
+	}
+	urls := make([]string, 0, len(media))
+	for _, m := range media {
+		if u, err := h.blob.DownloadURL(r.Context(), auth.SurfaceFind, m.ObjectPath); err == nil {
+			urls = append(urls, u)
+		}
+	}
+	return urls
 }
 
 func token(r *http.Request) string { return r.Header.Get(tokenHeader) }
