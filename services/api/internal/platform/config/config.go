@@ -213,9 +213,15 @@ type Twilio struct {
 	VerifySID string
 }
 
-// Configured reports whether enough is present to build the verifier.
+// Configured reports whether enough is present to build the verifier — read
+// from the credentials themselves, the Cashfree IsSandbox philosophy: a Twilio
+// account SID starts AC and a Verify service SID starts VA, so the random
+// development values the standing secrets rule seeds (USER_REQUIREMENT.md)
+// leave verification cleanly absent, and the real credentials turn it on with
+// no flag to also remember.
 func (t Twilio) Configured() bool {
-	return t.AccountSID != "" && t.AuthToken != "" && t.VerifySID != ""
+	return strings.HasPrefix(t.AccountSID, "AC") && t.AuthToken != "" &&
+		strings.HasPrefix(t.VerifySID, "VA")
 }
 
 // IsSandbox reports whether these are test credentials, from the credential
