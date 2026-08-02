@@ -39,8 +39,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/tesserix/dwellm8/services/api/internal/e2e"
 	discoverystore "github.com/tesserix/dwellm8/services/api/internal/discovery/store"
+	"github.com/tesserix/dwellm8/services/api/internal/e2e"
 	identitystore "github.com/tesserix/dwellm8/services/api/internal/identity/store"
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
 	leasestore "github.com/tesserix/dwellm8/services/api/internal/lease/store"
