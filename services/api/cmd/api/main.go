@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	communityservice "github.com/tesserix/dwellm8/services/api/internal/community/service"
+	communitystore "github.com/tesserix/dwellm8/services/api/internal/community/store"
 	discoveryhttp "github.com/tesserix/dwellm8/services/api/internal/discovery/http"
 	twilioverify "github.com/tesserix/dwellm8/services/api/internal/discovery/provider/twilio"
 	discoveryservice "github.com/tesserix/dwellm8/services/api/internal/discovery/service"
@@ -29,8 +31,6 @@ import (
 	leasehttp "github.com/tesserix/dwellm8/services/api/internal/lease/http"
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
 	leasestore "github.com/tesserix/dwellm8/services/api/internal/lease/store"
-	communityservice "github.com/tesserix/dwellm8/services/api/internal/community/service"
-	communitystore "github.com/tesserix/dwellm8/services/api/internal/community/store"
 	maintenancehttp "github.com/tesserix/dwellm8/services/api/internal/maintenance/http"
 	maintenanceservice "github.com/tesserix/dwellm8/services/api/internal/maintenance/service"
 	maintenancestore "github.com/tesserix/dwellm8/services/api/internal/maintenance/store"
