@@ -355,6 +355,17 @@ func poll(ctx context.Context, args []string, cfg config.Config, pool *pgxpool.P
 		log.Info("expired stay holds released", "released", released)
 	}
 
+	// The retention promise (#142/#213's working default): a declined
+	// applicant's row is deleted once its clock passes, and the DELETE policy
+	// is the second signature on the act.
+	purged, err := discoverystore.NewApplications(pool, tenancy.NewPlatformPool(platformPool)).
+		SweepRetention(ctx)
+	if err != nil {
+		log.Error("purging declined applications", "error", err)
+	} else if purged > 0 {
+		log.Info("declined applications purged past retention", "purged", purged)
+	}
+
 	log.Info("polling finished",
 		"version", version, "organisations", len(orgs), "asked", total.Asked,
 		"moved", total.Moved, "unchanged", total.Unchanged, "failed", total.Failed)

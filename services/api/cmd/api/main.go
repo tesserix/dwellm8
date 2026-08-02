@@ -500,6 +500,25 @@ func run() error {
 	}
 	mediaPublic := ginx.Engine()
 	discoveryhttp.NewMedia(mediaStore, blobStore, logger).PublicRoutes(ginx.New(mediaPublic, guard))
+
+	// Applications, #142: the formal step between enquiry and lease.
+	appsStore := discoverystore.NewApplications(pool, tenancy.NewPlatformPool(platformPool))
+	appsOwner := ginx.Engine()
+	discoveryhttp.NewApplications(appsStore, listingsStore, prospects,
+		discoveryservice.FromLeases{Leases: leases}, logger).
+		OwnerRoutes(ginx.New(appsOwner, guard))
+	for _, p := range []string{
+		"GET /v1/applications",
+		"POST /v1/applications/{id}/review",
+		"POST /v1/applications/{id}/accept",
+		"POST /v1/applications/{id}/decline",
+	} {
+		protected.Handle(p, appsOwner)
+	}
+	appsPublic := ginx.Engine()
+	discoveryhttp.NewApplications(appsStore, listingsStore, prospects,
+		discoveryservice.FromLeases{Leases: leases}, logger).
+		PublicRoutes(ginx.New(appsPublic, guard))
 	// Registering inventory, #32 — the rows everything else points back to.
 	propertyhttp.New(propertyservice.New(propertystore.New(pool)), logger).
 		Routes(authz.NewRegistrar(protected, guard))
@@ -578,6 +597,9 @@ func run() error {
 		WithMedia(mediaStore, blobStore).
 		Routes(authz.NewRegistrar(mux, guard))
 	mux.Handle("POST /v1/public/listings/{id}/media/{mid}/report", mediaPublic)
+	mux.Handle("POST /v1/public/listings/{id}/applications", appsPublic)
+	mux.Handle("GET /v1/public/applications", appsPublic)
+	mux.Handle("POST /v1/public/applications/{id}/withdraw", appsPublic)
 	discoveryhttp.NewInspections(inspections, logger).PublicRoutes(authz.NewRegistrar(mux, guard))
 	// The guest side of HomeStay: the exact search path and its subtree, both
 	// into the same Gin engine, inside the public rate bucket.
