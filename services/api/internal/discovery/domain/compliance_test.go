@@ -52,6 +52,16 @@ func TestProhibitedClaimBlocksPublication(t *testing.T) {
 	if err := d.PublishableNow(); err != nil {
 		t.Fatalf("clean copy blocked: %v", err)
 	}
+
+	// An agent without a registration is blocked; with one, publishable.
+	d.ListerKind = "agent"
+	if err := d.PublishableNow(); !errors.Is(err, ErrProhibitedClaim) {
+		t.Fatalf("unregistered agent = %v, want ErrProhibitedClaim", err)
+	}
+	d.AgentRegistration = "PRM/KA/RERA/1251/446/AG/2024"
+	if err := d.PublishableNow(); err != nil {
+		t.Fatalf("registered agent blocked: %v", err)
+	}
 }
 
 func containsStr(s, sub string) bool {

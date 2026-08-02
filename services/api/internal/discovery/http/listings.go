@@ -90,6 +90,10 @@ type createRequest struct {
 	Bedrooms       int     `json:"bedrooms"`
 	CarpetAreaSqft float64 `json:"carpet_area_sqft"`
 	AvailableFrom  string  `json:"available_from"`
+
+	// Agent registration capture (#143). Omitted means the owner lists.
+	ListerKind        string `json:"lister_kind"`
+	AgentRegistration string `json:"agent_registration"`
 }
 
 // Create writes a draft from live inventory.
@@ -108,6 +112,7 @@ func (h *Listings) Create(w http.ResponseWriter, r *http.Request) {
 			Confirmed: req.CostsConfirmed,
 		},
 		Bedrooms: req.Bedrooms, CarpetAreaSqft: req.CarpetAreaSqft,
+		ListerKind: req.ListerKind, AgentRegistration: req.AgentRegistration,
 	}
 	if req.AvailableFrom != "" {
 		var err error

@@ -113,6 +113,11 @@ type Draft struct {
 	Bedrooms       int
 	CarpetAreaSqft float64
 	AvailableFrom  effective.Date
+
+	// ListerKind is who advertises: "owner" (the default) or "agent". An
+	// agent must state the registration RERA requires before going live.
+	ListerKind        string
+	AgentRegistration string
 }
 
 // Validate refuses what cannot be a listing, naming the field rather than the
@@ -136,6 +141,8 @@ func (d Draft) Validate() error {
 		return fmt.Errorf("%w: bedrooms must be between 0 and 20", ErrDraft)
 	case d.CarpetAreaSqft < 0:
 		return fmt.Errorf("%w: carpet_area_sqft may not be negative", ErrDraft)
+	case d.ListerKind != "" && d.ListerKind != "owner" && d.ListerKind != "agent":
+		return fmt.Errorf("%w: lister_kind is owner or agent", ErrDraft)
 	}
 	return nil
 }
@@ -154,6 +161,10 @@ func (d Draft) PublishableNow() error {
 	// the rule cited and the wording that must change.
 	if v := CheckClaims(d.Headline); len(v) > 0 {
 		return v[0].Err()
+	}
+	if d.ListerKind == "agent" && d.AgentRegistration == "" {
+		return fmt.Errorf("%w: an agent advertises under a registration — "+
+			"state agent_registration (RERA 2016 s. 9)", ErrProhibitedClaim)
 	}
 	return nil
 }

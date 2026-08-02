@@ -56,6 +56,9 @@ type Listing struct {
 	CarpetAreaSqft float64
 	AvailableFrom  effective.Date
 	CreatedAt      time.Time
+
+	ListerKind        string
+	AgentRegistration string
 }
 
 // Create writes a draft. Nothing is advertised yet, so no event.
@@ -75,9 +78,11 @@ func (s *Listings) Create(ctx context.Context, d domain.Draft) (string, error) {
 			                      headline, locality, city, state_code,
 			                      rent_minor, deposit_minor, maintenance_minor, parking_minor,
 			                      other_monthly_minor, one_time_minor, costs_confirmed,
-			                      bedrooms, carpet_area_sqft, available_from)
+			                      bedrooms, carpet_area_sqft, available_from,
+			                      lister_kind, agent_registration)
 			VALUES ($1, $2, $3, $4, 'draft', $5, $6, $7, $8,
-			        $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+			        $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
+			        coalesce(nullif($19, ''), 'owner'), $20)
 			RETURNING id`,
 			tenant.String(), d.PropertyID, d.UnitID, nullText(d.UnitParentID),
 			d.Headline, d.Locality, d.City, d.StateCode,
@@ -85,6 +90,7 @@ func (s *Listings) Create(ctx context.Context, d domain.Draft) (string, error) {
 			d.Costs.ParkingMinor, d.Costs.OtherMonthlyMinor, d.Costs.OneTimeMinor,
 			d.Costs.Confirmed,
 			nullInt(d.Bedrooms), nullFloat(d.CarpetAreaSqft), nullDate(d.AvailableFrom),
+			d.ListerKind, nullText(d.AgentRegistration),
 		).Scan(&id)
 	})
 	if err != nil {
@@ -242,7 +248,8 @@ const selectListing = `
 	       headline, locality, city, state_code,
 	       rent_minor, deposit_minor, maintenance_minor, parking_minor,
 	       other_monthly_minor, one_time_minor, costs_confirmed,
-	       coalesce(bedrooms, 0), coalesce(carpet_area_sqft, 0), available_from, created_at
+	       coalesce(bedrooms, 0), coalesce(carpet_area_sqft, 0), available_from, created_at,
+	       lister_kind, coalesce(agent_registration, '')
 	  FROM listings`
 
 type scannable interface{ Scan(dest ...any) error }
@@ -256,7 +263,8 @@ func scanListing(row scannable, l *Listing) error {
 		&state, &l.PublishedAt, &l.Headline, &l.Locality, &l.City, &l.StateCode,
 		&l.Costs.RentMinor, &l.Costs.DepositMinor, &l.Costs.MaintenanceMinor,
 		&l.Costs.ParkingMinor, &l.Costs.OtherMonthlyMinor, &l.Costs.OneTimeMinor,
-		&l.Costs.Confirmed, &l.Bedrooms, &l.CarpetAreaSqft, &available, &l.CreatedAt); err != nil {
+		&l.Costs.Confirmed, &l.Bedrooms, &l.CarpetAreaSqft, &available, &l.CreatedAt,
+		&l.ListerKind, &l.AgentRegistration); err != nil {
 		return err
 	}
 	l.State = domain.State(state)

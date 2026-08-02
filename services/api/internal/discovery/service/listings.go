@@ -139,5 +139,6 @@ func draftOf(l store.Listing) domain.Draft {
 		Headline: l.Headline, Locality: l.Locality, City: l.City, StateCode: l.StateCode,
 		Costs: l.Costs, Bedrooms: l.Bedrooms, CarpetAreaSqft: l.CarpetAreaSqft,
 		AvailableFrom: l.AvailableFrom,
+		ListerKind:    l.ListerKind, AgentRegistration: l.AgentRegistration,
 	}
 }
