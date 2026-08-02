@@ -228,6 +228,38 @@ export type ResidentPayment = {
 };
 
 /** What starting a payment answers with (POST .../payments). */
+export type RentalApplication = {
+  id: string;
+  listing_id: string;
+  state: string; // submitted | under_review | accepted | declined | withdrawn
+  move_in: string; // YYYY-MM-DD
+  term_months: number;
+  created_at: string;
+  headline?: string;
+  offer_minor?: number;
+  note?: string;
+  decline_reason?: string;
+  lease_id?: string;
+};
+
+export type FlaggedListing = {
+  id: string;
+  headline: string;
+  state: string;
+  report_count: number;
+  reported_at?: string;
+  suspended_reason?: string;
+};
+
+export type ReportedMedia = {
+  id: string;
+  listing_id: string;
+  headline: string;
+  reported_at: string;
+  content_type: string;
+  url?: string;
+};
+
 export type PaymentStarted = {
   payment_id: string;
   status: string;
@@ -444,6 +476,97 @@ export class DwellmApi {
   cancelInspection(token: string, enquiryId: string): Promise<void> {
     return this.request('POST', `/v1/public/inspections/${enquiryId}/cancel`, {},
       { 'X-Dwellm8-Prospect': token });
+  }
+
+  /* -------------------------------------------- rental applications (#142) */
+  // The formal step between enquiry and lease. Applying needs the same
+  // verified prospect token the enquiry did; the owner side needs a signed-in
+  // operator.
+
+  /** moveIn as YYYY-MM-DD. Applying twice for one listing is the same
+   * application, returned again. */
+  applyToListing(token: string, listingId: string, a: {
+    moveIn: string; termMonths?: number; offerMinor?: number; note?: string;
+  }): Promise<RentalApplication> {
+    return this.request('POST', `/v1/public/listings/${listingId}/applications`, {
+      move_in: a.moveIn, term_months: a.termMonths,
+      offer_minor: a.offerMinor, note: a.note,
+    }, { 'X-Dwellm8-Prospect': token });
+  }
+
+  async myApplications(token: string): Promise<RentalApplication[]> {
+    const out = await this.request<{ applications: RentalApplication[] }>(
+      'GET', '/v1/public/applications', undefined, { 'X-Dwellm8-Prospect': token });
+    return out.applications ?? [];
+  }
+
+  withdrawApplication(token: string, id: string): Promise<void> {
+    return this.request('POST', `/v1/public/applications/${id}/withdraw`, {},
+      { 'X-Dwellm8-Prospect': token });
+  }
+
+  /** Owner's review queue; state filters (submitted, under_review, …). */
+  async applicationsQueue(state?: string): Promise<RentalApplication[]> {
+    const q = state ? `?state=${state}` : '';
+    const out = await this.request<{ applications: RentalApplication[] }>(
+      'GET', `/v1/applications${q}`);
+    return out.applications ?? [];
+  }
+
+  reviewApplication(id: string): Promise<void> {
+    return this.request('POST', `/v1/applications/${id}/review`, {});
+  }
+
+  /** Accepting drafts the tenancy with the application's terms carried over
+   * and pauses the listing; rentMinor overrides a negotiated number. */
+  acceptApplication(id: string, tenant: {
+    name: string; phone: string; email?: string; rentMinor?: number;
+  }): Promise<{ id: string; lease_id: string; state: string }> {
+    return this.request('POST', `/v1/applications/${id}/accept`, {
+      tenant_name: tenant.name, tenant_phone: tenant.phone,
+      tenant_email: tenant.email, rent_minor: tenant.rentMinor,
+    });
+  }
+
+  declineApplication(id: string, reason: string): Promise<void> {
+    return this.request('POST', `/v1/applications/${id}/decline`, { reason });
+  }
+
+  /* ------------------------------------------------- moderation (#143) */
+
+  /** Anyone may report a live listing; the reviewer judges. */
+  reportListing(id: string, reason: 'fraud' | 'discrimination' | 'incorrect' | 'other'): Promise<void> {
+    return this.request('POST', `/v1/public/listings/${id}/report`, { reason });
+  }
+
+  async moderationListings(): Promise<FlaggedListing[]> {
+    const out = await this.request<{ queue: FlaggedListing[] }>('GET', '/v1/moderation/listings');
+    return out.queue ?? [];
+  }
+
+  suspendListing(id: string, reason: string): Promise<void> {
+    return this.request('POST', `/v1/listings/${id}/suspend`, { reason });
+  }
+
+  reinstateListing(id: string): Promise<void> {
+    return this.request('POST', `/v1/listings/${id}/reinstate`, {});
+  }
+
+  dismissListingReports(id: string): Promise<void> {
+    return this.request('POST', `/v1/listings/${id}/reports/dismiss`, {});
+  }
+
+  async moderationMedia(): Promise<ReportedMedia[]> {
+    const out = await this.request<{ queue: ReportedMedia[] }>('GET', '/v1/moderation/media');
+    return out.queue ?? [];
+  }
+
+  takedownMedia(listingId: string, mediaId: string, reason: string): Promise<void> {
+    return this.request('POST', `/v1/listings/${listingId}/media/${mediaId}/takedown`, { reason });
+  }
+
+  clearMediaReport(listingId: string, mediaId: string): Promise<void> {
+    return this.request('POST', `/v1/listings/${listingId}/media/${mediaId}/clear`, {});
   }
 
   /* --------------------------------------------- resident surface (Live) */

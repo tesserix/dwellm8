@@ -142,15 +142,21 @@ export function useListing(id: string | undefined) {
   return state;
 }
 
-/** The shortlist, mapped back to cards; and the prospect's enquiry timeline. */
+export type MyApplication = {
+  id: string; title: string; state: string; moveIn: string; when: string;
+};
+
+/** The shortlist, mapped back to cards; the prospect's enquiry timeline; and
+ * their applications (#142). */
 export function useMyFind() {
   const client = useMemo(() => apiFromEnv(), []);
   const [state, setState] = useState<{
     mode: Mode; loading: boolean;
     saved: demo.Listing[]; enquiries: { id: string; title: string; state: string; when: string }[];
+    applications: MyApplication[];
   }>(
     client
-      ? { mode: 'live', loading: true, saved: [], enquiries: [] }
+      ? { mode: 'live', loading: true, saved: [], enquiries: [], applications: [] }
       : {
           mode: 'demo', loading: false, saved: demo.listings.slice(0, 2),
           enquiries: demo.enquiries.map((e) => ({
@@ -158,6 +164,7 @@ export function useMyFind() {
             title: demo.listings.find((l) => l.id === e.listingId)?.title ?? 'Enquiry',
             state: e.state, when: e.at,
           })),
+          applications: [],
         },
   );
   const [tick, setTick] = useState(0);
@@ -167,13 +174,18 @@ export function useMyFind() {
     let alive = true;
     (async () => {
       const token = await prospectToken(client);
-      const [saved, enquiries] = await Promise.all([
+      const [saved, enquiries, applications] = await Promise.all([
         client.shortlist(token).catch(() => []),
         client.myEnquiries(token).catch(() => []),
+        client.myApplications(token).catch(() => []),
       ]);
       if (!alive) return;
       setState({
         mode: 'live', loading: false,
+        applications: applications.map((a) => ({
+          id: a.id, title: a.headline || 'Application', state: a.state,
+          moveIn: fmtDate(a.move_in), when: fmtDate(a.created_at),
+        })),
         saved: saved.map((s, i) => toListing({
           id: s.listing_id, headline: s.headline, locality: s.locality, city: s.city,
           state_code: '', rent_minor: s.rent_minor, maintenance_minor: 0, parking_minor: 0,

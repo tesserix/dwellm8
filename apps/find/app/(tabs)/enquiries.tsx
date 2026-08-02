@@ -25,11 +25,17 @@ const tone: Record<string, Tone> = {
   closed: 'red',
 };
 
+const appTone: Record<string, Tone> = {
+  submitted: 'amber', under_review: 'blue', accepted: 'green',
+  declined: 'red', withdrawn: 'neutral',
+};
+
 export default function Enquiries() {
   const router = useRouter();
-  const { enquiries } = useMyFind();
+  const { enquiries, applications } = useMyFind();
   const booked = enquiries.filter((e) => e.state === 'scheduled' || e.state === 'Inspection booked').length;
-  const applied = enquiries.filter((e) => e.state === 'Applied' || e.state === 'completed').length;
+  const applied = applications.length ||
+    enquiries.filter((e) => e.state === 'Applied' || e.state === 'completed').length;
 
   return (
     <>
@@ -57,6 +63,23 @@ export default function Enquiries() {
             <Text style={s.empty}>Nothing yet — enquire on a home and it appears here.</Text>
           ) : null}
         </Card>
+
+        {applications.length ? (
+          <Card padded={false} style={{ paddingHorizontal: space(4) }}>
+            <Text style={[s.h, { paddingTop: space(4) }]}>Your applications</Text>
+            {applications.map((a, i) => (
+              <ListRow
+                key={a.id}
+                title={a.title}
+                subtitle={`Move-in ${a.moveIn}`}
+                meta={a.when}
+                right={<StatusPill text={a.state.replace(/_/g, ' ')} tone={appTone[a.state] ?? 'neutral'} />}
+                onPress={() => {}}
+                last={i === applications.length - 1}
+              />
+            ))}
+          </Card>
+        ) : null}
 
         <Card>
           <Text style={s.h}>What happens after you apply</Text>
