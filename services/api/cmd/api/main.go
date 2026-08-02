@@ -50,6 +50,7 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/platform/events/natsx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/ginx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/push"
 	tdsstore "github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 	"github.com/tesserix/dwellm8/services/api/internal/routine"
@@ -327,6 +328,11 @@ func run() error {
 	// Independent of the authz projector on purpose, and on their own consumer
 	// names: a checklist that fails to start must not stop an access edge being
 	// written, and the two have nothing to say to each other.
+	//
+	// The saved-search stores serve both the alert consumer below and the
+	// public routes further down, so they are built once, here.
+	searchesStore := discoverystore.NewSearches(tenancy.NewPlatformPool(platformPool))
+	pushTokens := discoverystore.NewPushTokens(tenancy.NewPlatformPool(platformPool))
 	if eventsConn != nil {
 		ensureCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		leaseCons, err := eventsConn.EnsureConsumer(ensureCtx, natsx.ConsumerSpec{
@@ -392,6 +398,31 @@ func run() error {
 		if err != nil {
 			return fmt.Errorf("discovery payments consumer: %w", err)
 		}
+		// Saved-search alerts (#144/#126): the published fact fans out to
+		// every opted-in search it satisfies, over Expo push.
+		ensureCtx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		alertCons, err := eventsConn.EnsureConsumer(ensureCtx, natsx.ConsumerSpec{
+			Name:     "discovery-alerts",
+			Stream:   "DWELLM8_DISCOVERY",
+			Subjects: []string{"dwellm8.discovery.listing.>"},
+		})
+		cancel()
+		if err != nil {
+			return fmt.Errorf("discovery alerts consumer: %w", err)
+		}
+		alerts := discoveryservice.Alerts{
+			Searches: searchesStore,
+			Tokens:   pushTokens,
+			Sender:   push.New(""),
+			Log:      logger,
+		}
+		go func() {
+			if err := natsx.Consume(relayCtx, alertCons, alerts.Handle, logger); err != nil &&
+				!errors.Is(err, context.Canceled) {
+				logger.Error("discovery consumer stopped", "consumer", "discovery-alerts", "error", err)
+			}
+		}()
+
 		letMarker := discoveryservice.Consumer{
 			Marker: discoverystore.NewLetMarker(tenancy.NewPlatformPool(platformPool)),
 			Stay:   discoverystore.NewStay(pool, tenancy.NewPlatformPool(platformPool)),
@@ -530,8 +561,12 @@ func run() error {
 
 	// Saved searches, #144: the prospect's own criteria, shortlist-style.
 	searchesPublic := ginx.Engine()
-	discoveryhttp.NewSearches(discoverystore.NewSearches(tenancy.NewPlatformPool(platformPool)),
-		prospects, logger).PublicRoutes(ginx.New(searchesPublic, guard))
+	discoveryhttp.NewSearches(searchesStore, prospects, logger).
+		PublicRoutes(ginx.New(searchesPublic, guard))
+
+	// Push tokens, #126: the prospect's reachability, same session key.
+	pushPublic := ginx.Engine()
+	discoveryhttp.NewPush(pushTokens, prospects, logger).PublicRoutes(ginx.New(pushPublic, guard))
 
 	// Applications, #142: the formal step between enquiry and lease.
 	appsStore := discoverystore.NewApplications(pool, tenancy.NewPlatformPool(platformPool))
@@ -635,6 +670,8 @@ func run() error {
 	mux.Handle("POST /v1/public/searches/{id}/seen", searchesPublic)
 	mux.Handle("POST /v1/public/searches/{id}/alerts", searchesPublic)
 	mux.Handle("DELETE /v1/public/searches/{id}", searchesPublic)
+	mux.Handle("POST /v1/public/push/token", pushPublic)
+	mux.Handle("POST /v1/public/push/token/drop", pushPublic)
 	mux.Handle("POST /v1/public/listings/{id}/applications", appsPublic)
 	mux.Handle("GET /v1/public/applications", appsPublic)
 	mux.Handle("POST /v1/public/applications/{id}/withdraw", appsPublic)

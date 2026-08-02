@@ -7,6 +7,7 @@ import {
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
 import { useSavedSearches, useSearch } from '../../src/data/source';
+import { registerForAlerts } from '../../src/lib/push';
 import { ListingCard } from '../../src/components/ListingCard';
 
 /**
@@ -98,7 +99,11 @@ export default function Search() {
               tone="secondary"
               onPress={() => {
                 if (watches.mode === 'live' && q.trim()) {
-                  watches.save(q).then(() => setWatched(true)).catch(() => {});
+                  // Permission is asked at the moment it becomes meaningful —
+                  // a saved search is the first thing worth a notification.
+                  watches.save(q)
+                    .then(() => { setWatched(true); return registerForAlerts(); })
+                    .catch(() => {});
                 } else {
                   router.push('/(tabs)/saved');
                 }

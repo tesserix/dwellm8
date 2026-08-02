@@ -91,3 +91,75 @@ func TestSavedSearchStory(t *testing.T) {
 		t.Fatalf("a deleted search survives: %+v", mine)
 	}
 }
+
+// The alert fan-out (#126 delivering #144): a publication reaches exactly the
+// opted-in searches it satisfies, once — the redelivered event finds the
+// watermark already advanced — and never a disabled token.
+func TestAlertsForListing(t *testing.T) {
+	pool, plat := pools(t)
+	searches := store.NewSearches(plat)
+	tokens := store.NewPushTokens(plat)
+	listings := store.NewListings(pool)
+	prospects := store.NewProspects(plat)
+	ctx := context.Background()
+
+	city := fmt.Sprintf("Alertabad-%d", time.Now().UnixNano())
+	watcher := verifiedGuest(t, prospects)
+	muted := verifiedGuest(t, prospects)
+
+	wid, err := searches.Save(ctx, watcher.ID, city, "", 0, 0)
+	if err != nil {
+		t.Fatalf("saving: %v", err)
+	}
+	if _, err := searches.Save(ctx, muted.ID, city, "", 0, 0); err != nil {
+		t.Fatalf("saving muted: %v", err)
+	}
+	mutedID, _ := searches.Mine(ctx, muted.ID)
+	if err := searches.SetAlerts(ctx, muted.ID, mutedID[0].ID, false); err != nil {
+		t.Fatalf("muting: %v", err)
+	}
+	tok := fmt.Sprintf("ExponentPushToken[t-%d]", time.Now().UnixNano())
+	if err := tokens.Register(ctx, watcher.ID, tok, "ios"); err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+	if err := tokens.Register(ctx, muted.ID, tok+"-m", "android"); err != nil {
+		t.Fatalf("registering muted: %v", err)
+	}
+
+	u := unit(t, plat, "AL")
+	lid, err := listings.Create(owner(), draft(u, city))
+	if err != nil {
+		t.Fatalf("creating: %v", err)
+	}
+	if err := listings.Move(owner(), lid, domain.StateLive, events.Actor{Kind: events.ActorSystem}); err != nil {
+		t.Fatalf("publishing: %v", err)
+	}
+
+	l, targets, err := searches.AlertsForListing(ctx, lid)
+	if err != nil {
+		t.Fatalf("matching: %v", err)
+	}
+	if l.City != city || len(targets) != 1 || targets[0].Token != tok || targets[0].SearchID != wid {
+		t.Fatalf("targets = %+v (listing %+v); want exactly the opted-in watcher", targets, l)
+	}
+
+	// Redelivery: the watermark has moved, nobody hears it twice.
+	if _, again, _ := searches.AlertsForListing(ctx, lid); len(again) != 0 {
+		t.Fatalf("a redelivered event alerted again: %+v", again)
+	}
+
+	// A dead token is disabled and stops being a target for the next listing.
+	if err := tokens.Disable(ctx, []string{tok}); err != nil {
+		t.Fatalf("disabling: %v", err)
+	}
+	lid2, err := listings.Create(owner(), draft(unit(t, plat, "AM"), city))
+	if err != nil {
+		t.Fatalf("creating second: %v", err)
+	}
+	if err := listings.Move(owner(), lid2, domain.StateLive, events.Actor{Kind: events.ActorSystem}); err != nil {
+		t.Fatalf("publishing second: %v", err)
+	}
+	if _, dead, _ := searches.AlertsForListing(ctx, lid2); len(dead) != 0 {
+		t.Fatalf("a disabled token was targeted: %+v", dead)
+	}
+}

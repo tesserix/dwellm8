@@ -525,6 +525,18 @@ export class DwellmApi {
       { 'X-Dwellm8-Prospect': token });
   }
 
+  /* ---------------------------------------------------- push tokens (#126) */
+
+  registerPushToken(token: string, expoToken: string, platform: 'ios' | 'android'): Promise<void> {
+    return this.request('POST', '/v1/public/push/token',
+      { token: expoToken, platform }, { 'X-Dwellm8-Prospect': token });
+  }
+
+  dropPushToken(token: string, expoToken: string): Promise<void> {
+    return this.request('POST', '/v1/public/push/token/drop',
+      { token: expoToken }, { 'X-Dwellm8-Prospect': token });
+  }
+
   /* -------------------------------------------- rental applications (#142) */
   // The formal step between enquiry and lease. Applying needs the same
   // verified prospect token the enquiry did; the owner side needs a signed-in

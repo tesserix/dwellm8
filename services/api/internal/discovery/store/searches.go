@@ -92,6 +92,84 @@ func (s *Searches) Mine(ctx context.Context, prospectID string) ([]SavedSearch, 
 	return out, err
 }
 
+// AlertTarget is one push to send: the search that matched and where to send.
+type AlertTarget struct {
+	SearchID   string
+	ProspectID string
+	Token      string
+}
+
+// AlertListing is what the notification says: the listing's own public face.
+type AlertListing struct {
+	ID       string
+	Headline string
+	Locality string
+	City     string
+	Rent     int64
+}
+
+// AlertsForListing finds every opted-in search a just-published listing
+// satisfies, advances each one's alert watermark to that listing's
+// publication moment, and returns the live tokens to push to. The watermark
+// is what makes a NATS redelivery a no-op: the second delivery finds nothing
+// newer than it — and it advances to the listing's own published_at rather
+// than now(), so an event for a sibling listing still queued is not silently
+// swallowed. A listing no longer live answers no targets: the alert would
+// link to a page that 404s.
+func (s *Searches) AlertsForListing(ctx context.Context, listingID string) (AlertListing, []AlertTarget, error) {
+	var l AlertListing
+	var out []AlertTarget
+	err := tenancy.Platform(ctx, s.pool, "matching saved-search alerts (#144/#126)",
+		func(ctx context.Context, tx pgx.Tx) error {
+			var bedrooms int
+			var published time.Time
+			err := tx.QueryRow(ctx, `
+				SELECT id::text, headline, locality, city, rent_minor,
+				       coalesce(bedrooms, -1), published_at
+				  FROM listings
+				 WHERE id = $1 AND state = 'live' AND published_at IS NOT NULL`,
+				listingID).Scan(&l.ID, &l.Headline, &l.Locality, &l.City, &l.Rent,
+				&bedrooms, &published)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+
+			rows, err := tx.Query(ctx, `
+				WITH stamped AS (
+					UPDATE saved_searches ss
+					   SET last_alerted_at = GREATEST(ss.last_alerted_at, $5)
+					 WHERE ss.alerts_enabled
+					   AND ss.city = $1
+					   AND (ss.locality IS NULL OR ss.locality = $2)
+					   AND (ss.max_rent_minor IS NULL OR $3 <= ss.max_rent_minor)
+					   AND (ss.bedrooms IS NULL OR ss.bedrooms = $4)
+					   AND $5 > ss.last_alerted_at
+					 RETURNING ss.id, ss.prospect_id
+				)
+				SELECT s.id::text, s.prospect_id::text, t.expo_token
+				  FROM stamped s
+				  JOIN prospect_push_tokens t
+				    ON t.prospect_id = s.prospect_id AND t.disabled_at IS NULL`,
+				l.City, l.Locality, l.Rent, bedrooms, published)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var a AlertTarget
+				if err := rows.Scan(&a.SearchID, &a.ProspectID, &a.Token); err != nil {
+					return err
+				}
+				out = append(out, a)
+			}
+			return rows.Err()
+		})
+	return l, out, err
+}
+
 // Seen advances the watermark: everything current is no longer news.
 func (s *Searches) Seen(ctx context.Context, prospectID, id string) error {
 	return s.exec(ctx, "marking a search seen (#144)", `
