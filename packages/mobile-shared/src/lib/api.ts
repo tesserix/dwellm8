@@ -249,6 +249,27 @@ export type ResidentTicketEvent = {
   body: string;
 };
 
+/** One line of the tenancy conversation (GET .../messages). */
+export type ResidentMessage = {
+  message_id: string;
+  sender: string;
+  mine: boolean;
+  body: string;
+  sent_at: string;
+};
+
+/** One expected visitor (GET .../passes). */
+export type ResidentPass = {
+  pass_id: string;
+  name: string;
+  kind: string;
+  code: string;
+  state: string;
+  valid_from: string;
+  valid_to?: string;
+  created_at: string;
+};
+
 /** The signed-in renter (GET /v1/resident/me). */
 export type ResidentMe = {
   party_id: string;
@@ -711,6 +732,32 @@ export class DwellmApi {
 
   residentMe(): Promise<ResidentMe> {
     return this.request('GET', '/v1/resident/me');
+  }
+
+  async residentMessages(leaseId: string): Promise<ResidentMessage[]> {
+    const out = await this.request<{ messages?: ResidentMessage[] }>(
+      'GET', `/v1/resident/tenancies/${leaseId}/messages`);
+    return out.messages ?? [];
+  }
+
+  residentSendMessage(leaseId: string, body: string): Promise<ResidentMessage> {
+    return this.request('POST', `/v1/resident/tenancies/${leaseId}/messages`, { body });
+  }
+
+  async residentPasses(leaseId: string): Promise<ResidentPass[]> {
+    const out = await this.request<{ passes?: ResidentPass[] }>(
+      'GET', `/v1/resident/tenancies/${leaseId}/passes`);
+    return out.passes ?? [];
+  }
+
+  residentCreatePass(leaseId: string,
+    req: { name: string; kind: string; valid_hours?: number }): Promise<ResidentPass> {
+    return this.request('POST', `/v1/resident/tenancies/${leaseId}/passes`,
+      { name: req.name, kind: req.kind, valid_hours: req.valid_hours ?? 0 });
+  }
+
+  residentCancelPass(leaseId: string, passId: string): Promise<ResidentPass> {
+    return this.request('POST', `/v1/resident/tenancies/${leaseId}/passes/${passId}/cancel`, {});
   }
 }
 

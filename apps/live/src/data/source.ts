@@ -12,6 +12,8 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   apiFromEnv,
   type DwellmApi,
+  type ResidentMessage,
+  type ResidentPass,
   type ResidentPayment,
   type ResidentTenancy,
   type ResidentTicket,
@@ -276,6 +278,124 @@ export function useMe(): { loading: boolean; phone: string; email: string } {
   }, [client]);
 
   return state;
+}
+
+export type MessageView = { id: string; mine: boolean; text: string; at: string; day: string };
+
+function toMessage(m: ResidentMessage): MessageView {
+  const d = new Date(m.sent_at);
+  const h = d.getHours() % 12 || 12;
+  const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
+  return {
+    id: m.message_id,
+    mine: m.mine,
+    text: m.body,
+    at: `${h}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`,
+    day: fmtDate(m.sent_at),
+  };
+}
+
+/** The tenancy conversation: fetched on mount, polled gently, and refreshed
+ * the moment the renter sends. */
+export function useThread(leaseId: string | undefined):
+  { loading: boolean; error?: string; messages: MessageView[]; send: (body: string) => Promise<void> } {
+  const client = useMemo(() => apiFromEnv(), []);
+  const [state, setState] = useState<{ loading: boolean; error?: string; messages: MessageView[] }>(
+    { loading: true, messages: [] },
+  );
+
+  useEffect(() => {
+    if (!client || !leaseId) return;
+    let alive = true;
+    const load = () =>
+      client.residentMessages(leaseId)
+        .then((ms) => { if (alive) setState({ loading: false, messages: ms.map(toMessage) }); })
+        .catch((err: Error) => { if (alive) setState((p) => ({ ...p, loading: false, error: err.message })); });
+    load();
+    const poll = setInterval(load, 15000);
+    return () => { alive = false; clearInterval(poll); };
+  }, [client, leaseId]);
+
+  const send = async (body: string) => {
+    if (!client || !leaseId) throw new Error('The API is not configured on this build.');
+    await client.residentSendMessage(leaseId, body);
+    const ms = await client.residentMessages(leaseId);
+    setState({ loading: false, messages: ms.map(toMessage) });
+  };
+
+  return { ...state, send };
+}
+
+export type PassView = {
+  id: string;
+  name: string;
+  kind: 'Guest' | 'Delivery' | 'Cab' | 'Help';
+  when: string;
+  code: string;
+  state: 'Expected' | 'Cancelled' | 'At the gate' | 'Inside' | 'Left' | 'Denied';
+};
+
+const PASS_KIND: Record<string, PassView['kind']> = {
+  guest: 'Guest', delivery: 'Delivery', cab: 'Cab', help: 'Help',
+};
+const PASS_STATE: Record<string, PassView['state']> = {
+  expected: 'Expected', cancelled: 'Cancelled', arrived: 'At the gate',
+  inside: 'Inside', left: 'Left', denied: 'Denied',
+};
+
+function toPass(p: ResidentPass): PassView {
+  return {
+    id: p.pass_id,
+    name: p.name,
+    kind: PASS_KIND[p.kind] ?? 'Guest',
+    when: p.valid_to ? `${fmtDate(p.valid_from)} – ${fmtDate(p.valid_to)}` : `From ${fmtDate(p.valid_from)}`,
+    code: p.code,
+    state: PASS_STATE[p.state] ?? 'Expected',
+  };
+}
+
+/** Gate passes: list, create, cancel. */
+export function usePasses(leaseId: string | undefined): {
+  loading: boolean;
+  error?: string;
+  passes: PassView[];
+  create: (name: string, kind: string, validHours?: number) => Promise<PassView>;
+  cancel: (id: string) => Promise<void>;
+} {
+  const client = useMemo(() => apiFromEnv(), []);
+  const [state, setState] = useState<{ loading: boolean; error?: string; passes: PassView[] }>(
+    { loading: true, passes: [] },
+  );
+
+  const load = async () => {
+    if (!client || !leaseId) return;
+    const ps = await client.residentPasses(leaseId);
+    setState({ loading: false, passes: ps.map(toPass) });
+  };
+
+  useEffect(() => {
+    if (!client || !leaseId) return;
+    let alive = true;
+    client.residentPasses(leaseId)
+      .then((ps) => { if (alive) setState({ loading: false, passes: ps.map(toPass) }); })
+      .catch((err: Error) => { if (alive) setState((p) => ({ ...p, loading: false, error: err.message })); });
+    return () => { alive = false; };
+  }, [client, leaseId]);
+
+  const create = async (name: string, kind: string, validHours?: number) => {
+    if (!client || !leaseId) throw new Error('The API is not configured on this build.');
+    const out = await client.residentCreatePass(leaseId, { name, kind, valid_hours: validHours });
+    await load();
+    return toPass(out);
+  };
+
+  const cancel = async (id: string) => {
+    if (!client || !leaseId) throw new Error('The API is not configured on this build.');
+    await client.residentCancelPass(leaseId, id);
+    await load();
+  };
+
+  return { ...state, create, cancel };
 }
 
 /** raiseTicket records a repair request and refreshes every mounted screen. */

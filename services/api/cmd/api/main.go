@@ -29,6 +29,8 @@ import (
 	leasehttp "github.com/tesserix/dwellm8/services/api/internal/lease/http"
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
 	leasestore "github.com/tesserix/dwellm8/services/api/internal/lease/store"
+	communityservice "github.com/tesserix/dwellm8/services/api/internal/community/service"
+	communitystore "github.com/tesserix/dwellm8/services/api/internal/community/store"
 	maintenancehttp "github.com/tesserix/dwellm8/services/api/internal/maintenance/http"
 	maintenanceservice "github.com/tesserix/dwellm8/services/api/internal/maintenance/service"
 	maintenancestore "github.com/tesserix/dwellm8/services/api/internal/maintenance/store"
@@ -640,8 +642,10 @@ func run() error {
 	// is refused before any query runs.
 	residentMux := http.NewServeMux()
 	tickets := maintenanceservice.NewTickets(maintenancestore.NewTickets(pool), logger)
+	community := communityservice.New(communitystore.New(pool), logger)
 	resident.New(leases, statements, payments, logger, nil).
-		WithActivity(feed).WithTickets(tickets).WithIdentity(residents).
+		WithActivity(feed).WithTickets(tickets).WithCommunity(community).
+		WithIdentity(residents).
 		Routes(authz.NewRegistrar(residentMux, guard))
 
 	mux := http.NewServeMux()

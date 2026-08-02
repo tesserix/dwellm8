@@ -35,6 +35,7 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"time"
 
+	communityservice "github.com/tesserix/dwellm8/services/api/internal/community/service"
 	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
 	leasestore "github.com/tesserix/dwellm8/services/api/internal/lease/store"
@@ -72,6 +73,7 @@ type Handler struct {
 	payments   *moneyservice.Payments
 	activity   activity.Feeder
 	tickets    *maintenanceservice.Tickets
+	community  *communityservice.Community
 	identity   *identityservice.Residents
 	log        *slog.Logger
 	now        func() time.Time
@@ -96,6 +98,12 @@ func (h *Handler) WithActivity(f activity.Feeder) *Handler {
 // WithTickets adds the maintenance tickets seam (#245). Optional like the feed.
 func (h *Handler) WithTickets(t *maintenanceservice.Tickets) *Handler {
 	h.tickets = t
+	return h
+}
+
+// WithCommunity adds the conversation and the gate (#246). Optional like the feed.
+func (h *Handler) WithCommunity(c *communityservice.Community) *Handler {
+	h.community = c
 	return h
 }
 
@@ -130,6 +138,16 @@ func (h *Handler) Routes(r *authz.Registrar) {
 		Relation: "tenant", Object: authz.PathObject("agreement", "lease")}, h.RaiseTicket)
 	r.Handle("GET /v1/resident/tenancies/{lease}/tickets/{ticket}", authz.Check{
 		Relation: "can_view", Object: authz.PathObject("agreement", "lease")}, h.Ticket)
+	r.Handle("GET /v1/resident/tenancies/{lease}/messages", authz.Check{
+		Relation: "can_view", Object: authz.PathObject("agreement", "lease")}, h.Messages)
+	r.Handle("POST /v1/resident/tenancies/{lease}/messages", authz.Check{
+		Relation: "tenant", Object: authz.PathObject("agreement", "lease")}, h.SendMessage)
+	r.Handle("GET /v1/resident/tenancies/{lease}/passes", authz.Check{
+		Relation: "can_view", Object: authz.PathObject("agreement", "lease")}, h.Passes)
+	r.Handle("POST /v1/resident/tenancies/{lease}/passes", authz.Check{
+		Relation: "tenant", Object: authz.PathObject("agreement", "lease")}, h.CreatePass)
+	r.Handle("POST /v1/resident/tenancies/{lease}/passes/{pass}/cancel", authz.Check{
+		Relation: "tenant", Object: authz.PathObject("agreement", "lease")}, h.CancelPass)
 	r.Open("GET /v1/resident/me",
 		"the answer is the session itself — who signed in and what they may reach, nothing another person's id could widen",
 		h.Me)
