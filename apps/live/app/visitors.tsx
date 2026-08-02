@@ -10,7 +10,7 @@ import type { Tone } from '@dwellm8/mobile-shared';
 import { useLiveData, usePasses } from '../src/data/source';
 
 /**
- * Visitors and gate passes — the resident's side of the gate (#246).
+ * Visitors and gate passes — the resident's side of the gate (#238).
  *
  * Pre-approval is the point: a guest who is expected walks in with a code,
  * and nobody at the gate has to decide on the resident's behalf.

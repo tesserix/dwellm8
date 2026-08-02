@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader, AvatarButton, EmptyState, HouseArt, SendIcon, color, font, radius, shadow, space } from '@dwellm8/mobile-shared';
 import { useLiveData, useThread } from '../../src/data/source';
 
-/** The tenancy conversation, on the record (#246). */
+/** The tenancy conversation, on the record (#238). */
 export default function Chat() {
   const router = useRouter();
   const { tenancy, leaseId } = useLiveData();

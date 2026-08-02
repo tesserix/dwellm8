@@ -95,13 +95,13 @@ func (h *Handler) WithActivity(f activity.Feeder) *Handler {
 	return h
 }
 
-// WithTickets adds the maintenance tickets seam (#245). Optional like the feed.
+// WithTickets adds the maintenance tickets seam (#237). Optional like the feed.
 func (h *Handler) WithTickets(t *maintenanceservice.Tickets) *Handler {
 	h.tickets = t
 	return h
 }
 
-// WithCommunity adds the conversation and the gate (#246). Optional like the feed.
+// WithCommunity adds the conversation and the gate (#238). Optional like the feed.
 func (h *Handler) WithCommunity(c *communityservice.Community) *Handler {
 	h.community = c
 	return h

@@ -1,11 +1,12 @@
 /**
  * Where the Live app's screens get their data: the resident surface
  * (/v1/resident, issue #51, ADR-0029) — the tenancy, its dues as the ledger
- * holds them, receipts since move-in, maintenance tickets (#245) and the
- * renter's cut of the activity feed. Locally the API impersonates
- * DEV_IMPERSONATE_RESIDENT; in production requests carry a GIP bearer for the
- * `live` tenant. Sections with no API yet (visitors, services, chat, autopay)
- * say so on their screens rather than passing fiction off as record.
+ * holds them, receipts since move-in, maintenance tickets (#237), the tenancy
+ * conversation and gate passes (#238), and the renter's cut of the activity
+ * feed. Locally the API impersonates DEV_IMPERSONATE_RESIDENT; in production
+ * requests carry a GIP bearer for the `live` tenant. Sections with no API yet
+ * (services, autopay, documents) say so on their screens rather than passing
+ * fiction off as record.
  */
 
 import { useEffect, useMemo, useState } from 'react';
