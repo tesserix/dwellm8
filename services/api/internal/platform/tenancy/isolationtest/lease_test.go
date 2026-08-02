@@ -495,7 +495,13 @@ func TestTheAgreedTermCannotBeEdited(t *testing.T) {
 	}
 
 	// Notice served, then withdrawn — the one backward edge, and it needs a reason.
-	if err := edit("state = 'in_notice'"); err != nil {
+	// Since #239 the state cannot be reached without the announcement's facts,
+	// so a bare state flip is refused too.
+	if err := edit("state = 'in_notice'"); err == nil {
+		t.Error("notice was served with no record of when, by whom, or for which move-out day")
+	}
+	if err := edit("state = 'in_notice', notice_served_on = '2026-05-01', " +
+		"notice_served_by = 'tenant', notice_move_out_on = '2026-07-01'"); err != nil {
 		t.Fatalf("serving notice was refused: %v", err)
 	}
 	if err := edit("state = 'active'"); err == nil {
