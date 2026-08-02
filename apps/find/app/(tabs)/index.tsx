@@ -6,7 +6,7 @@ import {
   StatusPill, Button, MapPinIcon,
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
-import { useSearch } from '../../src/data/source';
+import { useSavedSearches, useSearch } from '../../src/data/source';
 import { ListingCard } from '../../src/components/ListingCard';
 
 /**
@@ -23,6 +23,8 @@ export default function Search() {
   const [bhk, setBhk] = useState('Any');
   const [sort, setSort] = useState('Relevant');
   const { loading, listings, error } = useSearch();
+  const watches = useSavedSearches();
+  const [watched, setWatched] = useState(false);
 
   const list = useMemo(() => {
     let out = listings.filter(
@@ -91,7 +93,18 @@ export default function Search() {
               Save this search and we will tell you the day something matches — no daily digest,
               only the ones that fit.
             </Text>
-            <Button label="Save this search" tone="secondary" onPress={() => router.push('/(tabs)/saved')} style={{ marginTop: space(4) }} />
+            <Button
+              label={watched ? 'Watching this search' : 'Save this search'}
+              tone="secondary"
+              onPress={() => {
+                if (watches.mode === 'live' && q.trim()) {
+                  watches.save(q).then(() => setWatched(true)).catch(() => {});
+                } else {
+                  router.push('/(tabs)/saved');
+                }
+              }}
+              style={{ marginTop: space(4) }}
+            />
           </Card>
         ) : null}
 

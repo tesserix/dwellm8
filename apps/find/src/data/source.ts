@@ -13,7 +13,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { apiFromEnv, ApiError, type DwellmApi, type PublicListing } from '@dwellm8/mobile-shared';
+import {
+  apiFromEnv, ApiError, type DwellmApi, type PublicListing, type SavedSearchRow,
+} from '@dwellm8/mobile-shared';
 import * as demo from './mock';
 
 export type Mode = 'live' | 'demo';
@@ -140,6 +142,49 @@ export function useListing(id: string | undefined) {
   }, [client, id]);
 
   return state;
+}
+
+/** Saved searches (#144): live rows with fresh-match counts, or the demo set. */
+export function useSavedSearches() {
+  const client = useMemo(() => apiFromEnv(), []);
+  const [rows, setRows] = useState<SavedSearchRow[]>([]);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!client) return;
+    let alive = true;
+    (async () => {
+      const token = await prospectToken(client);
+      const list = await client.mySearches(token);
+      if (alive) setRows(list);
+    })().catch(() => {});
+    return () => { alive = false; };
+  }, [client, tick]);
+
+  const refresh = useCallback(() => setTick((t) => t + 1), []);
+
+  const save = useCallback(async (city: string) => {
+    if (!client || !city.trim()) return;
+    const token = await prospectToken(client);
+    await client.saveSearch(token, { city: city.trim() });
+    refresh();
+  }, [client, refresh]);
+
+  const seen = useCallback(async (id: string) => {
+    if (!client) return;
+    const token = await prospectToken(client);
+    await client.searchSeen(token, id).catch(() => {});
+    refresh();
+  }, [client, refresh]);
+
+  const remove = useCallback(async (id: string) => {
+    if (!client) return;
+    const token = await prospectToken(client);
+    await client.deleteSearch(token, id).catch(() => {});
+    refresh();
+  }, [client, refresh]);
+
+  return { mode: (client ? 'live' : 'demo') as Mode, rows, save, seen, remove, refresh };
 }
 
 export type MyApplication = {

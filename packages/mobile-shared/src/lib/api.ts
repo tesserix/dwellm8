@@ -228,6 +228,17 @@ export type ResidentPayment = {
 };
 
 /** What starting a payment answers with (POST .../payments). */
+export type SavedSearchRow = {
+  id: string;
+  city: string;
+  locality?: string;
+  max_rent_minor?: number;
+  bedrooms?: number;
+  alerts_enabled: boolean;
+  new_matches: number;
+  created_at: string;
+};
+
 export type RentalApplication = {
   id: string;
   listing_id: string;
@@ -475,6 +486,42 @@ export class DwellmApi {
 
   cancelInspection(token: string, enquiryId: string): Promise<void> {
     return this.request('POST', `/v1/public/inspections/${enquiryId}/cancel`, {},
+      { 'X-Dwellm8-Prospect': token });
+  }
+
+  /* ------------------------------------------------ saved searches (#144) */
+
+  /** The same criteria saved twice is the same search. */
+  async saveSearch(token: string, q: {
+    city: string; locality?: string; maxRentMinor?: number; bedrooms?: number;
+  }): Promise<string> {
+    const out = await this.request<{ id: string }>('POST', '/v1/public/searches', {
+      city: q.city, locality: q.locality,
+      max_rent_minor: q.maxRentMinor, bedrooms: q.bedrooms,
+    }, { 'X-Dwellm8-Prospect': token });
+    return out.id;
+  }
+
+  async mySearches(token: string): Promise<SavedSearchRow[]> {
+    const out = await this.request<{ searches: SavedSearchRow[] }>(
+      'GET', '/v1/public/searches', undefined, { 'X-Dwellm8-Prospect': token });
+    return out.searches ?? [];
+  }
+
+  /** Advances the no-resend watermark: current matches stop being news. */
+  searchSeen(token: string, id: string): Promise<void> {
+    return this.request('POST', `/v1/public/searches/${id}/seen`, {},
+      { 'X-Dwellm8-Prospect': token });
+  }
+
+  /** Opting out retains the search; only the alerting stops. */
+  setSearchAlerts(token: string, id: string, enabled: boolean): Promise<void> {
+    return this.request('POST', `/v1/public/searches/${id}/alerts`, { enabled },
+      { 'X-Dwellm8-Prospect': token });
+  }
+
+  deleteSearch(token: string, id: string): Promise<void> {
+    return this.request('DELETE', `/v1/public/searches/${id}`, undefined,
       { 'X-Dwellm8-Prospect': token });
   }
 

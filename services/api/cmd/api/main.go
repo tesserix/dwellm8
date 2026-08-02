@@ -520,6 +520,11 @@ func run() error {
 	moderationPublic := ginx.Engine()
 	discoveryhttp.NewModeration(moderationStore, logger).PublicRoutes(ginx.New(moderationPublic, guard))
 
+	// Saved searches, #144: the prospect's own criteria, shortlist-style.
+	searchesPublic := ginx.Engine()
+	discoveryhttp.NewSearches(discoverystore.NewSearches(tenancy.NewPlatformPool(platformPool)),
+		prospects, logger).PublicRoutes(ginx.New(searchesPublic, guard))
+
 	// Applications, #142: the formal step between enquiry and lease.
 	appsStore := discoverystore.NewApplications(pool, tenancy.NewPlatformPool(platformPool))
 	appsOwner := ginx.Engine()
@@ -617,6 +622,11 @@ func run() error {
 		Routes(authz.NewRegistrar(mux, guard))
 	mux.Handle("POST /v1/public/listings/{id}/media/{mid}/report", mediaPublic)
 	mux.Handle("POST /v1/public/listings/{id}/report", moderationPublic)
+	mux.Handle("POST /v1/public/searches", searchesPublic)
+	mux.Handle("GET /v1/public/searches", searchesPublic)
+	mux.Handle("POST /v1/public/searches/{id}/seen", searchesPublic)
+	mux.Handle("POST /v1/public/searches/{id}/alerts", searchesPublic)
+	mux.Handle("DELETE /v1/public/searches/{id}", searchesPublic)
 	mux.Handle("POST /v1/public/listings/{id}/applications", appsPublic)
 	mux.Handle("GET /v1/public/applications", appsPublic)
 	mux.Handle("POST /v1/public/applications/{id}/withdraw", appsPublic)
