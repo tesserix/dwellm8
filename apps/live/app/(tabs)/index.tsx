@@ -7,14 +7,13 @@ import {
   BedIcon, CalendarIcon, ChatIcon, ClipboardIcon, ShieldIcon,
   color, font, inr, radius, space,
 } from '@dwellm8/mobile-shared';
-import { currentInvoice } from '../../src/data/mock';
 import { useLiveData } from '../../src/data/source';
 
 export default function Home() {
   const router = useRouter();
-  const { mode, tenancy, dueMinor, dueAsOf, receipts, tickets, notices } = useLiveData();
+  const { tenancy, dueMinor, dueAsOf, receipts, tickets, notices } = useLiveData();
   const totalDue = dueMinor;
-  const open = tickets.filter((t) => t.status !== 'Resolved');
+  const open = tickets.filter((t) => t.status !== 'Resolved' && t.status !== 'Cancelled');
 
   return (
     <>
@@ -26,14 +25,10 @@ export default function Home() {
       <Screen>
         {/* the one thing a tenant opens the app for */}
         <Card style={{ marginTop: space(3) }}>
-          <Text style={s.dueLabel}>
-            {mode === 'live' ? (dueAsOf ? `Due as of ${dueAsOf}` : 'Due now') : `Due in ${currentInvoice.daysToDue} days`}
-          </Text>
+          <Text style={s.dueLabel}>{dueAsOf ? `Due as of ${dueAsOf}` : 'Due now'}</Text>
           <Text style={s.dueAmount}>{inr(totalDue)}</Text>
           <Text style={s.duePeriod}>
-            {mode === 'live'
-              ? `Rent ${inr(tenancy.rentPaise, { noPaise: true })} · due day ${tenancy.dueDay}`
-              : `${currentInvoice.period} · due ${currentInvoice.dueOn}`}
+            {`Rent ${inr(tenancy.rentPaise, { noPaise: true })} · due day ${tenancy.dueDay}`}
           </Text>
 
           <Pressable style={s.payBtn} onPress={() => router.push('/(tabs)/pay')}>
@@ -76,7 +71,10 @@ export default function Home() {
                   <Text style={s.status}>{t.status.toUpperCase()}</Text>
                 </View>
                 <Text style={s.liability}>
-                  {t.liability === 'Tenant' ? 'You pay' : t.liability === 'Owner' ? 'Owner pays' : 'Shared'}
+                  {t.liability === 'Tenant' ? 'You pay'
+                    : t.liability === 'Owner' ? 'Owner pays'
+                    : t.liability === 'Shared' ? 'Shared'
+                    : 'Being assessed'}
                 </Text>
               </View>
               <DottedRule />

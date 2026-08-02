@@ -11,7 +11,8 @@ export default function Requests() {
   const router = useRouter();
   const [filter, setFilter] = useState('Open');
   const { tickets } = useLiveData();
-  const list = tickets.filter((t) => (filter === 'Open' ? t.status !== 'Resolved' : t.status === 'Resolved'));
+  const settled = (s: string) => s === 'Resolved' || s === 'Cancelled';
+  const list = tickets.filter((t) => (filter === 'Open' ? !settled(t.status) : settled(t.status)));
 
   return (
     <>
@@ -29,7 +30,7 @@ export default function Requests() {
         ) : null}
 
         {list.map((t) => (
-          <Pressable key={t.id} onPress={() => router.push('/ticket')}>
+          <Pressable key={t.id} onPress={() => router.push(`/ticket?id=${t.id}`)}>
             <Card>
               <View style={s.top}>
                 <Text style={s.status}>{t.status.toUpperCase()}</Text>
@@ -40,7 +41,10 @@ export default function Requests() {
               <DottedRule />
               <View style={s.payRow}>
                 <Text style={s.payLabel}>
-                  {t.liability === 'Tenant' ? 'You pay' : t.liability === 'Owner' ? 'Owner pays' : 'Shared cost'}
+                  {t.liability === 'Tenant' ? 'You pay'
+                    : t.liability === 'Owner' ? 'Owner pays'
+                    : t.liability === 'Shared' ? 'Shared cost'
+                    : 'Being assessed'}
                 </Text>
                 {t.costPaise ? (
                   <Text style={[s.payValue, t.liability === 'Tenant' && { color: color.negative }]}>

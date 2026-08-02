@@ -639,8 +639,10 @@ func run() error {
 	// also carries its own surface check, so a genuine Ops token presented here
 	// is refused before any query runs.
 	residentMux := http.NewServeMux()
+	tickets := maintenanceservice.NewTickets(maintenancestore.NewTickets(pool), logger)
 	resident.New(leases, statements, payments, logger, nil).
-		WithActivity(feed).Routes(authz.NewRegistrar(residentMux, guard))
+		WithActivity(feed).WithTickets(tickets).WithIdentity(residents).
+		Routes(authz.NewRegistrar(residentMux, guard))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)

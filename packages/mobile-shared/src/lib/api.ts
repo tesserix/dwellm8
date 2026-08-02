@@ -227,6 +227,36 @@ export type ResidentPayment = {
   receipt_number?: string;
 };
 
+/** One maintenance request as the tenant sees it (GET .../tickets). */
+export type ResidentTicket = {
+  ticket_id: string;
+  category: string;
+  title: string;
+  body?: string;
+  status: string;
+  liability?: string;
+  liability_reason?: string;
+  slot?: string;
+  vendor?: string;
+  cost_minor?: number;
+  raised_at: string;
+  timeline?: ResidentTicketEvent[];
+};
+
+export type ResidentTicketEvent = {
+  at: string;
+  actor: string;
+  body: string;
+};
+
+/** The signed-in renter (GET /v1/resident/me). */
+export type ResidentMe = {
+  party_id: string;
+  phone?: string;
+  email?: string;
+  tenancies: { lease_id: string; organisation: string; state: string }[];
+};
+
 /** What starting a payment answers with (POST .../payments). */
 export type SavedSearchRow = {
   id: string;
@@ -661,6 +691,26 @@ export class DwellmApi {
     const out = await this.request<{ entries: ActivityEntry[] }>(
       'GET', `/v1/resident/tenancies/${leaseId}/activity`);
     return out.entries ?? [];
+  }
+
+  async residentTickets(leaseId: string): Promise<ResidentTicket[]> {
+    const out = await this.request<{ tickets?: ResidentTicket[] }>(
+      'GET', `/v1/resident/tenancies/${leaseId}/tickets`);
+    return out.tickets ?? [];
+  }
+
+  residentTicket(leaseId: string, ticketId: string): Promise<ResidentTicket> {
+    return this.request('GET', `/v1/resident/tenancies/${leaseId}/tickets/${ticketId}`);
+  }
+
+  residentRaiseTicket(leaseId: string,
+    req: { category: string; title: string; body?: string }): Promise<ResidentTicket> {
+    return this.request('POST', `/v1/resident/tenancies/${leaseId}/tickets`,
+      { category: req.category, title: req.title, body: req.body ?? '' });
+  }
+
+  residentMe(): Promise<ResidentMe> {
+    return this.request('GET', '/v1/resident/me');
   }
 }
 

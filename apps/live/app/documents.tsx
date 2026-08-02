@@ -2,11 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, ChevronRight, CloseIcon, DocIcon, DottedRule, MoneyRow, color, font, inr, space } from '@dwellm8/mobile-shared';
-import { documents, tenancy } from '../src/data/mock';
+import { Card, CloseIcon, MoneyRow, color, font, inr, space } from '@dwellm8/mobile-shared';
+import { useLiveData } from '../src/data/source';
 
 export default function Documents() {
   const router = useRouter();
+  const { tenancy } = useLiveData();
   return (
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
       <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFF' }}>
@@ -27,19 +28,11 @@ export default function Documents() {
 
         <Text style={s.heading}>Documents</Text>
         <Card>
-          {documents.map((d, i) => (
-            <View key={d.id}>
-              <Pressable style={s.doc}>
-                <DocIcon size={22} c={color.inkFaint} />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.docName}>{d.name}</Text>
-                  <Text style={s.docDate}>{d.date}</Text>
-                </View>
-                <ChevronRight size={20} c={color.inkFaint} />
-              </Pressable>
-              {i < documents.length - 1 ? <DottedRule /> : null}
-            </View>
-          ))}
+          <Text style={s.empty}>
+            Your executed agreement and tenancy documents will appear here once
+            document sharing reaches the tenant app. Receipts already live under
+            Payments → Receipts.
+          </Text>
         </Card>
       </ScrollView>
     </View>
@@ -49,7 +42,5 @@ export default function Documents() {
 const s = StyleSheet.create({
   title: { ...font.h1, color: color.inkStrong, marginTop: space(3) },
   heading: { ...font.h2, color: color.inkStrong, marginHorizontal: space(4), marginTop: space(4), marginBottom: space(3) },
-  doc: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: space(4) },
-  docName: { ...font.body, color: color.inkStrong, fontWeight: '600' },
-  docDate: { ...font.small, color: color.inkSoft, marginTop: 3 },
+  empty: { ...font.body, color: color.inkSoft, lineHeight: 22 },
 });

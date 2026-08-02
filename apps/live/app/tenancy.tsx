@@ -1,86 +1,67 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { Text, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, KeyValue, Button, StatusPill, Segmented, Toast,
-  Timeline, ListRow, DocIcon,
+  BackHeader, Card, Screen, KeyValue, StatusPill, Segmented, Timeline,
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
-import { agreement, tenancy } from '../src/data/mock';
+import { useLiveData } from '../src/data/source';
 
 /**
  * Agreement, deposit and notice.
  *
  * A tenant's three anxious questions: what did I sign, where is my deposit,
- * and how do I leave. Each is answered plainly, with the dates that actually
- * bind them.
+ * and how do I leave. Each is answered from the lease record — and where the
+ * record has no answer yet, the screen says so instead of inventing one.
  */
 
 export default function Tenancy() {
   const router = useRouter();
   const [tab, setTab] = useState('Agreement');
-  const [toast, setToast] = useState<string | null>(null);
-
-  const say = (m: string) => {
-    setToast(m);
-    setTimeout(() => setToast(null), 2800);
-  };
+  const { tenancy, loading } = useLiveData();
+  const live = tenancy.state === 'active' || tenancy.state === 'notice';
 
   return (
     <>
       <BackHeader title="Your tenancy" subtitle={tenancy.unit} onBack={() => router.back()} />
       <Screen>
-        {toast ? <Toast text={toast} /> : null}
-
         <View style={{ marginTop: space(3), marginBottom: space(3) }}>
           <Segmented items={['Agreement', 'Deposit', 'Notice']} value={tab} onChange={setTab} />
         </View>
 
         {tab === 'Agreement' ? (
-          <>
-            <Card>
-              <StatusPill text="Active" tone="green" dot />
-              <Text style={s.h1}>{agreement.kind}</Text>
-              <Text style={s.sub}>{agreement.number}</Text>
-              <View style={{ marginTop: space(3) }}>
-                <KeyValue k="Term" v={`${agreement.from} to ${agreement.to}`} />
-                <KeyValue k="Length" v={`${agreement.months} months`} />
-                <KeyValue k="Rent" v={`${inr(tenancy.rentPaise, { noPaise: true })} per month`} />
-                <KeyValue k="Escalation on renewal" v={`${agreement.escalationPct}%`} />
-                <KeyValue k="Lock-in ends" v={agreement.lockInEnds} />
-                <KeyValue k="Notice period" v={`${agreement.noticeDays} days`} />
-                <KeyValue k="Registration" v={agreement.registered} />
-                <KeyValue k="Signature" v={agreement.eSigned} last />
-              </View>
-              <Text style={s.note}>
-                Eleven months is the standard Indian term — it keeps the agreement outside rent
-                control while remaining registrable. Your Aadhaar number is never stored by dwellm8.
-              </Text>
-            </Card>
-
-            <Card padded={false} style={{ paddingHorizontal: space(4) }}>
-              <ListRow left={<DocIcon size={20} c={color.inkFaint} />} title="Executed agreement.pdf" subtitle="Signed by both parties" onPress={() => router.push('/documents')} />
-              <ListRow left={<DocIcon size={20} c={color.inkFaint} />} title="Registration receipt.pdf" subtitle={`Stamp duty ${inr(agreement.stampDutyPaise, { noPaise: true })}`} onPress={() => router.push('/documents')} last />
-            </Card>
-          </>
+          <Card>
+            <StatusPill
+              text={loading ? '…' : tenancy.state ? tenancy.state.replace(/^\w/, (c) => c.toUpperCase()) : 'Unknown'}
+              tone={live ? 'green' : 'neutral'}
+              dot
+            />
+            <Text style={s.h1}>Tenancy at {tenancy.unit}</Text>
+            <Text style={s.sub}>{tenancy.locality}</Text>
+            <View style={{ marginTop: space(3) }}>
+              <KeyValue k="Term" v={tenancy.endOn ? `${tenancy.startOn} to ${tenancy.endOn}` : `From ${tenancy.startOn}, open-ended`} />
+              <KeyValue k="Rent" v={`${inr(tenancy.rentPaise, { noPaise: true })} per month`} />
+              <KeyValue k="Due day" v={`${tenancy.dueDay} of the month`} />
+              {tenancy.lockInUntil ? <KeyValue k="Lock-in ends" v={tenancy.lockInUntil} /> : null}
+              <KeyValue k="Notice period" v={`${tenancy.noticeDays} days`} />
+              <KeyValue k="Managed by" v={tenancy.agency} last />
+            </View>
+            <Text style={s.note}>
+              These are the terms as your landlord recorded them. If anything here does not match
+              what you signed, raise it with your manager — the record, not memory, settles it.
+            </Text>
+          </Card>
         ) : null}
 
         {tab === 'Deposit' ? (
           <>
             <Card>
               <Text style={s.label}>Security deposit held</Text>
-              <Text style={s.big}>{inr(agreement.depositPaise)}</Text>
-              <Text style={s.sub}>{agreement.depositHeldBy}</Text>
-              <View style={{ marginTop: space(4) }}>
-                <KeyValue k="Paid on" v="20 Apr 2026" />
-                <KeyValue k="Equivalent to" v="3 months rent" />
-                <KeyValue k="Deductions so far" v="None" tone="green" />
-                <KeyValue k="Refund due" v="Within 30 days of move-out" last />
-              </View>
+              <Text style={s.big}>{inr(tenancy.depositPaise)}</Text>
+              <Text style={s.sub}>Held against the tenancy, as the ledger records it</Text>
               <Text style={s.note}>
                 Your deposit is never set against rent without your written consent. Deductions at
-                move-out must be itemised against the move-in condition report — which is in your
-                documents, with photographs.
+                move-out must be itemised against the move-in condition report.
               </Text>
             </Card>
             <Card>
@@ -98,39 +79,23 @@ export default function Tenancy() {
         ) : null}
 
         {tab === 'Notice' ? (
-          <>
-            <Card>
-              <Text style={s.h}>Leaving</Text>
-              <Text style={s.body}>
-                You must give {agreement.noticeDays} days notice. Your lock-in ends on{' '}
-                {agreement.lockInEnds} — leaving before that means the lock-in rent still applies,
-                and the app will show you the exact figure before you commit to anything.
-              </Text>
-              <View style={{ marginTop: space(3) }}>
-                <KeyValue k="Earliest move-out without penalty" v="15 Oct 2026" />
-                <KeyValue k="If you served notice today" v="Move out on 27 Sep 2026" />
-                <KeyValue k="Lock-in charge if you leave then" v={inr(4_20_00_00)} tone="red" last />
-              </View>
-              <Button
-                label="Start notice to vacate"
-                tone="secondary"
-                onPress={() => say('Draft notice created — your manager has not been told yet')}
-                style={{ marginTop: space(4) }}
-              />
-              <Text style={s.note}>
-                Starting a notice creates a draft only. Nothing is served, and your manager sees
-                nothing, until you confirm it.
-              </Text>
-            </Card>
-            <Card>
-              <Text style={s.h}>Renewal</Text>
-              <Text style={s.body}>
-                Your manager will offer renewal terms 90 days before {agreement.to}. Rent would rise
-                by {agreement.escalationPct}% to {inr(Math.round(tenancy.rentPaise * 1.05), { noPaise: true })} unless
-                you negotiate otherwise.
-              </Text>
-            </Card>
-          </>
+          <Card>
+            <Text style={s.h}>Leaving</Text>
+            <Text style={s.body}>
+              You must give {tenancy.noticeDays} days notice.
+              {tenancy.lockInUntil
+                ? ` Your lock-in ends on ${tenancy.lockInUntil} — leaving before that means the lock-in rent still applies.`
+                : ''}
+            </Text>
+            <View style={{ marginTop: space(3) }}>
+              {tenancy.lockInUntil ? <KeyValue k="Earliest move-out without penalty" v={tenancy.lockInUntil} /> : null}
+              {tenancy.endOn ? <KeyValue k="Lease ends" v={tenancy.endOn} last /> : <KeyValue k="Term" v="Open-ended" last />}
+            </View>
+            <Text style={s.note}>
+              Serving notice from the app is coming soon. Until then, talk to your manager — and
+              anything you agree lands on this record.
+            </Text>
+          </Card>
         ) : null}
       </Screen>
     </>

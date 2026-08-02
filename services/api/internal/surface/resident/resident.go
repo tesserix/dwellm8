@@ -38,6 +38,7 @@ import (
 	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
 	leasestore "github.com/tesserix/dwellm8/services/api/internal/lease/store"
+	maintenanceservice "github.com/tesserix/dwellm8/services/api/internal/maintenance/service"
 	"github.com/tesserix/dwellm8/services/api/internal/money/domain"
 	"github.com/tesserix/dwellm8/services/api/internal/money/domain/collect"
 	"github.com/tesserix/dwellm8/services/api/internal/money/provider"
@@ -70,6 +71,8 @@ type Handler struct {
 	statements *moneyservice.Statements
 	payments   *moneyservice.Payments
 	activity   activity.Feeder
+	tickets    *maintenanceservice.Tickets
+	identity   *identityservice.Residents
 	log        *slog.Logger
 	now        func() time.Time
 }
@@ -87,6 +90,18 @@ func New(l *leaseservice.Leases, s *moneyservice.Statements, p *moneyservice.Pay
 // lease service: a surface built without it answers the activity route 404.
 func (h *Handler) WithActivity(f activity.Feeder) *Handler {
 	h.activity = f
+	return h
+}
+
+// WithTickets adds the maintenance tickets seam (#245). Optional like the feed.
+func (h *Handler) WithTickets(t *maintenanceservice.Tickets) *Handler {
+	h.tickets = t
+	return h
+}
+
+// WithIdentity adds the identity seam, for the profile route's contact lookup.
+func (h *Handler) WithIdentity(r *identityservice.Residents) *Handler {
+	h.identity = r
 	return h
 }
 
@@ -109,6 +124,15 @@ func (h *Handler) Routes(r *authz.Registrar) {
 		Relation: "can_view", Object: authz.PathObject("agreement", "lease")}, h.Receipt)
 	r.Handle("GET /v1/resident/tenancies/{lease}/activity", authz.Check{
 		Relation: "can_view", Object: authz.PathObject("agreement", "lease")}, h.Activity)
+	r.Handle("GET /v1/resident/tenancies/{lease}/tickets", authz.Check{
+		Relation: "can_view", Object: authz.PathObject("agreement", "lease")}, h.Tickets)
+	r.Handle("POST /v1/resident/tenancies/{lease}/tickets", authz.Check{
+		Relation: "tenant", Object: authz.PathObject("agreement", "lease")}, h.RaiseTicket)
+	r.Handle("GET /v1/resident/tenancies/{lease}/tickets/{ticket}", authz.Check{
+		Relation: "can_view", Object: authz.PathObject("agreement", "lease")}, h.Ticket)
+	r.Open("GET /v1/resident/me",
+		"the answer is the session itself — who signed in and what they may reach, nothing another person's id could widen",
+		h.Me)
 }
 
 // tenancyResponse is one tenancy as the renter sees it.

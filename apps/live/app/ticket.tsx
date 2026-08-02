@@ -1,13 +1,31 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge, Card, CloseIcon, DottedRule, MoneyRow, color, font, inr, space } from '@dwellm8/mobile-shared';
-import { tickets } from '../src/data/mock';
+import { useLiveData, useTicket } from '../src/data/source';
 
 export default function Ticket() {
   const router = useRouter();
-  const t = tickets[0];
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { leaseId } = useLiveData();
+  const { loading, error, ticket: t } = useTicket(leaseId, id);
+
+  if (loading || !t) {
+    return (
+      <View style={{ flex: 1, backgroundColor: color.bgTop }}>
+        <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFF' }}>
+          <View style={s.head}>
+            <Pressable onPress={() => router.back()} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
+            <Text style={s.headTitle} numberOfLines={1}>Request</Text>
+          </View>
+        </SafeAreaView>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          {loading ? <ActivityIndicator /> : <Text style={s.cat}>{error ?? 'No such request.'}</Text>}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
@@ -32,9 +50,15 @@ export default function Ticket() {
         <Card>
           <Text style={s.section}>Who pays</Text>
           <Text style={s.liability}>
-            {t.liability === 'Tenant' ? 'You pay this' : t.liability === 'Owner' ? 'Your owner pays this' : 'Shared cost'}
+            {t.liability === 'Tenant' ? 'You pay this'
+              : t.liability === 'Owner' ? 'Your owner pays this'
+              : t.liability === 'Shared' ? 'Shared cost'
+              : 'Being assessed'}
           </Text>
-          <Text style={s.reason}>{t.liabilityReason}</Text>
+          <Text style={s.reason}>
+            {t.liabilityReason
+              ?? 'Your manager confirms the split once the issue is assessed — you will see it here before any work is approved.'}
+          </Text>
           {t.costPaise ? (
             <>
               <DottedRule />
