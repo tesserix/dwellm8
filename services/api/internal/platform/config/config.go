@@ -36,6 +36,7 @@ type Config struct {
 	// take rent when the aggregator is down.
 	PaymentProviders []string
 	Cashfree         Cashfree
+	Twilio           Twilio
 
 	// Identity is ADR-0027: the GIP project every token must be minted for, and
 	// the prefix that names this product's user pools.
@@ -201,6 +202,22 @@ func (c Cashfree) Configured() bool {
 	return c.BaseURL != "" && c.ClientID != "" && c.ClientSecret != "" && c.APIVersion != ""
 }
 
+// Twilio is the OTP provider's configuration (#22, the verification point of
+// #137). All three or nothing: a partially configured verifier is treated as
+// absent, and prospect verification answers 503 rather than half-working.
+type Twilio struct {
+	AccountSID string
+	AuthToken  string
+	// VerifySID names the Twilio Verify service — the OTP policy (length,
+	// expiry, channels) lives there, on Twilio's side.
+	VerifySID string
+}
+
+// Configured reports whether enough is present to build the verifier.
+func (t Twilio) Configured() bool {
+	return t.AccountSID != "" && t.AuthToken != "" && t.VerifySID != ""
+}
+
 // IsSandbox reports whether these are test credentials, from the credential
 // itself rather than from a flag somebody sets alongside it.
 //
@@ -240,6 +257,12 @@ func Load() (Config, error) {
 		APIVersion:         os.Getenv("CASHFREE_API_VERSION"),
 		WebhookSecret:      get("CASHFREE_WEBHOOK_SECRET", os.Getenv("CASHFREE_CLIENT_SECRET")),
 		AllowSandboxInProd: os.Getenv("CASHFREE_ALLOW_SANDBOX_IN_PROD") == "true",
+	}
+
+	c.Twilio = Twilio{
+		AccountSID: os.Getenv("TWILIO_ACCOUNT_SID"),
+		AuthToken:  os.Getenv("TWILIO_AUTH_TOKEN"),
+		VerifySID:  os.Getenv("TWILIO_VERIFY_SID"),
 	}
 
 	c.Identity = Identity{

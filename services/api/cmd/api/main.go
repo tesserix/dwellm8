@@ -20,6 +20,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	discoveryhttp "github.com/tesserix/dwellm8/services/api/internal/discovery/http"
+	twilioverify "github.com/tesserix/dwellm8/services/api/internal/discovery/provider/twilio"
 	discoveryservice "github.com/tesserix/dwellm8/services/api/internal/discovery/service"
 	discoverystore "github.com/tesserix/dwellm8/services/api/internal/discovery/store"
 	identityhttp "github.com/tesserix/dwellm8/services/api/internal/identity/http"
@@ -445,16 +446,23 @@ func run() error {
 	enquiries := discoveryservice.NewEnquiries(enquiriesStore, listingsStore, prospectsStore, logger).
 		WithDrafter(discoveryservice.FromLeases{Leases: leases})
 
-	// The OTP verifier and the masked-calling bridge are dev fakes outside
-	// production and absent in it until a provider lands (#22): verification
-	// answers 503, search and shortlisting still work. A fake that verified
-	// nobody must not run where a real prospect can reach it.
+	// The OTP verifier: Twilio Verify when configured, the dev fake outside
+	// production, absent otherwise — verification answers 503, search and
+	// shortlisting still work. A fake that verified nobody must not run where
+	// a real prospect can reach it.
 	var phoneVerifier discoveryservice.PhoneVerifier
-	if !cfg.IsProd() {
+	switch {
+	case cfg.Twilio.Configured():
+		phoneVerifier = twilioverify.New(cfg.Twilio.AccountSID, cfg.Twilio.AuthToken,
+			cfg.Twilio.VerifySID, "")
+		logger.Info("prospect verification via Twilio Verify")
+	case !cfg.IsProd():
 		phoneVerifier = discoveryservice.DevVerifier{Log: logger}
-		enquiries = enquiries.WithBridges(discoveryservice.DevBridge{Log: logger})
-	} else {
+	default:
 		logger.Warn("no OTP provider; prospect verification answers 503 until one is wired")
+	}
+	if !cfg.IsProd() {
+		enquiries = enquiries.WithBridges(discoveryservice.DevBridge{Log: logger})
 	}
 	prospects := discoveryservice.NewProspects(prospectsStore, phoneVerifier, logger)
 
