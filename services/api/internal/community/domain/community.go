@@ -68,6 +68,16 @@ type Pass struct {
 	State     string // expected | cancelled | arrived | inside | left | denied
 	CreatedAt time.Time
 	UpdatedAt time.Time
+
+	// UnitCode and PropertyName label the row on org-wide reads; empty on the
+	// resident path, where the tenancy is already on screen.
+	UnitCode     string
+	PropertyName string
+}
+
+// GateStates a manager may record. Cancellation is the resident's.
+var GateStates = map[string]bool{
+	"arrived": true, "inside": true, "left": true, "denied": true,
 }
 
 // ErrPass is a pass that cannot be created as described.

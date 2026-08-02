@@ -1,80 +1,114 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  BackHeader, ListRow, Avatar, StatusPill, Card, Screen, SendIcon,
+  BackHeader, ListRow, Avatar, Card, Screen, SendIcon, EmptyState, HouseArt,
   color, font, radius, space,
 } from '@dwellm8/mobile-shared';
-import { messages, threads } from '../src/data/mock';
+import { fmtDate, fmtTime, useOpsThread, useOpsThreads } from '../src/data/worklists';
 
-/** The inbox and one conversation. Templates keep replies fast and compliant. */
+/** The inbox and one conversation — the manager's side of #238. */
 
 export default function Thread() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const thread = threads.find((t) => t.id === id);
-  const [draft, setDraft] = useState('');
-  const [sent, setSent] = useState<string[]>([]);
 
-  if (!thread) {
-    return (
-      <>
-        <BackHeader title="Inbox" onBack={() => router.back()} />
-        <Screen>
+  if (!id) return <Inbox />;
+  return <Conversation leaseId={id} onBack={() => router.push('/thread')} />;
+}
+
+function Inbox() {
+  const router = useRouter();
+  const { loading, error, data: threads } = useOpsThreads();
+
+  return (
+    <>
+      <BackHeader title="Inbox" onBack={() => router.back()} />
+      <Screen>
+        {loading ? (
+          <View style={{ paddingVertical: space(8), alignItems: 'center' }}><ActivityIndicator /></View>
+        ) : error ? (
+          <Card><Text style={s.err}>{error}</Text></Card>
+        ) : threads.length === 0 ? (
+          <EmptyState
+            art={<HouseArt size={160} />}
+            title="No conversations yet"
+            body="When a tenant messages from the Live app, the thread lands here — on the record."
+          />
+        ) : (
           <Card padded={false} style={{ paddingHorizontal: space(4), marginTop: space(3) }}>
             {threads.map((t, i) => (
               <ListRow
-                key={t.id}
-                left={<Avatar initials={t.initials} tone={t.unread ? 'blue' : 'neutral'} />}
-                title={t.who}
-                subtitle={t.preview}
-                meta={t.unit}
-                right={
-                  <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                    <Text style={s.at}>{t.at}</Text>
-                    {t.unread ? <StatusPill text={String(t.unread)} tone="red" /> : null}
-                  </View>
-                }
-                onPress={() => router.push(`/thread?id=${t.id}`)}
+                key={t.lease_id}
+                left={<Avatar initials={(t.unit || '?').slice(0, 2).toUpperCase()} tone={t.last_sender === 'resident' ? 'blue' : 'neutral'} />}
+                title={`${t.unit}, ${t.property}`}
+                subtitle={t.last_body}
+                meta={`${t.messages} message${t.messages === 1 ? '' : 's'}`}
+                right={<Text style={s.at}>{fmtDate(t.last_at)}</Text>}
+                onPress={() => router.push(`/thread?id=${t.lease_id}`)}
                 last={i === threads.length - 1}
               />
             ))}
           </Card>
-        </Screen>
-      </>
-    );
-  }
+        )}
+      </Screen>
+    </>
+  );
+}
+
+function Conversation({ leaseId, onBack }: { leaseId: string; onBack: () => void }) {
+  const { loading, data: messages, send } = useOpsThread(leaseId);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    const body = draft.trim();
+    if (!body || busy) return;
+    setBusy(true);
+    try {
+      await send(body);
+      setDraft('');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  let lastDay = '';
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
-      <BackHeader title={thread.who} subtitle={thread.unit} onBack={() => router.push('/thread')} />
-      <ScrollView contentContainerStyle={{ padding: space(4), paddingBottom: space(6) }}>
-        <Text style={s.day}>29 July 2026</Text>
-        {messages.map((m) => (
-          <View key={m.id} style={[s.bubbleWrap, m.mine && { alignItems: 'flex-end' }]}>
-            <View style={[s.bubble, m.mine ? s.mine : s.theirs]}>
-              <Text style={[s.text, m.mine && { color: '#FFF' }]}>{m.text}</Text>
-            </View>
-            <Text style={s.time}>{m.at}</Text>
-          </View>
-        ))}
-        {sent.map((t, i) => (
-          <View key={`s${i}`} style={[s.bubbleWrap, { alignItems: 'flex-end' }]}>
-            <View style={[s.bubble, s.mine]}>
-              <Text style={[s.text, { color: '#FFF' }]}>{t}</Text>
-            </View>
-            <Text style={s.time}>Just now · delivered</Text>
-          </View>
-        ))}
+      <BackHeader title="Conversation" subtitle="On the record" onBack={onBack} />
+      {loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator /></View>
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: space(4), paddingBottom: space(6) }}>
+          {messages.map((m) => {
+            const day = fmtDate(m.sent_at);
+            const showDay = day !== lastDay;
+            lastDay = day;
+            const mine = m.sender !== 'resident';
+            return (
+              <View key={m.message_id}>
+                {showDay ? <Text style={s.day}>{day}</Text> : null}
+                <View style={[s.bubbleWrap, mine && { alignItems: 'flex-end' }]}>
+                  <View style={[s.bubble, mine ? s.mine : s.theirs]}>
+                    <Text style={[s.text, mine && { color: '#FFF' }]}>{m.body}</Text>
+                  </View>
+                  <Text style={s.time}>{fmtTime(m.sent_at)}</Text>
+                </View>
+              </View>
+            );
+          })}
 
-        <View style={s.templates}>
-          {['On my way', 'Technician arriving within the hour', 'Please share photos'].map((t) => (
-            <Pressable key={t} style={s.template} onPress={() => setDraft(t)}>
-              <Text style={s.templateText}>{t}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
+          <View style={s.templates}>
+            {['On my way', 'Technician arriving within the hour', 'Please share photos'].map((t) => (
+              <Pressable key={t} style={s.template} onPress={() => setDraft(t)}>
+                <Text style={s.templateText}>{t}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </ScrollView>
+      )}
 
       <View style={s.composer}>
         <TextInput
@@ -83,15 +117,9 @@ export default function Thread() {
           placeholder="Message"
           placeholderTextColor={color.inkFaint}
           style={s.input}
+          editable={!busy}
         />
-        <Pressable
-          style={s.send}
-          onPress={() => {
-            if (!draft.trim()) return;
-            setSent((x) => [...x, draft.trim()]);
-            setDraft('');
-          }}
-        >
+        <Pressable style={[s.send, (!draft.trim() || busy) && { opacity: 0.5 }]} onPress={submit} disabled={!draft.trim() || busy}>
           <SendIcon size={20} c="#FFF" />
         </Pressable>
       </View>
@@ -101,7 +129,8 @@ export default function Thread() {
 
 const s = StyleSheet.create({
   at: { ...font.small, color: color.inkFaint },
-  day: { ...font.small, color: color.inkSoft, textAlign: 'center', marginBottom: space(3) },
+  err: { ...font.body, color: color.inkSoft },
+  day: { ...font.small, color: color.inkSoft, textAlign: 'center', marginBottom: space(3), marginTop: space(2) },
   bubbleWrap: { marginBottom: space(3) },
   bubble: { maxWidth: '86%', borderRadius: radius.lg, padding: space(3.5) },
   mine: { backgroundColor: color.accent, borderBottomRightRadius: 6 },

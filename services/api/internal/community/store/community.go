@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -109,6 +110,109 @@ func gateCode() (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%04d", (int(b[0])<<8|int(b[1]))%10000), nil
+}
+
+// Thread summary for the manager's inbox: one row per lease that has a
+// conversation, labelled with the unit, newest last message first.
+type ThreadSummary struct {
+	LeaseID      string
+	UnitCode     string
+	PropertyName string
+	LastBody     string
+	LastSender   string
+	LastAt       time.Time
+	Messages     int
+}
+
+// ThreadsForOrg lists the organisation's conversations.
+func (s *Community) ThreadsForOrg(ctx context.Context, limit int) ([]ThreadSummary, error) {
+	var out []ThreadSummary
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT DISTINCT ON (m.lease_id)
+			       m.lease_id::text, u.code::text, p.name,
+			       m.body, m.sender, m.created_at,
+			       count(*) OVER (PARTITION BY m.lease_id)::int
+			  FROM lease_messages m
+			  JOIN units u      ON u.id = m.unit_id     AND u.tenant_id = m.tenant_id
+			  JOIN properties p ON p.id = m.property_id AND p.tenant_id = m.tenant_id
+			 ORDER BY m.lease_id, m.created_at DESC
+			 LIMIT $1`, limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var t ThreadSummary
+			if err := rows.Scan(&t.LeaseID, &t.UnitCode, &t.PropertyName,
+				&t.LastBody, &t.LastSender, &t.LastAt, &t.Messages); err != nil {
+				return err
+			}
+			out = append(out, t)
+		}
+		return rows.Err()
+	})
+	sort.Slice(out, func(i, j int) bool { return out[i].LastAt.After(out[j].LastAt) })
+	return out, err
+}
+
+// PassesForOrg lists the organisation's gate passes, newest first, labelled
+// with the unit — the gate's worklist.
+func (s *Community) PassesForOrg(ctx context.Context, limit int) ([]domain.Pass, error) {
+	var out []domain.Pass
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT g.id::text, g.tenant_id::text, g.lease_id::text, g.property_id::text,
+			       g.unit_id::text, g.created_by_party_id::text, g.name, g.kind, g.code,
+			       g.valid_from, g.valid_to, g.state, g.created_at, g.updated_at,
+			       u.code::text, p.name
+			  FROM gate_passes g
+			  JOIN units u      ON u.id = g.unit_id     AND u.tenant_id = g.tenant_id
+			  JOIN properties p ON p.id = g.property_id AND p.tenant_id = g.tenant_id
+			 ORDER BY g.created_at DESC
+			 LIMIT $1`, limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var pass domain.Pass
+			var kind string
+			var validTo *time.Time
+			if err := rows.Scan(&pass.ID, &pass.TenantID, &pass.LeaseID, &pass.PropertyID,
+				&pass.UnitID, &pass.CreatedBy, &pass.Name, &kind, &pass.Code,
+				&pass.ValidFrom, &validTo, &pass.State, &pass.CreatedAt, &pass.UpdatedAt,
+				&pass.UnitCode, &pass.PropertyName); err != nil {
+				return err
+			}
+			pass.Kind = domain.PassKind(kind)
+			if validTo != nil {
+				pass.ValidTo = *validTo
+			}
+			out = append(out, pass)
+		}
+		return rows.Err()
+	})
+	return out, err
+}
+
+// SetPassState records what happened at the gate: arrived, inside, left or
+// denied. A cancelled pass stays cancelled.
+func (s *Community) SetPassState(ctx context.Context, id, state string) (domain.Pass, error) {
+	var out domain.Pass
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		var err error
+		out, err = scanPass(tx.QueryRow(ctx, `
+			UPDATE gate_passes
+			   SET state = $2, updated_at = now()
+			 WHERE id = $1 AND state <> 'cancelled'
+			RETURNING `+passColumns, id, state))
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNoPass
+		}
+		return err
+	})
+	return out, err
 }
 
 // CreatePass writes one expected visitor and mints their code.

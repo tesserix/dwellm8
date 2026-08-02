@@ -1,207 +1,181 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, StatusPill, Button, Timeline, Toast,
-  ActionBar, PhotoStrip, Field, ChoiceRow, PhoneIcon, ChatIcon,
+  ActionBar, Field, ChoiceRow, ChatIcon,
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
-import { staff, tickets } from '../src/data/mock';
+import { TICKET_STATUS_LABEL, advanceTicket, fmtDate, fmtTime, useOpsTicket } from '../src/data/worklists';
 
 /**
- * One job — triage, quote, dispatch, and the owner-approval boundary.
+ * One job — acknowledge, schedule, assess who pays, resolve (#237).
  *
- * The boundary is the point of this screen: anything inside the manager's
- * spend authority can be committed here and now; anything above it can only
- * be sent to the owner, and the app says so plainly rather than failing later.
+ * The liability call is the point of this screen: the tenant sees the split
+ * on their own timeline before any work is approved, which is what stops the
+ * argument later.
  */
 
 const statusTone: Record<string, Tone> = {
-  New: 'blue', Triaged: 'violet', Quoted: 'amber', Scheduled: 'blue',
-  'In progress': 'amber', 'Awaiting owner': 'violet', Resolved: 'green',
+  open: 'blue', acknowledged: 'violet', scheduled: 'blue',
+  in_progress: 'amber', resolved: 'green', cancelled: 'neutral',
 };
 
 export default function TicketScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const isNew = id === 'new';
-  const t = tickets.find((x) => x.id === id) ?? tickets[0];
+  const { loading, error, data: t } = useOpsTicket(id);
 
   const [toast, setToast] = useState<string | null>(null);
-  const [liability, setLiability] = useState(t.liability);
-  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [liability, setLiability] = useState('');
+  const [reason, setReason] = useState('');
+  const [cost, setCost] = useState('');
+  const [slot, setSlot] = useState('');
+  const [vendor, setVendor] = useState('');
 
   const say = (m: string) => {
     setToast(m);
     setTimeout(() => setToast(null), 2600);
   };
 
-  if (isNew) return <NewJob onBack={() => router.back()} />;
+  const act = async (action: string, extra?: Omit<Parameters<typeof advanceTicket>[1], 'action'>) => {
+    if (!id || busy) return;
+    setBusy(true);
+    try {
+      await advanceTicket(id, { action, ...extra });
+      say('Done — the tenant sees this on their timeline');
+    } catch (err) {
+      say((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
-  const overAuthority = (t.quotePaise ?? 0) > staff.spendAuthorityPaise;
+  if (loading || !t) {
+    return (
+      <>
+        <BackHeader title="Job" onBack={() => router.back()} />
+        <Screen>
+          <View style={{ paddingVertical: space(10), alignItems: 'center' }}>
+            {loading ? <ActivityIndicator /> : <Text style={s.sub}>{error ?? 'No such job.'}</Text>}
+          </View>
+        </Screen>
+      </>
+    );
+  }
+
+  const settled = t.status === 'resolved' || t.status === 'cancelled';
 
   return (
     <>
-      <BackHeader title={t.title} subtitle={`${t.id.toUpperCase()} · ${t.unit}`} onBack={() => router.back()} />
+      <BackHeader title={t.title} subtitle={`${t.unit ?? ''}, ${t.property ?? ''}`} onBack={() => router.back()} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 
         <Card>
           <View style={s.row}>
-            <StatusPill text={t.status} tone={statusTone[t.status]} />
-            <StatusPill text={t.priority} tone={t.priority === 'Emergency' ? 'red' : t.priority === 'Urgent' ? 'amber' : 'neutral'} />
-            <View style={{ flex: 1 }} />
-            <Text style={[s.sla, t.slaLeft.includes('Breach') && { color: color.negative }]}>{t.slaLeft}</Text>
+            <StatusPill text={TICKET_STATUS_LABEL[t.status] ?? t.status} tone={statusTone[t.status] ?? 'neutral'} />
+            <Text style={s.cat}>{t.category}</Text>
           </View>
-
-          <Text style={s.detail}>{t.detail}</Text>
-          {t.photos ? <PhotoStrip count={t.photos} onAdd={() => say('Camera would open here')} /> : null}
-
+          {t.body ? <Text style={s.detail}>{t.body}</Text> : null}
           <View style={{ marginTop: space(4) }}>
-            <KeyValue k="Reported by" v={t.tenant} />
-            <KeyValue k="Raised" v={t.raised} />
-            <KeyValue k="Category" v={t.category} />
-            <KeyValue k="SLA" v={`${t.slaHours} hours from report`} last />
+            <KeyValue k="Raised" v={fmtDate(t.raised_at)} />
+            {t.slot ? <KeyValue k="Visit" v={t.slot} /> : null}
+            {t.vendor ? <KeyValue k="Vendor" v={t.vendor} /> : null}
+            {t.cost_minor ? <KeyValue k="Cost" v={inr(t.cost_minor)} last /> : <KeyValue k="Cost" v="Not recorded" last />}
           </View>
-
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: space(4) }}>
-            <Button label="Call tenant" tone="secondary" small icon={<PhoneIcon size={17} c={color.accent} />} onPress={() => say('Call logged')} style={{ flex: 1 }} />
-            <Button label="Message" tone="secondary" small icon={<ChatIcon size={17} c={color.accent} />} onPress={() => router.push('/thread?id=th1')} style={{ flex: 1 }} />
-          </View>
+          <Button
+            label="Message the tenant"
+            tone="secondary"
+            small
+            icon={<ChatIcon size={17} c={color.accent} />}
+            onPress={() => router.push(`/thread?id=${t.lease_id}`)}
+            style={{ marginTop: space(4) }}
+          />
         </Card>
 
-        <Card>
-          <Text style={s.h}>Who bears the cost</Text>
-          {(['Owner', 'Tenant', 'Shared'] as const).map((l, i) => (
-            <ChoiceRow
-              key={l}
-              label={l}
-              hint={
-                l === 'Owner' ? 'Asset defect or fixture failure — recharged to the owner statement'
-                : l === 'Tenant' ? 'Wear, misuse or below the agreement threshold — added to the next invoice'
-                : 'Split by the agreement; both parties see the split before work starts'
-              }
-              selected={liability === l}
-              onPress={() => { setLiability(l); say(`Liability set to ${l.toLowerCase()}`); }}
-              last={i === 2}
-            />
-          ))}
-        </Card>
-
-        {t.quotePaise ? (
+        {!settled ? (
           <Card>
-            <Text style={s.h}>Quote</Text>
-            <KeyValue k="Vendor" v={t.vendor ?? '—'} />
-            <KeyValue k="Amount" v={inr(t.quotePaise)} />
-            <KeyValue k="Your authority" v={inr(staff.spendAuthorityPaise, { noPaise: true })} tone={overAuthority ? 'red' : 'green'} last />
-            {overAuthority ? (
-              <View style={s.warn}>
-                <Text style={s.warnText}>
-                  Above your authority. You can send it to the owner for approval, but you cannot
-                  instruct the vendor to start.
-                </Text>
-              </View>
-            ) : null}
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: space(4) }}>
-              {overAuthority ? (
-                <Button label="Send to owner" onPress={() => say('Sent to the owner for approval')} style={{ flex: 1 }} />
-              ) : (
-                <Button label="Approve and instruct" onPress={() => say('Approved — vendor instructed')} style={{ flex: 1 }} />
-              )}
-              <Button label="Re-quote" tone="secondary" onPress={() => router.push(`/dispatch?ticket=${t.id}`)} style={{ flex: 1 }} />
-            </View>
+            <Text style={s.h}>Who bears the cost</Text>
+            <Text style={s.sub}>
+              {t.liability
+                ? `Assessed: ${t.liability}-borne. ${t.liability_reason ?? ''}`
+                : 'Not assessed yet — the tenant sees "being assessed" until you decide.'}
+            </Text>
+            {(['owner', 'tenant', 'shared'] as const).map((l, i) => (
+              <ChoiceRow
+                key={l}
+                label={l === 'owner' ? 'Owner' : l === 'tenant' ? 'Tenant' : 'Shared'}
+                hint={
+                  l === 'owner' ? 'Asset defect or fixture failure — recharged to the owner statement'
+                  : l === 'tenant' ? 'Wear, misuse or below the agreement threshold — added to the next invoice'
+                  : 'Split by the agreement; both parties see the split before work starts'
+                }
+                selected={liability === l}
+                onPress={() => setLiability(l)}
+                last={i === 2}
+              />
+            ))}
+            <Field label="Why — the tenant reads this" value={reason} onChange={setReason} placeholder="Asset defect on an owner-provided fixture…" multiline />
+            <Field label="Cost in ₹ (optional)" value={cost} onChange={setCost} placeholder="785" keyboardType="numeric" />
+            <Button
+              label={busy ? 'Saving…' : 'Record assessment'}
+              onPress={() => act('assess', {
+                liability, liability_reason: reason,
+                cost_minor: cost ? Math.round(Number(cost) * 100) : undefined,
+              })}
+              disabled={busy || !liability || !reason.trim()}
+              style={{ marginTop: space(3) }}
+            />
+          </Card>
+        ) : null}
+
+        {!settled ? (
+          <Card>
+            <Text style={s.h}>Schedule a visit</Text>
+            <Field label="Slot — the tenant sees this" value={slot} onChange={setSlot} placeholder="Thu 7 Aug, 10:00 – 12:00" />
+            <Field label="Vendor (optional)" value={vendor} onChange={setVendor} placeholder="Sahyadri Facility Services" />
+            <Button
+              label={busy ? 'Saving…' : 'Schedule'}
+              tone="secondary"
+              onPress={() => act('schedule', { slot, vendor })}
+              disabled={busy || !slot.trim()}
+              style={{ marginTop: space(3) }}
+            />
           </Card>
         ) : null}
 
         <Card>
-          <Text style={s.h}>Vendor</Text>
-          {t.vendor ? (
-            <>
-              <KeyValue k="Assigned" v={t.vendor} />
-              <KeyValue k="Visit" v={t.status === 'Scheduled' ? '30 Jul, 10:00 – 12:00' : 'Not booked'} last />
-              <Button label="Change vendor" tone="secondary" onPress={() => router.push(`/dispatch?ticket=${t.id}`)} style={{ marginTop: space(4) }} />
-            </>
-          ) : (
-            <>
-              <Text style={s.sub}>No vendor assigned. The SLA clock does not stop for that.</Text>
-              <Button label="Dispatch a vendor" onPress={() => router.push(`/dispatch?ticket=${t.id}`)} style={{ marginTop: space(4) }} />
-            </>
-          )}
-        </Card>
-
-        <Card>
-          <Text style={s.h}>Add an update</Text>
-          <Field label="Visible to the tenant" value={note} onChange={setNote} placeholder="Plumber is on the way…" multiline />
-          <Button label="Post update" tone="secondary" onPress={() => { setNote(''); say('Update posted to the tenant'); }} />
-        </Card>
-
-        <Card>
           <Text style={s.h}>Timeline</Text>
-          <Timeline items={t.timeline} />
+          <Timeline
+            items={(t.timeline ?? []).map((e) => ({
+              at: `${fmtDate(e.at)}, ${fmtTime(e.at)}`,
+              what: e.body,
+            }))}
+          />
         </Card>
       </Screen>
 
-      <ActionBar>
-        <Button label="Resolve" tone="secondary" onPress={() => say('Job marked resolved')} style={{ flex: 1 }} />
-        <Button label="Dispatch" onPress={() => router.push(`/dispatch?ticket=${t.id}`)} style={{ flex: 1 }} />
-      </ActionBar>
-    </>
-  );
-}
-
-function NewJob({ onBack }: { onBack: () => void }) {
-  const [title, setTitle] = useState('');
-  const [unit, setUnit] = useState('');
-  const [detail, setDetail] = useState('');
-  const [priority, setPriority] = useState('Routine');
-  const [saved, setSaved] = useState(false);
-
-  return (
-    <>
-      <BackHeader title="Log a job" onBack={onBack} />
-      <Screen>
-        {saved ? <Toast text="Job created and queued to sync" /> : null}
-        <Card>
-          <Field label="What is wrong" value={title} onChange={setTitle} placeholder="Bathroom tap leaking" />
-          <Field label="Unit" value={unit} onChange={setUnit} placeholder="Flat 402, Brigade Palm Grove" />
-          <Field label="Detail" value={detail} onChange={setDetail} placeholder="What you saw, and what you have already tried" multiline />
-        </Card>
-        <Card>
-          <Text style={s.h}>Priority</Text>
-          {['Emergency', 'Urgent', 'Routine'].map((p, i) => (
-            <ChoiceRow
-              key={p}
-              label={p}
-              hint={p === 'Emergency' ? '4 hour SLA' : p === 'Urgent' ? '24 hour SLA' : '72 hour SLA'}
-              selected={priority === p}
-              onPress={() => setPriority(p)}
-              last={i === 2}
-            />
-          ))}
-        </Card>
-        <Card>
-          <Text style={s.h}>Evidence</Text>
-          <PhotoStrip count={0} onAdd={() => {}} />
-          <Text style={s.sub}>Photos capture offline and upload when the signal returns.</Text>
-        </Card>
-        <Button
-          label="Create job"
-          onPress={() => setSaved(true)}
-          disabled={!title || !unit}
-          style={{ marginHorizontal: space(4), marginTop: space(2) }}
-        />
-      </Screen>
+      {!settled ? (
+        <ActionBar>
+          {t.status === 'open' ? (
+            <Button label="Acknowledge" tone="secondary" onPress={() => act('acknowledge')} disabled={busy} style={{ flex: 1 }} />
+          ) : (
+            <Button label="Start work" tone="secondary" onPress={() => act('start')} disabled={busy || t.status === 'in_progress'} style={{ flex: 1 }} />
+          )}
+          <Button label="Resolve" onPress={() => act('resolve')} disabled={busy} style={{ flex: 1 }} />
+        </ActionBar>
+      ) : null}
     </>
   );
 }
 
 const s = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sla: { ...font.small, color: color.inkSoft, fontWeight: '700' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'space-between' },
+  cat: { ...font.small, color: color.inkSoft },
   detail: { ...font.body, color: color.ink, lineHeight: 22, marginTop: space(3) },
   h: { ...font.h3, color: color.inkStrong, marginBottom: space(1) },
-  sub: { ...font.small, color: color.inkSoft, marginTop: 6, lineHeight: 18 },
-  warn: { backgroundColor: '#FDEBE4', borderRadius: 10, padding: space(3), marginTop: space(3) },
-  warnText: { ...font.small, color: '#C4501F', lineHeight: 18 },
+  sub: { ...font.small, color: color.inkSoft, marginTop: 6, lineHeight: 18, marginBottom: space(2) },
 });

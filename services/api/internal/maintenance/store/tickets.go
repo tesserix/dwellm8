@@ -88,6 +88,86 @@ func (s *Tickets) ForLease(ctx context.Context, leaseID string, limit int) ([]do
 	return out, err
 }
 
+// ForOrg lists the organisation's tickets, open or settled, newest first,
+// labelled with the unit and property the screen sorts by.
+func (s *Tickets) ForOrg(ctx context.Context, settled bool, limit int) ([]domain.Ticket, error) {
+	cond := "t.status NOT IN ('resolved', 'cancelled')"
+	if settled {
+		cond = "t.status IN ('resolved', 'cancelled')"
+	}
+	var out []domain.Ticket
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT t.id::text, t.tenant_id::text, t.lease_id::text, t.property_id::text,
+			       t.unit_id::text, t.raised_by_party_id::text, t.category, t.title,
+			       t.body, t.status, coalesce(t.liability, ''),
+			       coalesce(t.liability_reason, ''), coalesce(t.slot, ''),
+			       coalesce(t.vendor, ''), t.cost_minor, t.created_at, t.updated_at,
+			       u.code::text, p.name
+			  FROM tickets t
+			  JOIN units u      ON u.id = t.unit_id     AND u.tenant_id = t.tenant_id
+			  JOIN properties p ON p.id = t.property_id AND p.tenant_id = t.tenant_id
+			 WHERE `+cond+`
+			 ORDER BY t.created_at DESC
+			 LIMIT $1`, limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var t domain.Ticket
+			var category, status string
+			if err := rows.Scan(&t.ID, &t.TenantID, &t.LeaseID, &t.PropertyID, &t.UnitID,
+				&t.RaisedBy, &category, &t.Title, &t.Body, &status,
+				&t.Liability, &t.LiabilityReason, &t.Slot, &t.Vendor, &t.CostMinor,
+				&t.CreatedAt, &t.UpdatedAt, &t.UnitCode, &t.PropertyName); err != nil {
+				return err
+			}
+			t.Category, t.Status = domain.TicketCategory(category), domain.TicketStatus(status)
+			out = append(out, t)
+		}
+		return rows.Err()
+	})
+	return out, err
+}
+
+// Apply writes an advanced ticket and its timeline line in one transaction.
+func (s *Tickets) Apply(ctx context.Context, t domain.Ticket, line string) (domain.Ticket, error) {
+	var out domain.Ticket
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		row := tx.QueryRow(ctx, `
+			UPDATE tickets
+			   SET status = $2, liability = $3, liability_reason = $4,
+			       slot = $5, vendor = $6, cost_minor = $7, updated_at = now()
+			 WHERE id = $1
+			RETURNING `+ticketColumns,
+			t.ID, string(t.Status), nullable(t.Liability), nullable(t.LiabilityReason),
+			nullable(t.Slot), nullable(t.Vendor), t.CostMinor)
+		var err error
+		if out, err = scanTicket(row); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNoTicket
+			}
+			return err
+		}
+		_, err = tx.Exec(ctx, `
+			INSERT INTO ticket_events (tenant_id, ticket_id, actor, body)
+			VALUES ($1, $2, 'manager', $3)`, out.TenantID, out.ID, line)
+		return err
+	})
+	if err != nil {
+		return domain.Ticket{}, err
+	}
+	return out, nil
+}
+
+func nullable(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
 // Read returns one ticket with its timeline, oldest line first.
 func (s *Tickets) Read(ctx context.Context, id string) (domain.Ticket, error) {
 	var out domain.Ticket

@@ -1,53 +1,50 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   AppHeader, AvatarButton, Card, Screen, ChipRow, ListRow, StatusPill, Metric,
-  Button, SearchBar, WrenchIcon, PlusIcon,
+  SearchBar, WrenchIcon,
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
-import { tickets, vendors } from '../../src/data/mock';
+import { TICKET_STATUS_LABEL, fmtDate, useOpsTickets } from '../../src/data/worklists';
 
 /**
- * The ticket queue and dispatch board.
- *
- * Sorted so that anything with an SLA clock at risk sits above anything
- * comfortable, whatever its age.
+ * The ticket queue — the firm's side of #237. Tenants raise most of these
+ * from the Live app; everything a manager does lands back on the tenant's
+ * timeline.
  */
 
 const statusTone: Record<string, Tone> = {
-  New: 'blue',
-  Triaged: 'violet',
-  Quoted: 'amber',
-  Scheduled: 'blue',
-  'In progress': 'amber',
-  'Awaiting owner': 'violet',
-  Resolved: 'green',
+  open: 'blue',
+  acknowledged: 'violet',
+  scheduled: 'blue',
+  in_progress: 'amber',
+  resolved: 'green',
+  cancelled: 'neutral',
 };
-
-const priorityTone: Record<string, Tone> = { Emergency: 'red', Urgent: 'amber', Routine: 'neutral' };
 
 export default function Jobs() {
   const router = useRouter();
   const [filter, setFilter] = useState('Open');
   const [q, setQ] = useState('');
+  const { loading, error, data: tickets } = useOpsTickets(filter === 'Settled');
 
   const list = useMemo(() => {
+    const needle = q.toLowerCase();
     const base = tickets.filter(
-      (t) => !q || t.title.toLowerCase().includes(q.toLowerCase()) || t.unit.toLowerCase().includes(q.toLowerCase()),
+      (t) => !q
+        || t.title.toLowerCase().includes(needle)
+        || (t.unit ?? '').toLowerCase().includes(needle)
+        || (t.property ?? '').toLowerCase().includes(needle),
     );
-    const view =
-      filter === 'Open' ? base.filter((t) => t.status !== 'Resolved')
-      : filter === 'Breaching' ? base.filter((t) => t.slaLeft.includes('Breach') || t.slaLeft.includes('left') && t.priority === 'Emergency')
-      : filter === 'Awaiting owner' ? base.filter((t) => t.status === 'Awaiting owner')
-      : base;
-    const rank = (p: string) => (p === 'Emergency' ? 0 : p === 'Urgent' ? 1 : 2);
-    return view.slice().sort((a, b) => rank(a.priority) - rank(b.priority));
-  }, [filter, q]);
+    if (filter === 'Unscheduled') return base.filter((t) => t.status === 'open' || t.status === 'acknowledged');
+    return base;
+  }, [tickets, filter, q]);
 
-  const breaching = tickets.filter((t) => t.slaLeft.includes('Breach')).length;
-  const unassigned = tickets.filter((t) => !t.vendor && t.status !== 'Resolved').length;
+  const open = filter === 'Settled' ? 0 : tickets.length;
+  const unscheduled = tickets.filter((t) => t.status === 'open' || t.status === 'acknowledged').length;
+  const unassessed = tickets.filter((t) => !t.liability && t.status !== 'resolved' && t.status !== 'cancelled').length;
 
   return (
     <>
@@ -58,70 +55,52 @@ export default function Jobs() {
       />
       <Screen>
         <View style={s.metrics}>
-          <Metric value={String(tickets.filter((t) => t.status !== 'Resolved').length)} label="open jobs" tone="blue" />
-          <Metric value={String(breaching)} label="SLA breached" tone="red" />
-          <Metric value={String(unassigned)} label="no vendor yet" tone="amber" />
+          <Metric value={loading ? '…' : String(open)} label="open jobs" tone="blue" />
+          <Metric value={loading ? '…' : String(unscheduled)} label="not yet scheduled" tone={unscheduled ? 'amber' : 'green'} />
+          <Metric value={loading ? '…' : String(unassessed)} label="liability unassessed" tone={unassessed ? 'amber' : 'green'} />
         </View>
 
         <ChipRow
-          items={[{ label: 'Open' }, { label: 'Breaching' }, { label: 'Awaiting owner' }, { label: 'All' }]}
+          items={[{ label: 'Open' }, { label: 'Unscheduled' }, { label: 'Settled' }]}
           value={filter}
           onChange={setFilter}
         />
 
-        <SearchBar value={q} onChange={setQ} placeholder="Job or unit" />
+        <SearchBar value={q} onChange={setQ} placeholder="Job, unit or property" />
 
         <Card padded={false} style={{ paddingHorizontal: space(4) }}>
+          {loading ? (
+            <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View>
+          ) : null}
+          {error ? <Text style={s.empty}>{error}</Text> : null}
           {list.map((t, i) => (
             <ListRow
-              key={t.id}
+              key={t.ticket_id}
               title={t.title}
-              subtitle={`${t.unit} · ${t.tenant}`}
-              meta={`${t.category} · raised ${t.raised}${t.vendor ? ` · ${t.vendor}` : ' · unassigned'}`}
+              subtitle={`${t.unit ?? '—'}, ${t.property ?? ''}`}
+              meta={`${t.category} · raised ${fmtDate(t.raised_at)}${t.vendor ? ` · ${t.vendor}` : ''}${t.cost_minor ? ` · ${inr(t.cost_minor)}` : ''}`}
               right={
                 <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                  <StatusPill text={t.status} tone={statusTone[t.status]} />
-                  <Text style={[s.sla, t.slaLeft.includes('Breach') && { color: color.negative, fontWeight: '800' }]}>
-                    {t.slaLeft}
-                  </Text>
+                  <StatusPill text={TICKET_STATUS_LABEL[t.status] ?? t.status} tone={statusTone[t.status] ?? 'neutral'} />
+                  {!t.liability && t.status !== 'resolved' && t.status !== 'cancelled'
+                    ? <Text style={s.needs}>needs assessment</Text>
+                    : null}
                 </View>
               }
               left={
-                <View style={{ alignItems: 'center', gap: 4, width: 34 }}>
-                  <WrenchIcon size={20} c={t.priority === 'Emergency' ? color.negative : color.accent} />
-                  <StatusPill text={t.priority[0]} tone={priorityTone[t.priority]} />
+                <View style={{ alignItems: 'center', width: 34 }}>
+                  <WrenchIcon size={20} c={color.accent} />
                 </View>
               }
-              onPress={() => router.push(`/ticket?id=${t.id}`)}
+              onPress={() => router.push(`/ticket?id=${t.ticket_id}`)}
               last={i === list.length - 1}
-              tone={t.slaLeft.includes('Breach') ? 'red' : undefined}
             />
           ))}
-          {!list.length ? <Text style={s.empty}>No jobs match this filter.</Text> : null}
-        </Card>
-
-        <Button
-          label="Log a new job"
-          icon={<PlusIcon size={19} c="#FFF" />}
-          onPress={() => router.push('/ticket?id=new')}
-          style={{ marginHorizontal: space(4), marginBottom: space(4) }}
-        />
-
-        <Card>
-          <Text style={s.helpTitle}>Panel vendors</Text>
-          {vendors.slice(0, 4).map((v, i) => (
-            <ListRow
-              key={v.id}
-              title={v.name}
-              subtitle={v.trade}
-              meta={`★ ${v.rating} · ${v.jobs} jobs · responds in ~${v.responseMins}m${
-                v.ratePaise ? ` · callout ${inr(v.ratePaise, { noPaise: true })}` : ' · under AMC'
-              }`}
-              right={<StatusPill text={v.onPanel ? 'On panel' : 'Off panel'} tone={v.onPanel ? 'green' : 'neutral'} />}
-              onPress={() => router.push('/dispatch?ticket=t-2188')}
-              last={i === 3}
-            />
-          ))}
+          {!loading && !error && !list.length ? (
+            <Text style={s.empty}>
+              {filter === 'Settled' ? 'Nothing settled yet.' : 'No open jobs — tenants raise them from the Live app.'}
+            </Text>
+          ) : null}
         </Card>
       </Screen>
     </>
@@ -130,7 +109,6 @@ export default function Jobs() {
 
 const s = StyleSheet.create({
   metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4) },
-  sla: { ...font.small, color: color.inkSoft },
+  needs: { ...font.small, color: '#B4541B' },
   empty: { ...font.body, color: color.inkSoft, paddingVertical: space(6), textAlign: 'center' },
-  helpTitle: { ...font.h3, color: color.inkStrong, marginBottom: space(2) },
 });

@@ -95,6 +95,57 @@ export type OpsArrear = {
 };
 
 /** The collection roster's headline numbers (GET /v1/ops/today). */
+/** One maintenance ticket as the manager sees it (GET /v1/ops/tickets). */
+export type OpsTicket = {
+  ticket_id: string;
+  lease_id: string;
+  unit?: string;
+  property?: string;
+  category: string;
+  title: string;
+  body?: string;
+  status: string;
+  liability?: string;
+  liability_reason?: string;
+  slot?: string;
+  vendor?: string;
+  cost_minor?: number;
+  raised_at: string;
+  timeline?: { at: string; actor: string; body: string }[];
+};
+
+/** One tenancy conversation in the manager's inbox (GET /v1/ops/threads). */
+export type OpsThread = {
+  lease_id: string;
+  unit: string;
+  property: string;
+  last_body: string;
+  last_sender: string;
+  last_at: string;
+  messages: number;
+};
+
+export type OpsMessage = {
+  message_id: string;
+  sender: string;
+  body: string;
+  sent_at: string;
+};
+
+/** One gate pass on the org worklist (GET /v1/ops/passes). */
+export type OpsPass = {
+  pass_id: string;
+  lease_id: string;
+  unit?: string;
+  property?: string;
+  name: string;
+  kind: string;
+  code: string;
+  state: string;
+  valid_from: string;
+  valid_to?: string;
+};
+
 export type OpsToday = {
   as_of: string;
   active_tenancies: number;
@@ -434,6 +485,53 @@ export class DwellmApi {
   async opsActivity(): Promise<ActivityEntry[]> {
     const out = await this.request<{ entries: ActivityEntry[] }>('GET', '/v1/ops/activity');
     return out.entries ?? [];
+  }
+
+  async opsTickets(settled = false): Promise<OpsTicket[]> {
+    const out = await this.request<{ tickets?: OpsTicket[] }>(
+      'GET', `/v1/ops/tickets${settled ? '?settled=true' : ''}`);
+    return out.tickets ?? [];
+  }
+
+  opsTicket(id: string): Promise<OpsTicket> {
+    return this.request('GET', `/v1/ops/tickets/${id}`);
+  }
+
+  /** One manager action on a ticket: acknowledge, schedule, assess, start,
+   * resolve or cancel — extra fields per action. */
+  opsAdvanceTicket(id: string, req: {
+    action: string; slot?: string; vendor?: string;
+    liability?: string; liability_reason?: string; cost_minor?: number; note?: string;
+  }): Promise<OpsTicket> {
+    return this.request('POST', `/v1/ops/tickets/${id}/advance`, {
+      action: req.action, slot: req.slot ?? '', vendor: req.vendor ?? '',
+      liability: req.liability ?? '', liability_reason: req.liability_reason ?? '',
+      cost_minor: req.cost_minor, note: req.note ?? '',
+    });
+  }
+
+  async opsThreads(): Promise<OpsThread[]> {
+    const out = await this.request<{ threads?: OpsThread[] }>('GET', '/v1/ops/threads');
+    return out.threads ?? [];
+  }
+
+  async opsMessages(leaseId: string): Promise<OpsMessage[]> {
+    const out = await this.request<{ messages?: OpsMessage[] }>(
+      'GET', `/v1/ops/tenancies/${leaseId}/messages`);
+    return out.messages ?? [];
+  }
+
+  opsSendMessage(leaseId: string, body: string): Promise<OpsMessage> {
+    return this.request('POST', `/v1/ops/tenancies/${leaseId}/messages`, { body });
+  }
+
+  async opsPasses(): Promise<OpsPass[]> {
+    const out = await this.request<{ passes?: OpsPass[] }>('GET', '/v1/ops/passes');
+    return out.passes ?? [];
+  }
+
+  opsSetPassState(id: string, state: 'arrived' | 'inside' | 'left' | 'denied'): Promise<OpsPass> {
+    return this.request('POST', `/v1/ops/passes/${id}/state`, { state });
   }
 
   /* ------------------------------------------ inventory registration (#32) */

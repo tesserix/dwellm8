@@ -25,6 +25,8 @@ type (
 	Ticket         = domain.Ticket
 	TicketEvent    = domain.TicketEvent
 	TicketCategory = domain.TicketCategory
+	TicketAction   = domain.TicketAction
+	TicketPatch    = domain.TicketPatch
 )
 
 // Errors a caller distinguishes.
@@ -60,5 +62,31 @@ func (s *Tickets) Read(ctx context.Context, id string) (Ticket, error) {
 	if id == "" {
 		return Ticket{}, ErrNoTicket
 	}
+	return s.store.Read(ctx, id)
+}
+
+// ForOrg lists the organisation's tickets — the manager's worklist (#237).
+func (s *Tickets) ForOrg(ctx context.Context, settled bool, limit int) ([]Ticket, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	return s.store.ForOrg(ctx, settled, limit)
+}
+
+// Advance applies one manager action: the domain judges the move, the store
+// writes it with its timeline line, and the answer carries the timeline.
+func (s *Tickets) Advance(ctx context.Context, id string, a TicketAction, p TicketPatch) (Ticket, error) {
+	t, err := s.store.Read(ctx, id)
+	if err != nil {
+		return Ticket{}, err
+	}
+	next, line, err := t.Advance(a, p)
+	if err != nil {
+		return Ticket{}, err
+	}
+	if _, err := s.store.Apply(ctx, next, line); err != nil {
+		return Ticket{}, err
+	}
+	s.log.Info("ticket advanced", "ticket", id, "action", a, "status", next.Status)
 	return s.store.Read(ctx, id)
 }

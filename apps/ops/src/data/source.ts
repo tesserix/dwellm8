@@ -59,7 +59,10 @@ const demoData: OpsTodayData = {
 };
 
 async function loadLive(api: DwellmApi): Promise<OpsTodayData> {
-  const t: OpsToday = await api.opsToday();
+  const [t, tickets] = await Promise.all([
+    api.opsToday(),
+    api.opsTickets(false).catch(() => []),
+  ] as const) as [OpsToday, Awaited<ReturnType<DwellmApi['opsTickets']>>];
   return {
     ...demoData,
     mode: 'live',
@@ -68,6 +71,7 @@ async function loadLive(api: DwellmApi): Promise<OpsTodayData> {
     outstandingPaise: t.outstanding_amount_minor,
     arrearsCount: t.tenancies_in_arrears,
     activeTenancies: t.active_tenancies,
+    openTickets: tickets.length,
   };
 }
 

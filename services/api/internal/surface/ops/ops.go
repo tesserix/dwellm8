@@ -19,8 +19,10 @@ import (
 	"net/http"
 	"time"
 
+	communityservice "github.com/tesserix/dwellm8/services/api/internal/community/service"
 	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
+	maintenanceservice "github.com/tesserix/dwellm8/services/api/internal/maintenance/service"
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/activity"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
@@ -43,6 +45,8 @@ type Handler struct {
 	statements *moneyservice.Statements
 	residents  *identityservice.Residents
 	activity   activity.Feeder
+	tickets    *maintenanceservice.Tickets
+	community  *communityservice.Community
 	log        *slog.Logger
 	now        func() time.Time
 }

@@ -628,10 +628,14 @@ func run() error {
 	// the owner surface above, reused rather than duplicated (both take the
 	// same property.Service and leases/statements/feed instances).
 	opsMux := http.NewServeMux()
-	opssurface.New(
+	tickets := maintenanceservice.NewTickets(maintenancestore.NewTickets(pool), logger)
+	community := communityservice.New(communitystore.New(pool), logger)
+	opsHandler := opssurface.New(
 		propertyservice.New(propertystore.New(pool)),
 		leases, statements, residents, feed, logger, nil).
-		Routes(authz.NewRegistrar(opsMux, guard))
+		WithTickets(tickets).WithCommunity(community)
+	opsHandler.Routes(authz.NewRegistrar(opsMux, guard))
+	opsHandler.WorklistRoutes(authz.NewRegistrar(opsMux, guard))
 
 	// The tenant view, on its own tree. Issue #51, ADR-0029.
 	//
@@ -641,8 +645,6 @@ func run() error {
 	// also carries its own surface check, so a genuine Ops token presented here
 	// is refused before any query runs.
 	residentMux := http.NewServeMux()
-	tickets := maintenanceservice.NewTickets(maintenancestore.NewTickets(pool), logger)
-	community := communityservice.New(communitystore.New(pool), logger)
 	resident.New(leases, statements, payments, logger, nil).
 		WithActivity(feed).WithTickets(tickets).WithCommunity(community).
 		WithIdentity(residents).

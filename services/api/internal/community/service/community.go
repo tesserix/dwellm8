@@ -24,9 +24,10 @@ func New(s *store.Community, log *slog.Logger) *Community {
 
 // Re-exported so a caller does not import the domain to read a response.
 type (
-	Message  = domain.Message
-	Pass     = domain.Pass
-	PassKind = domain.PassKind
+	Message       = domain.Message
+	Pass          = domain.Pass
+	PassKind      = domain.PassKind
+	ThreadSummary = store.ThreadSummary
 )
 
 // Errors a caller distinguishes.
@@ -79,4 +80,28 @@ func (s *Community) CancelPass(ctx context.Context, leaseID, id string) (Pass, e
 		return Pass{}, ErrNoPass
 	}
 	return s.store.CancelPass(ctx, leaseID, id)
+}
+
+// Threads lists the organisation's conversations — the manager's inbox.
+func (s *Community) Threads(ctx context.Context, limit int) ([]ThreadSummary, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	return s.store.ThreadsForOrg(ctx, limit)
+}
+
+// PassesForOrg lists the organisation's gate passes — the gate's worklist.
+func (s *Community) PassesForOrg(ctx context.Context, limit int) ([]Pass, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	return s.store.PassesForOrg(ctx, limit)
+}
+
+// SetPassState records what happened at the gate.
+func (s *Community) SetPassState(ctx context.Context, id, state string) (Pass, error) {
+	if !domain.GateStates[state] {
+		return Pass{}, ErrPass
+	}
+	return s.store.SetPassState(ctx, id, state)
 }
