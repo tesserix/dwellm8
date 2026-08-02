@@ -132,6 +132,49 @@ export type OpsMessage = {
   sent_at: string;
 };
 
+export type OpsChecklistTask = {
+  id: string; step_code: string; title: string; position: number; blocking: boolean;
+  owner_role: string; assignee_party_id?: string; due_on: string; state: string;
+  depends_on?: string[];
+};
+
+export type OpsChecklist = {
+  id: string; process: string; property_id: string; unit_id?: string; lease_id?: string;
+  anchor_on: string; state: string;
+  blocking_outstanding?: OpsChecklistTask[]; tasks: OpsChecklistTask[];
+};
+
+/** One row of GET /v1/checklists — progress, the late ones first. */
+export type OpsChecklistProgress = {
+  id: string; process: string; property_id: string; unit_id?: string; lease_id?: string;
+  state: string; tasks: number; settled: number; outstanding: number;
+  blocking_outstanding: number; next_due_on?: string; days_overdue?: number;
+};
+
+export type OpsAutomation = {
+  key: string; name: string; purpose: string; trigger: string; on?: string;
+  enabled: boolean; enabled_by_default: boolean; approval_ceiling_minor: number;
+  params: { name: string; purpose: string; unit: string; value: number; default: number; min: number; max: number }[];
+  overridden?: string[];
+  runs: number; acted: number; awaiting_approval: number; failed: number; last_run_at?: string;
+};
+
+export type OpsApproval = {
+  id: string; automation: string; subject_kind: string; subject_id: string;
+  action: string; amount_minor: number; ceiling_minor: number; requested_at: string;
+};
+
+export type OpsEnquiry = {
+  id: string; listing_id: string; headline?: string; kind: string; state: string;
+  message?: string; contact_masked?: string; scheduled_for?: string; created_at: string;
+};
+
+export type OpsInspection = {
+  id?: string; starts_at: string; duration_mins?: number; remaining?: number;
+  assigned_to?: string; meeting_point?: string; state?: string;
+  listing_id?: string; outcome?: string; note?: string;
+};
+
 /** One owner's books this firm manages (GET /v1/ops/portfolios). */
 export type OpsPortfolio = {
   grant_id: string;
@@ -582,6 +625,60 @@ export class DwellmApi {
   async opsPortfolios(): Promise<OpsPortfolio[]> {
     const out = await this.request<{ portfolios?: OpsPortfolio[] }>('GET', '/v1/ops/portfolios');
     return out.portfolios ?? [];
+  }
+
+  async opsChecklists(state?: string): Promise<OpsChecklistProgress[]> {
+    const out = await this.request<{ checklists?: OpsChecklistProgress[] }>(
+      'GET', `/v1/checklists${state ? `?state=${state}` : ''}`);
+    return out.checklists ?? [];
+  }
+
+  opsChecklist(id: string): Promise<OpsChecklist> {
+    return this.request('GET', `/v1/checklists/${id}`);
+  }
+
+  opsChecklistComplete(id: string, step: string): Promise<OpsChecklist> {
+    return this.request('POST', `/v1/checklists/${id}/steps/${step}/complete`, {});
+  }
+
+  opsChecklistSkip(id: string, step: string, reason: string): Promise<OpsChecklist> {
+    return this.request('POST', `/v1/checklists/${id}/steps/${step}/skip`, { reason });
+  }
+
+  opsChecklistFinish(id: string): Promise<OpsChecklist> {
+    return this.request('POST', `/v1/checklists/${id}/finish`, {});
+  }
+
+  async opsAutomations(): Promise<OpsAutomation[]> {
+    const out = await this.request<{ automations?: OpsAutomation[] }>('GET', '/v1/automations');
+    return out.automations ?? [];
+  }
+
+  opsSetAutomation(key: string, patch: { enabled?: boolean; params?: Record<string, number>; approval_ceiling_minor?: number }): Promise<void> {
+    return this.request('PUT', `/v1/automations/${key}`, {
+      enabled: patch.enabled ?? null, params: patch.params ?? null,
+      approval_ceiling_minor: patch.approval_ceiling_minor ?? null,
+    });
+  }
+
+  async opsApprovals(): Promise<OpsApproval[]> {
+    const out = await this.request<{ approvals?: OpsApproval[] }>('GET', '/v1/automations/approvals');
+    return out.approvals ?? [];
+  }
+
+  opsDecideApproval(id: string, decision: 'approve' | 'decline', reason?: string): Promise<void> {
+    return this.request('POST', `/v1/automations/approvals/${id}`, { decision, reason: reason ?? '' });
+  }
+
+  async opsEnquiries(): Promise<OpsEnquiry[]> {
+    const out = await this.request<{ enquiries?: OpsEnquiry[] }>('GET', '/v1/enquiries');
+    return out.enquiries ?? [];
+  }
+
+  async opsInspections(on?: string): Promise<OpsInspection[]> {
+    const out = await this.request<{ inspections?: OpsInspection[] }>(
+      'GET', `/v1/inspections${on ? `?on=${on}` : ''}`);
+    return out.inspections ?? [];
   }
 
   /* ------------------------------------------ inventory registration (#32) */

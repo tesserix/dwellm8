@@ -143,3 +143,39 @@ export async function setPassState(id: string, state: 'arrived' | 'inside' | 'le
   await api.opsSetPassState(id, state);
   refreshWorklists();
 }
+
+export function useOpsChecklists(): Load<import('@dwellm8/mobile-shared').OpsChecklistProgress[]> {
+  const api = useMemo(() => apiFromEnv(), []);
+  const v = useVersion();
+  return useLoad([], api ? () => api.opsChecklists() : null, [api, v]);
+}
+
+export function useOpsChecklist(id: string | undefined): Load<import('@dwellm8/mobile-shared').OpsChecklist | null> {
+  const api = useMemo(() => apiFromEnv(), []);
+  const v = useVersion();
+  return useLoad(null, api && id ? () => api.opsChecklist(id) : null, [api, id, v]);
+}
+
+export function useOpsAutomations(): Load<import('@dwellm8/mobile-shared').OpsAutomation[]> {
+  const api = useMemo(() => apiFromEnv(), []);
+  const v = useVersion();
+  return useLoad([], api ? () => api.opsAutomations() : null, [api, v]);
+}
+
+export function useOpsApprovals(): Load<import('@dwellm8/mobile-shared').OpsApproval[]> {
+  const api = useMemo(() => apiFromEnv(), []);
+  const v = useVersion();
+  return useLoad([], api ? () => api.opsApprovals() : null, [api, v]);
+}
+
+export function useOpsEnquiries(): Load<import('@dwellm8/mobile-shared').OpsEnquiry[]> {
+  const api = useMemo(() => apiFromEnv(), []);
+  const v = useVersion();
+  return useLoad([], api ? () => api.opsEnquiries() : null, [api, v]);
+}
+
+export function useOpsInspections(): Load<import('@dwellm8/mobile-shared').OpsInspection[]> {
+  const api = useMemo(() => apiFromEnv(), []);
+  const v = useVersion();
+  return useLoad([], api ? () => api.opsInspections() : null, [api, v]);
+}
