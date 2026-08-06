@@ -8,8 +8,8 @@ import {
   KeyIcon, RupeeIcon, ShieldIcon, UsersIcon, WrenchIcon,
   color, font, inr, inrShort, radius, space,
 } from '@dwellm8/mobile-shared';
-import { approvals, org, staff, today, worklist } from '../../src/data/mock';
-import { useOpsTodayData } from '../../src/data/source';
+import { approvals, staff, today } from '../../src/data/mock';
+import { useOpsTodayData, useOpsWho, useOpsWorklist, type OpsTask } from '../../src/data/source';
 
 /**
  * Today — the manager's first screen of the day.
@@ -31,6 +31,8 @@ const kindIcon: Record<string, React.ReactNode> = {
 export default function Today() {
   const router = useRouter();
   const roster = useOpsTodayData();
+  const who = useOpsWho();
+  const work = useOpsWorklist();
   // Billed and outstanding are real in live mode (the roster's rent-roll and
   // position-today, GET /v1/ops/today) — everything else on this screen
   // (payouts, jobs, inspections, occupancy) has no API yet and stays on the
@@ -39,18 +41,16 @@ export default function Today() {
   const collectedPaise = billedPaise - roster.outstandingPaise;
   const pct = billedPaise > 0 ? Math.round((collectedPaise / billedPaise) * 100) : 0;
 
-  const open = (t: (typeof worklist)[number]) => {
+  const open = (t: OpsTask) => {
     if (t.kind === 'collect') router.push(`/arrear?id=${t.ref}`);
     else if (t.kind === 'ticket' || t.kind === 'approval') router.push(`/ticket?id=${t.ref}`);
-    else if (t.kind === 'inspection') router.push(`/inspection?id=${t.ref}`);
-    else if (t.kind === 'gate') router.push('/gate');
     else router.push('/(tabs)/portfolio');
   };
 
   return (
     <>
       <AppHeader
-        title={org.portfolios[0].name}
+        title={who.firmName || 'Your firm'}
         onTitlePress={() => router.push('/switcher')}
         left={<AvatarButton onPress={() => router.push('/profile')} />}
         right={
@@ -63,7 +63,7 @@ export default function Today() {
         <SyncBadge queued={2} />
 
         <View style={s.greetWrap}>
-          <Text style={s.greet}>Good morning, {staff.name.split(' ')[0]}</Text>
+          <Text style={s.greet}>{who.firstName ? `Good morning, ${who.firstName}` : 'Good morning'}</Text>
           <Text style={s.date}>{today.date}</Text>
         </View>
 
@@ -119,7 +119,12 @@ export default function Today() {
 
         <CollapsibleHeader title="Your worklist" />
         <Card padded={false} style={{ paddingHorizontal: space(4) }}>
-          {worklist.map((t, i) => (
+          {work.tasks.length === 0 ? (
+            <Text style={s.empty}>
+              {work.loading ? 'Reading your worklist…' : 'Nothing needs you right now.'}
+            </Text>
+          ) : null}
+          {work.tasks.map((t, i) => (
             <ListRow
               key={t.id}
               left={<View style={s.taskIcon}>{kindIcon[t.kind]}</View>}
@@ -131,12 +136,15 @@ export default function Today() {
                 </View>
               }
               onPress={() => open(t)}
-              last={i === worklist.length - 1}
+              last={i === work.tasks.length - 1}
               tone={t.urgent ? 'red' : undefined}
             />
           ))}
         </Card>
 
+        {/* Demonstration only: live approvals are rows on the worklist above. */}
+        {work.mode === 'demo' ? (
+          <>
         <SectionTitle>Waiting on someone else</SectionTitle>
         <Card padded={false} style={{ paddingHorizontal: space(4) }}>
           {approvals.map((a, i) => (
@@ -151,6 +159,8 @@ export default function Today() {
             />
           ))}
         </Card>
+          </>
+        ) : null}
 
         <SectionTitle>Quick actions</SectionTitle>
         <View style={s.quickGrid}>
@@ -205,6 +215,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   at: { ...font.small, color: color.inkSoft },
+  empty: { ...font.small, color: color.inkSoft, paddingVertical: space(4) },
 
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: space(4) },
   quick: {
