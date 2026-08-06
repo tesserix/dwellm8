@@ -634,11 +634,15 @@ func run() error {
 	opsHandler := opssurface.New(
 		propertyservice.New(propertystore.New(pool)),
 		leases, statements, residents, feed, logger, nil).
-		WithTickets(tickets).WithCommunity(community).WithOwners(owners)
+		WithTickets(tickets).WithCommunity(community).WithOwners(owners).
+		WithMerchants(moneyservice.NewMerchants(moneystore.NewMerchants(pool), providers))
 	opsHandler.Routes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.WorklistRoutes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.OnboardingRoutes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.PortfolioRoutes(authz.NewRegistrar(opsMux, guard))
+	// Where the manager's own rent settles, #269. Provider-agnostic: the
+	// registry decides whether that is Cashfree or anyone else.
+	opsHandler.MerchantRoutes(authz.NewRegistrar(opsMux, guard))
 	// The applicant pack, #258. Gin-native like the applications it hangs off,
 	// mounted here rather than on the owner tree because the firm reaches it
 	// under a mandate, and only this mux carries one.

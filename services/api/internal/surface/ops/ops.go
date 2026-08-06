@@ -48,6 +48,7 @@ type Handler struct {
 	tickets    *maintenanceservice.Tickets
 	community  *communityservice.Community
 	owners     *identityservice.Owners
+	merchants  *moneyservice.Merchants
 	log        *slog.Logger
 	now        func() time.Time
 }

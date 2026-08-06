@@ -32,13 +32,12 @@ unreadable — so claim the next free number by listing the directory before you
 file. See [`parallel-sessions.md`](parallel-sessions.md) §2 when more than one session is
 open.
 
-**The assertions in `230_tenancy_assertions.sql` and the resident-deny loop in
-`220_resident_scope.sql` run before any chapter numbered above them**, so a new chapter is
-not covered by either until the next replay. On the cluster that is thirty minutes; in CI,
-where the database is fresh and applied once, it is never. A chapter above 220 therefore
-writes its own `<table>_resident_denied` policies — using the generator's own names, so the
-next replay replaces them with identical ones — and is verified by applying the combined
-file **twice**.
+**The assertions are `999_tenancy_assertions.sql`, so they judge every chapter on the first
+apply** — claim a number below 999 and the guard covers you at once. The resident-deny loop
+in `220_resident_scope.sql` still runs before any chapter numbered above it, so a chapter
+above 220 writes its own `<table>_resident_denied` policies — using the generator's own
+names, so the next replay replaces them with identical ones — and is verified by applying
+the combined file **twice**.
 
 **Why here and not there.** One source of truth, and one author. A schema with two authors
 — a migration tool in the app repository and the bootstrap job in the cluster — diverges on

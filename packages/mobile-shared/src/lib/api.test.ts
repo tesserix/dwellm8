@@ -118,6 +118,48 @@ describe('DwellmApi — the applicant pack (#258, #259)', () => {
     );
   });
 
+  it('opsMerchants reads every connected account', async () => {
+    const fetchMock = mockFetch({ accounts: [{ provider: 'cashfree', may_collect: true }] });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsMerchants();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/ops/merchant`,
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(out).toEqual([{ provider: 'cashfree', may_collect: true }]);
+  });
+
+  it('opsConnectMerchant sends the account once and keeps nothing back', async () => {
+    const fetchMock = mockFetch({ provider: 'cashfree', state: 'submitted', settlement_masked: 'XXXXXXXXXX4321' });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsConnectMerchant({
+      provider: 'cashfree', business_name: 'Menon Properties', business_type: 'proprietorship',
+      pan: 'ABCDE1234F', account_number: '50100123454321', account_holder: 'Menon Properties',
+      ifsc: 'HDFC0001234',
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${baseUrl}/v1/ops/merchant`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body).account_number).toBe('50100123454321');
+    expect(out.settlement_masked).toBe('XXXXXXXXXX4321');
+  });
+
+  it('opsRefreshMerchant asks the provider again', async () => {
+    const fetchMock = mockFetch({ provider: 'cashfree', state: 'verified', may_collect: true });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await new DwellmApi({ baseUrl }).opsRefreshMerchant('cashfree');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/ops/merchant/cashfree/refresh`,
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
   it('opsSaveAddressHistory sends the whole set and returns the gaps', async () => {
     const fetchMock = mockFetch({ addresses: [], gaps: [{ from: '2023-03', to: '2023-06' }], complete: false });
     global.fetch = fetchMock as unknown as typeof fetch;

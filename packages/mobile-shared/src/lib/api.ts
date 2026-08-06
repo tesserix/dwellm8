@@ -486,6 +486,36 @@ export type ApplicantPack = {
   address_history_gaps?: number;
 };
 
+/** The manager's own account with an aggregator (#269). The number is never
+ * returned — only the mask the provider left us with. */
+export type MerchantAccount = {
+  provider: string;
+  business_name: string;
+  state: 'unconnected' | 'submitted' | 'verified' | 'suspended';
+  reason?: string;
+  settlement_masked: string;
+  settlement_ifsc?: string;
+  settlement_currency: string;
+  may_collect: boolean;
+  /** The sentence the screen shows instead of a state name. */
+  next_action: string;
+};
+
+export type ConnectMerchant = {
+  provider: string;
+  business_name: string;
+  business_type: 'individual' | 'proprietorship' | 'partnership' | 'llp' | 'company' | 'trust';
+  country?: string;
+  email?: string;
+  phone?: string;
+  pan: string;
+  gstin?: string;
+  account_number: string;
+  account_holder: string;
+  ifsc: string;
+  currency?: string;
+};
+
 export type FlaggedListing = {
   id: string;
   headline: string;
@@ -738,6 +768,20 @@ export class DwellmApi {
     const out = await this.request<{ applications?: RentalApplication[] }>(
       'GET', `/v1/ops/applications${state ? `?state=${state}` : ''}`);
     return out.applications ?? [];
+  }
+
+  /** The manager's own merchant accounts, #269. */
+  async opsMerchants(): Promise<MerchantAccount[]> {
+    const out = await this.request<{ accounts?: MerchantAccount[] }>('GET', '/v1/ops/merchant');
+    return out.accounts ?? [];
+  }
+
+  opsConnectMerchant(a: ConnectMerchant): Promise<MerchantAccount> {
+    return this.request('POST', '/v1/ops/merchant', a);
+  }
+
+  opsRefreshMerchant(provider: string): Promise<MerchantAccount> {
+    return this.request('POST', `/v1/ops/merchant/${provider}/refresh`);
   }
 
   opsApplicantPack(applicationId: string): Promise<ApplicantPack> {
