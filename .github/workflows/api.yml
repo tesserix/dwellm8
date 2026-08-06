@@ -670,6 +670,11 @@ jobs:
               DELETE FROM settlement_lines WHERE payment_id IN (
                 SELECT id FROM payments WHERE lease_id IS NOT NULL
                    OR entry_id IN (SELECT id FROM journal_entries WHERE lease_id IS NOT NULL));
+              -- #270 divides a captured payment, and the division names it.
+              ALTER TABLE settlement_instructions NO FORCE ROW LEVEL SECURITY;
+              DELETE FROM settlement_instructions WHERE payment_id IN (
+                SELECT id FROM payments WHERE lease_id IS NOT NULL
+                   OR entry_id IN (SELECT id FROM journal_entries WHERE lease_id IS NOT NULL));
               DELETE FROM payments WHERE lease_id IS NOT NULL
                  OR entry_id IN (SELECT id FROM journal_entries WHERE lease_id IS NOT NULL);
               DELETE FROM ledger_postings
