@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-// The Ops app's static web export (apps/ops, exported to apps/ops/dist by
+// The Ops app's static web export (apps/pm, exported to apps/pm/dist by
 // build:web), run against the ops-web project's own baseURL (127.0.0.1:4174,
 // see playwright.config.ts). EXPO_PUBLIC_API_URL is not set at export time,
 // so this exercises demo mode — the figures §9.6 ships and every install

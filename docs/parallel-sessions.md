@@ -90,7 +90,7 @@ enforces that the number is right, so check it.
 | `services/api/internal/platform/authz/model.fga` | Every feature adds a type | Edit `model.fga`, then **regenerate** `model.json` (below). Never hand-edit the JSON. |
 | `docs/adr/README.md` | Every ADR adds a row | Append; do not re-sort. |
 | `charts/apps/dwellm8-api/values.yaml` | Every job adds a CronJob | Append a block; do not touch the others. |
-| `apps/ops/app/(tabs)/*.tsx` | Every feature adds an entry point | Add one `ListRow`; leave the rest. |
+| `apps/pm/app/(tabs)/*.tsx` | Every feature adds an entry point | Add one `ListRow`; leave the rest. |
 
 `model.json` is generated and CI diffs it against the transform, so a stale one
 fails the build rather than shipping:
@@ -149,7 +149,7 @@ go test -race ./...   # the whole suite, not your package
 ```
 
 ```bash
-cd apps/ops && npx tsc --noEmit          # and any other app you touched
+cd apps/pm && npx tsc --noEmit          # and any other app you touched
 cd services/api/internal/platform/authz && fga model test --tests model.fga.yaml
 cd ../tesserix-k8s && helm template charts/apps/dwellm8-api > /dev/null
 ```

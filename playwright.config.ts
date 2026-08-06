@@ -5,7 +5,7 @@ import { defineConfig, devices } from '@playwright/test';
 // export. Neither apps/web nor the export has a live build step at request
 // time; both servers below serve files already produced, the way
 // SETUP_LOCAL.md and apps/web/tenant/README.md document apps/web and
-// apps/ops/package.json's build:web produces the Ops export.
+// apps/pm/package.json's build:web produces the Ops export.
 //
 // There is no Next.js app in this repo yet (see apps/web's README pointers).
 // Once one lands, it gets its own webServer entry and its own spec directory
@@ -40,7 +40,7 @@ export default defineConfig({
       // The Expo static export, not `expo start`: a bundled dev server has
       // no fixed "ready" response to poll and is slow enough in CI to make
       // the suite flaky. A build-then-serve step is deterministic instead.
-      command: 'npm --prefix apps/ops run build:web && npx http-server apps/ops/dist -p 4174 -c-1 --silent',
+      command: 'npm --prefix apps/pm run build:web && npx http-server apps/pm/dist -p 4174 -c-1 --silent',
       url: 'http://127.0.0.1:4174',
       timeout: 120_000,
       reuseExistingServer: !process.env.CI,

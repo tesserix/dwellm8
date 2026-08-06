@@ -163,7 +163,7 @@ Six Expo apps and one shared package, in a single npm workspace.
 npm ci
 npm run typecheck        # every workspace
 
-cd apps/ops && npm run web    # or: ios, android
+cd apps/pm && npm run web    # or: ios, android
 ```
 
 | App | Who it is for |

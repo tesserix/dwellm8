@@ -52,7 +52,7 @@ export default function Profile() {
         </Card>
 
         <Button label="Web console" tone="secondary" onPress={() => {}} style={{ marginHorizontal: space(4) }} />
-        <Text style={s.version}>Dwellm8 Ops {staff.version} · demonstration data</Text>
+        <Text style={s.version}>Dwellm8 PM {staff.version} · demonstration data</Text>
       </ScrollView>
     </View>
   );

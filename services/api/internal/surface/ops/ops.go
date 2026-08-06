@@ -5,7 +5,7 @@
 // Phase 1 on purpose: the portfolio, an org-wide arrears list and the
 // collection roster are real reads over the property, lease and money
 // services. Tickets, vendors, inspections, gate passes, payouts and leads —
-// everything apps/ops/src/data/mock.ts calls a ticket, a vendor or an
+// everything apps/pm/src/data/mock.ts calls a ticket, a vendor or an
 // inspection — have no schema behind them yet (no maintenance-ticket or
 // vendor-panel tables exist as of this surface), so this package does not
 // serve them. Building a shallow version of any of those would be a fake

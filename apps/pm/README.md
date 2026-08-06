@@ -1,4 +1,4 @@
-# Dwellm8 Ops
+# Dwellm8 PM
 
 The manager, field agent and warden app — the mobile half of a surface whose
 other half is the Ops web console. Anything the app can do, the console can do;
@@ -20,5 +20,5 @@ requirements §9.6. No network call is made and no side effect originates here.
 
 ```bash
 npm install          # from the repository root
-npm run ios -w @dwellm8/ops
+npm run ios -w @dwellm8/pm
 ```
