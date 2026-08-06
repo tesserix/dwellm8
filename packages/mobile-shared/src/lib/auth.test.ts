@@ -74,6 +74,15 @@ describe('Identity', () => {
       .rejects.toMatchObject({ reason: 'WEAK_PASSWORD' } as Partial<AuthError>);
   });
 
+  it('shows what the provider actually said when the refusal is not one we know', async () => {
+    // A referrer-restricted API key answers this, and "could not be completed"
+    // sent the reader looking at their password for an hour.
+    global.fetch = reply({ error: { message: 'Requests from referer <empty> are blocked.' } }, 403) as unknown as typeof fetch;
+
+    await expect(new Identity(config).signUp('a@b.test', 'secret123'))
+      .rejects.toThrow('Requests from referer <empty> are blocked.');
+  });
+
   it('exchanges a refresh token for a fresh session', async () => {
     const fetchMock = reply({
       id_token: 'id-2', refresh_token: 'refresh-2', expires_in: '3600', user_id: 'uid-1',

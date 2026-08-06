@@ -115,8 +115,11 @@ function refusal(body: Record<string, unknown>): AuthError {
   const err = body.error as { message?: string } | undefined;
   // GIP appends its own explanation after a space-colon-space; the constant is
   // the part before it.
-  const reason = (err?.message ?? 'SIGN_IN_FAILED').split(' :')[0].trim();
-  return new AuthError(reason, refusals[reason] ?? 'That sign-in could not be completed');
+  const raw = err?.message ?? 'SIGN_IN_FAILED';
+  const reason = raw.split(' :')[0].trim();
+  // An unmapped refusal is usually a misconfiguration, not a typo: pass the
+  // provider's own sentence through rather than hiding it behind ours.
+  return new AuthError(reason, refusals[reason] ?? raw);
 }
 
 /**
