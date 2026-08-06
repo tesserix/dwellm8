@@ -43,6 +43,10 @@ type OwnerOnboarding struct {
 	Email     string
 	OrgName   string
 	OrgSlug   string
+
+	// SelfOwned is the solo manager: they own the property they are about to
+	// manage, so the books are their own and there is no mandate (#268).
+	SelfOwned bool
 }
 
 // OwnerOnboarded is what the flow produced, existing or new.
@@ -63,6 +67,9 @@ type OwnerOnboarded struct {
 func (s *Principals) PreOnboardOwner(ctx context.Context, o OwnerOnboarding) (OwnerOnboarded, error) {
 	if !e164.MatchString(o.Phone) {
 		return OwnerOnboarded{}, fmt.Errorf("%w: %q", ErrPhone, o.Phone)
+	}
+	if o.SelfOwned {
+		return s.selfOwned(ctx, o)
 	}
 	if o.OwnerName == "" || o.OrgName == "" || o.FirmOrgID == "" {
 		return OwnerOnboarded{}, errors.New("identity: an owner onboarding names the owner, their organisation and the firm")
@@ -181,6 +188,57 @@ func (s *Principals) PreOnboardOwner(ctx context.Context, o OwnerOnboarding) (Ow
 	return out, nil
 }
 
+// selfOwned is the solo manager's path: the books are the manager's own
+// organisation, so nothing is minted but the owner's identity and their
+// membership. A grant to yourself widens nothing and would then have to be
+// explained everywhere a mandate is shown (#268).
+func (s *Principals) selfOwned(ctx context.Context, o OwnerOnboarding) (OwnerOnboarded, error) {
+	if o.OwnerName == "" || o.FirmOrgID == "" {
+		return OwnerOnboarded{}, errors.New("identity: a self-owned onboarding names the owner and their organisation")
+	}
+	out := OwnerOnboarded{OrgID: o.FirmOrgID}
+	err := tenancy.Platform(ctx, s.platform, "onboarding a solo manager's own property",
+		func(ctx context.Context, tx pgx.Tx) error {
+			err := tx.QueryRow(ctx, `
+				SELECT party_id::text FROM identity_principals
+				 WHERE surface = 'own' AND phone = $1`, o.Phone).Scan(&out.PartyID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				err = tx.QueryRow(ctx, `
+					INSERT INTO identity_principals (surface, gip_uid, phone, email, display_name, sign_in_provider)
+					VALUES ('own', $1, $2, nullif($3, ''), nullif($4, ''), 'phone')
+					ON CONFLICT (surface, gip_uid) DO UPDATE SET last_seen_at = identity_principals.last_seen_at
+					RETURNING party_id::text`,
+					pendingUID(o.Phone), o.Phone, o.Email, o.OwnerName).Scan(&out.PartyID)
+			}
+			if err != nil {
+				return fmt.Errorf("identity: reserving the owner's identity: %w", err)
+			}
+
+			var held bool
+			if err := tx.QueryRow(ctx, `
+				SELECT EXISTS (SELECT 1 FROM organisation_members
+				                WHERE tenant_id = $1::uuid AND party_id = $2::uuid
+				                  AND role = 'owner' AND validity @> current_date)`,
+				o.FirmOrgID, out.PartyID).Scan(&held); err != nil {
+				return fmt.Errorf("identity: looking for the owner's membership: %w", err)
+			}
+			if held {
+				return nil
+			}
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO organisation_members (tenant_id, party_id, role, created_by)
+				VALUES ($1::uuid, $2::uuid, 'owner', nullif($3, '')::uuid)`,
+				o.FirmOrgID, out.PartyID, o.ByPartyID); err != nil {
+				return fmt.Errorf("identity: writing the owner's membership: %w", err)
+			}
+			return nil
+		})
+	if err != nil {
+		return OwnerOnboarded{}, err
+	}
+	return out, nil
+}
+
 // onboardingActor names who onboarded the owner. Until #229 lands real
 // tokens a dev-impersonated session has no person behind it, and an
 // onboarding must not fail for want of one — the fact is the system's then,
@@ -261,6 +319,8 @@ type ManagedPortfolio struct {
 	Permissions   []string
 	Since         time.Time
 	PropertyCount int
+	// SelfManaged is the solo manager's own books — held, not mandated (#268).
+	SelfManaged bool
 }
 
 // ErrNoMandate says this firm holds no live grant over that owner's books.
@@ -273,6 +333,13 @@ func (s *Principals) PortfoliosFor(ctx context.Context, firmOrgID string) ([]Man
 	var out []ManagedPortfolio
 	err := tenancy.Platform(ctx, s.platform, "listing a firm's managed portfolios",
 		func(ctx context.Context, tx pgx.Tx) error {
+			own, err := s.ownBooks(ctx, tx, firmOrgID)
+			if err != nil {
+				return err
+			}
+			if own != nil {
+				out = append(out, *own)
+			}
 			rows, err := tx.Query(ctx, switcherQuery, firmOrgID)
 			if err != nil {
 				return err
@@ -289,6 +356,33 @@ func (s *Principals) PortfoliosFor(ctx context.Context, firmOrgID string) ([]Man
 			return rows.Err()
 		})
 	return out, err
+}
+
+// ownBooks is the organisation's own property, which it holds rather than
+// manages. A solo manager is told apart from a firm by an owner-app member:
+// the self-owned onboarding reserves one, an agency's staff sign in to Ops.
+// Nil when the organisation only ever acts for other people (#268).
+func (s *Principals) ownBooks(ctx context.Context, tx pgx.Tx, orgID string) (*ManagedPortfolio, error) {
+	p := ManagedPortfolio{OwnerOrgID: orgID, SelfManaged: true, Permissions: managementPermissions}
+	err := tx.QueryRow(ctx, `
+		SELECT o.name, o.created_at,
+		       (SELECT count(*) FROM properties pr WHERE pr.tenant_id = o.id)
+		  FROM organisations o
+		 WHERE o.id = $1::uuid
+		   AND (EXISTS (SELECT 1 FROM properties pr WHERE pr.tenant_id = o.id)
+		     OR EXISTS (SELECT 1
+		                  FROM organisation_members m
+		                  JOIN identity_principals ip ON ip.party_id = m.party_id
+		                 WHERE m.tenant_id = o.id AND m.role = 'owner'
+		                   AND m.validity @> current_date AND ip.surface = 'own'))`,
+		orgID).Scan(&p.OwnerName, &p.Since, &p.PropertyCount)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("identity: reading the firm's own books: %w", err)
+	}
+	return &p, nil
 }
 
 // portfolioQuery is the live-mandate read both the switcher and the

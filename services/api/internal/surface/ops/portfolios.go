@@ -39,10 +39,13 @@ type portfolioResponse struct {
 	Permissions   []string `json:"permissions"`
 	Since         string   `json:"since"`
 	PropertyCount int      `json:"property_count"`
+	// SelfManaged is the manager's own property, held rather than mandated.
+	SelfManaged bool `json:"self_managed,omitempty"`
 }
 
-// Portfolios lists the owners this firm manages — every live mandate, named.
-// The firm's own books need no entry: no grant declared is the firm itself.
+// Portfolios lists the books this firm can open: every live mandate, named,
+// and its own property first where it holds any — the solo manager's whole
+// list is that one entry, and it carries no grant (#268).
 func (h *Handler) Portfolios(w http.ResponseWriter, r *http.Request) {
 	if h.owners == nil {
 		writeError(w, http.StatusNotFound, "not here yet")
@@ -64,7 +67,7 @@ func (h *Handler) Portfolios(w http.ResponseWriter, r *http.Request) {
 		out = append(out, portfolioResponse{
 			GrantID: p.GrantID, OwnerOrgID: p.OwnerOrgID, OwnerName: p.OwnerName,
 			Permissions: p.Permissions, Since: p.Since.Format(time.RFC3339),
-			PropertyCount: p.PropertyCount,
+			PropertyCount: p.PropertyCount, SelfManaged: p.SelfManaged,
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"portfolios": out})

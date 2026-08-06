@@ -144,3 +144,21 @@ describe('DwellmApi — the applicant pack (#258, #259)', () => {
     );
   });
 });
+
+describe('DwellmApi — the solo manager (#268)', () => {
+  it('says the property is the manager’s own, so no mandate is minted', async () => {
+    const fetchMock = mockFetch({ owner_org_id: 'firm-1', grant_id: '' });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const api = new DwellmApi({ baseUrl: 'https://api.test' });
+
+    const out = await api.opsOnboardOwner({
+      owner: { name: 'Meera Menon', phone: '+919847012345', self: true },
+      property: { code: 'MMN', name: 'Menon Nivas', kind: 'residential' },
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.test/v1/ops/onboardings');
+    expect(JSON.parse(init.body).owner.self).toBe(true);
+    expect(out.grant_id).toBe('');
+  });
+});

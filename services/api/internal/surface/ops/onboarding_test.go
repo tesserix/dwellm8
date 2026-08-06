@@ -294,3 +294,55 @@ func uniquePhone(t *testing.T) string {
 	t.Helper()
 	return fmt.Sprintf("+9198%08d", rand.IntN(100000000))
 }
+
+// The solo manager onboards their own flat (#268): no second organisation, no
+// mandate, and the property lands in the books they already sign in to.
+func TestTheSoloManagerOnboardsTheirOwnProperty(t *testing.T) {
+	mux := serveOnboarding(t)
+
+	w := post(t, mux, isolationtest.OrgFirm, "/v1/ops/onboardings", map[string]any{
+		"owner":    map[string]any{"name": "Meera Menon", "phone": uniquePhone(t), "self": true},
+		"property": fullProperty(fmt.Sprintf("MMN%05d", rand.IntN(100000)), "Menon Nivas"),
+		"units":    []map[string]any{{"code": "G1", "kind": "flat", "carpet_area_sqft": 860}},
+	})
+	if w.Code != http.StatusCreated {
+		t.Fatalf("onboarding my own property: %d %s", w.Code, w.Body.String())
+	}
+	var out onboarded
+	decode(t, w, &out)
+	if out.OwnerOrgID != isolationtest.OrgFirm.String() {
+		t.Fatalf("my flat landed in %s, not my own books %s", out.OwnerOrgID, isolationtest.OrgFirm)
+	}
+	if out.GrantID != "" {
+		t.Errorf("a mandate %s was minted over my own property", out.GrantID)
+	}
+	if out.CreatedOrg {
+		t.Error("a second organisation was created for a property I own myself")
+	}
+	if out.PropertyID == "" || len(out.UnitIDs) != 1 {
+		t.Errorf("the property and its unit should land: %+v", out)
+	}
+
+	// And it shows in the switcher as held rather than mandated.
+	r := call(t, mux, isolationtest.OrgFirm, http.MethodGet, "/v1/ops/portfolios")
+	var list struct {
+		Portfolios []struct {
+			OwnerOrgID  string `json:"owner_org_id"`
+			GrantID     string `json:"grant_id"`
+			SelfManaged bool   `json:"self_managed"`
+		} `json:"portfolios"`
+	}
+	decode(t, r, &list)
+	found := false
+	for _, p := range list.Portfolios {
+		if p.OwnerOrgID == isolationtest.OrgFirm.String() {
+			found = true
+			if !p.SelfManaged || p.GrantID != "" {
+				t.Errorf("my own books read as mandated: %+v", p)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("the switcher = %+v; want my own books in it", list.Portfolios)
+	}
+}

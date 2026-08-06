@@ -47,6 +47,8 @@ export default function Onboard() {
   // The owner — one the firm already acts for, or somebody new
   const [portfolios, setPortfolios] = useState<OpsPortfolio[]>([]);
   const [existing, setExisting] = useState<OpsPortfolio | null>(null);
+  // The solo manager: the property is theirs, so there is no mandate (#268).
+  const [mine, setMine] = useState(false);
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -109,7 +111,10 @@ export default function Onboard() {
       const out = await api.opsOnboardOwner({
         owner: existing
           ? { org_id: existing.owner_org_id }
-          : { name: ownerName.trim(), phone: phone.trim(), email: email.trim() || undefined },
+          : {
+            name: ownerName.trim(), phone: phone.trim(),
+            email: email.trim() || undefined, self: mine || undefined,
+          },
         property: {
           code: propCode.trim() || propName.trim().split(/\s+/).map((w) => w[0]).join('').toUpperCase(),
           name: propName.trim(), kind,
@@ -153,7 +158,7 @@ export default function Onboard() {
             <View style={{ marginTop: space(3) }}>
               <KeyValue k="Property" v={`${propName}, ${city}`} />
               <KeyValue k="Units" v={String(done.unit_ids?.length ?? 0)} />
-              <KeyValue k="Your mandate" v="Full management, portfolio-wide" />
+              <KeyValue k="Your mandate" v={done.grant_id ? 'Full management, portfolio-wide' : 'Your own property — no mandate needed'} />
               {done.lease_id ? (
                 <KeyValue
                   k="First tenancy"
@@ -208,23 +213,37 @@ export default function Onboard() {
             {portfolios.map((p) => (
               <ChoiceRow
                 key={p.owner_org_id}
-                label={p.owner_name}
-                hint={`${p.property_count} ${p.property_count === 1 ? 'property' : 'properties'} under your mandate`}
+                label={p.self_managed ? `${p.owner_name} — your own property` : p.owner_name}
+                hint={p.self_managed
+                  ? `${p.property_count} ${p.property_count === 1 ? 'property' : 'properties'} you own yourself`
+                  : `${p.property_count} ${p.property_count === 1 ? 'property' : 'properties'} under your mandate`}
                 selected={existing?.owner_org_id === p.owner_org_id}
-                onPress={() => setExisting(existing?.owner_org_id === p.owner_org_id ? null : p)}
+                onPress={() => {
+                  setMine(false);
+                  setExisting(existing?.owner_org_id === p.owner_org_id ? null : p);
+                }}
               />
             ))}
             <ChoiceRow
+              label="It's mine"
+              hint="You own it and you manage it — your own books, no mandate between"
+              selected={existing === null && mine}
+              onPress={() => { setExisting(null); setMine(true); }}
+            />
+            <ChoiceRow
               label="Somebody new"
               hint="We'll reserve their identity against their number"
-              selected={existing === null}
-              onPress={() => setExisting(null)}
+              selected={existing === null && !mine}
+              onPress={() => { setExisting(null); setMine(false); }}
               last
             />
             {existing === null ? (
               <>
-                <Field label="Owner's name" value={ownerName} onChange={setOwnerName} placeholder="Meera Sharma" />
-                <Field label="Mobile number" value={phone} onChange={setPhone} placeholder="+919886021745" keyboardType="phone-pad" />
+                <Field label={mine ? 'Your name' : "Owner's name"} value={ownerName} onChange={setOwnerName} placeholder="Meera Sharma" autoCapitalize="words" />
+                <Field
+                  label={mine ? 'Your mobile number' : 'Mobile number'}
+                  value={phone} onChange={setPhone} placeholder="+919886021745" keyboardType="phone-pad"
+                />
                 <Field label="Email — optional, they can add it later" value={email} onChange={setEmail} placeholder="meera@example.in" keyboardType="email-address" />
               </>
             ) : null}

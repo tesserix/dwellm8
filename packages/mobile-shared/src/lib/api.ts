@@ -183,6 +183,8 @@ export type OpsPortfolio = {
   permissions: string[];
   since: string;
   property_count: number;
+  /** The manager's own property — held rather than managed for somebody (#268). */
+  self_managed?: boolean;
 };
 
 /** One gate pass on the org worklist (GET /v1/ops/passes). */
@@ -1094,7 +1096,9 @@ export class DwellmApi {
   opsOnboardOwner(req: {
     /** org_id names an owner the firm already acts for — a second property
      * joins their books rather than minting a second set. */
-    owner: { org_id?: string; name?: string; phone?: string; email?: string };
+    /** self is the solo manager onboarding a property they own themselves —
+     * their own books, no mandate (#268). */
+    owner: { org_id?: string; name?: string; phone?: string; email?: string; self?: boolean };
     organisation_name?: string;
     property?: {
       code: string; name: string; kind: string;
@@ -1116,6 +1120,7 @@ export class DwellmApi {
       owner: {
         org_id: req.owner.org_id ?? '', name: req.owner.name ?? '',
         phone: req.owner.phone ?? '', email: req.owner.email ?? '',
+        self: req.owner.self ?? false,
       },
       organisation_name: req.organisation_name ?? '',
       property: {

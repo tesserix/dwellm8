@@ -23,6 +23,9 @@ export default function Switcher() {
   const [loading, setLoading] = useState(!!api);
   const [error, setError] = useState<string | null>(null);
   const active = getActingGrant();
+  // Own books are the card at the top, not a mandate in the list (#268).
+  const own = portfolios.find((p) => p.self_managed);
+  const mandated = portfolios.filter((p) => !p.self_managed);
 
   useEffect(() => {
     if (!api) {
@@ -57,8 +60,12 @@ export default function Switcher() {
         <Pressable style={[s.card, !active && s.cardActive]} onPress={() => pick(null)}>
           <View style={s.thumb}><ShieldIcon size={44} c="#9FB0C4" w={1.6} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={s.name}>Your firm's own books</Text>
-            <Text style={s.meta}>No mandate declared</Text>
+            <Text style={s.name}>{own ? 'Property you own yourself' : "Your firm's own books"}</Text>
+            <Text style={s.meta}>
+              {own
+                ? `${own.property_count} ${own.property_count === 1 ? 'property' : 'properties'} · no mandate needed`
+                : 'No mandate declared'}
+            </Text>
           </View>
           {!active ? <StatusPill text="Current" tone="green" /> : null}
         </Pressable>
@@ -68,7 +75,7 @@ export default function Switcher() {
         ) : null}
         {error ? <Text style={s.note}>{error}</Text> : null}
 
-        {portfolios.map((p) => {
+        {mandated.map((p) => {
           const on = p.grant_id === active;
           return (
             <Pressable key={p.grant_id} style={[s.card, on && s.cardActive]} onPress={() => pick(p.grant_id)}>
@@ -82,7 +89,7 @@ export default function Switcher() {
           );
         })}
 
-        {!loading && !error && portfolios.length === 0 ? (
+        {!loading && !error && mandated.length === 0 ? (
           <Text style={s.note}>
             No managed portfolios yet — onboard an owner from the Portfolio tab and their books
             appear here under your mandate.

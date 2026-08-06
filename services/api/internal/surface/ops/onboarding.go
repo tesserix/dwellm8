@@ -37,6 +37,9 @@ type onboardOwnerRequest struct {
 		Name  string `json:"name"`
 		Phone string `json:"phone"`
 		Email string `json:"email"`
+		// Self is the solo manager: they own this property themselves, so it
+		// lands in their own books with no mandate between (#268).
+		Self bool `json:"self"`
 	} `json:"owner"`
 	// OrganisationName is what the owner's books are called; derived from the
 	// owner's name when empty.
@@ -222,6 +225,12 @@ func (h *Handler) OnboardOwner(w http.ResponseWriter, r *http.Request) {
 // firm already acts for, named by organisation, or a new one reserved against
 // the number that will claim their first Own sign-in.
 func (h *Handler) resolveOwner(r *http.Request, firmOrgID string, req onboardOwnerRequest) (identityservice.OwnerOnboarded, error) {
+	if req.Owner.Self || req.Owner.OrgID == firmOrgID {
+		return h.owners.PreOnboard(r.Context(), identityservice.OwnerOnboarding{
+			FirmOrgID: firmOrgID, SelfOwned: true,
+			OwnerName: req.Owner.Name, Phone: req.Owner.Phone, Email: req.Owner.Email,
+		})
+	}
 	if req.Owner.OrgID != "" {
 		held, err := h.owners.Portfolio(r.Context(), firmOrgID, req.Owner.OrgID)
 		if err != nil {
