@@ -47,6 +47,18 @@ func (h *ApplicationsHandler) OwnerRoutes(r *ginx.Registrar) {
 	r.Handle(http.MethodPost, "/v1/applications/:id/decline", op, h.Decline)
 }
 
+// OpsRoutes is the same queue reached under a mandate. The firm managing the
+// property is the one reviewing applications on it, and only this surface
+// carries a grant (#259).
+func (h *ApplicationsHandler) OpsRoutes(r *ginx.Registrar) {
+	r.Handle(http.MethodGet, "/v1/ops/applications", authz.Check{
+		Relation: "can_view", Object: authz.Organisation()}, h.Queue)
+	op := authz.Check{Relation: "can_operate", Object: authz.Organisation()}
+	r.Handle(http.MethodPost, "/v1/ops/applications/:id/review", op, h.Review)
+	r.Handle(http.MethodPost, "/v1/ops/applications/:id/accept", op, h.Accept)
+	r.Handle(http.MethodPost, "/v1/ops/applications/:id/decline", op, h.Decline)
+}
+
 // PublicRoutes mounts the applicant side.
 func (h *ApplicationsHandler) PublicRoutes(r *ginx.Registrar) {
 	r.Open(http.MethodPost, "/v1/public/listings/:id/applications", openReason, h.Apply)

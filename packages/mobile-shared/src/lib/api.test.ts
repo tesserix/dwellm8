@@ -91,3 +91,56 @@ describe('apiFromEnv', () => {
     expect(api).not.toBeNull();
   });
 });
+
+describe('DwellmApi — the applicant pack (#258, #259)', () => {
+  const baseUrl = 'https://api.example.test';
+
+  it('opsApplications reads the queue the firm works under its mandate', async () => {
+    const fetchMock = mockFetch({ applications: [{ id: 'a1', state: 'submitted' }] });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsApplications('submitted');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/ops/applications?state=submitted`,
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(out).toEqual([{ id: 'a1', state: 'submitted' }]);
+  });
+
+  it('opsApplicantPack reads the pack for one application', async () => {
+    const fetchMock = mockFetch({ full_name: 'Meera Menon', people: [] });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    await new DwellmApi({ baseUrl }).opsApplicantPack('a1');
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/ops/applications/a1/profile`,
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
+
+  it('opsSaveAddressHistory sends the whole set and returns the gaps', async () => {
+    const fetchMock = mockFetch({ addresses: [], gaps: [{ from: '2023-03', to: '2023-06' }], complete: false });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsSaveAddressHistory('a1', [
+      { kind: 'rented', line1: '12 MG Road', city: 'Bengaluru', state_code: 'KA', pin: '560038', from: '2023-07' },
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/ops/applications/a1/addresses`,
+      expect.objectContaining({ method: 'PUT' }),
+    );
+    expect(out.complete).toBe(false);
+    expect(out.gaps).toEqual([{ from: '2023-03', to: '2023-06' }]);
+  });
+
+  it('opsSubmitApplicantPack posts the submission', async () => {
+    const fetchMock = mockFetch({ state: 'submitted' });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    await new DwellmApi({ baseUrl }).opsSubmitApplicantPack('a1');
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/ops/applications/a1/profile/submit`,
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+});

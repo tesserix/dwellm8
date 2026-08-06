@@ -657,6 +657,21 @@ func run() error {
 		opsMux.Handle(p, packs)
 	}
 
+	// The same review queue under a mandate: the firm managing the property is
+	// the one working the applications on it.
+	appsOps := ginx.Engine()
+	discoveryhttp.NewApplications(appsStore, listingsStore, prospects,
+		discoveryservice.FromLeases{Leases: leases}, logger).
+		OpsRoutes(ginx.New(appsOps, guard))
+	for _, p := range []string{
+		"GET /v1/ops/applications",
+		"POST /v1/ops/applications/{id}/review",
+		"POST /v1/ops/applications/{id}/accept",
+		"POST /v1/ops/applications/{id}/decline",
+	} {
+		opsMux.Handle(p, appsOps)
+	}
+
 	// Every ops request may declare the mandate it acts under (ADR-0005);
 	// the wrapped mux is what both mounts below serve.
 	opsSurface := opssurface.ActingUnderGrant(opsMux)

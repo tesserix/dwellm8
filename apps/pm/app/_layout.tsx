@@ -22,6 +22,8 @@ export default function RootLayout() {
           <Stack.Screen name="compliance" />
           <Stack.Screen name="lease-tax" options={{ presentation: 'modal' }} />
           <Stack.Screen name="leads" />
+          <Stack.Screen name="screening" />
+          <Stack.Screen name="pack" />
           <Stack.Screen name="payouts" />
           <Stack.Screen name="thread" />
           <Stack.Screen name="profile" />

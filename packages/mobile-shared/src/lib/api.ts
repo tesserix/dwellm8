@@ -432,6 +432,58 @@ export type RentalApplication = {
   lease_id?: string;
 };
 
+/** Who else moves in: a co-applicant, a dependant, or a guarantor. */
+export type ApplicantPerson = {
+  id?: string;
+  role: 'co_applicant' | 'dependant' | 'guarantor';
+  full_name: string;
+  relationship?: string;
+  date_of_birth?: string; // YYYY-MM-DD
+  phone?: string; // E.164, ADR-0029
+  email?: string;
+};
+
+/** One place the applicant lived, by month — nobody remembers the day. */
+export type ApplicantAddress = {
+  id?: string;
+  kind: 'rented' | 'owned' | 'family' | 'employer_provided' | 'hostel';
+  line1: string;
+  locality?: string;
+  city: string;
+  state_code?: string;
+  pin?: string;
+  country?: string;
+  from: string; // YYYY-MM
+  to?: string; // absent is the present address
+  landlord_name?: string;
+  landlord_phone?: string;
+};
+
+/** The five years, with the holes named rather than left to be spotted. */
+export type AddressHistory = {
+  addresses: ApplicantAddress[];
+  gaps: { from: string; to: string }[];
+  complete: boolean;
+};
+
+export type ApplicantPack = {
+  id: string;
+  application_id: string;
+  full_name: string;
+  date_of_birth?: string;
+  nationality: string;
+  tax_residency: string; // resident | non_resident
+  occupants: number;
+  pets: boolean;
+  pets_note?: string;
+  state: string; // draft | submitted
+  submitted_at?: string;
+  corrects?: string;
+  people: ApplicantPerson[];
+  address_history_complete?: boolean;
+  address_history_gaps?: number;
+};
+
 export type FlaggedListing = {
   id: string;
   headline: string;
@@ -674,6 +726,44 @@ export class DwellmApi {
   async opsEnquiries(): Promise<OpsEnquiry[]> {
     const out = await this.request<{ enquiries?: OpsEnquiry[] }>('GET', '/v1/enquiries');
     return out.enquiries ?? [];
+  }
+
+  /* ------------------------------- the applicant pack (#258, #259) */
+  // Reached under the mandate, so the firm managing the property collects the
+  // pack rather than the owner. Gaps in the five years come back named.
+
+  async opsApplications(state?: string): Promise<RentalApplication[]> {
+    const out = await this.request<{ applications?: RentalApplication[] }>(
+      'GET', `/v1/ops/applications${state ? `?state=${state}` : ''}`);
+    return out.applications ?? [];
+  }
+
+  opsApplicantPack(applicationId: string): Promise<ApplicantPack> {
+    return this.request('GET', `/v1/ops/applications/${applicationId}/profile`);
+  }
+
+  opsSaveApplicantPack(applicationId: string, p: {
+    full_name: string; date_of_birth?: string; nationality?: string;
+    tax_residency?: 'resident' | 'non_resident'; occupants?: number;
+    pets?: boolean; pets_note?: string; people?: ApplicantPerson[];
+  }): Promise<ApplicantPack> {
+    return this.request('PUT', `/v1/ops/applications/${applicationId}/profile`, p);
+  }
+
+  opsSaveHousehold(applicationId: string, people: ApplicantPerson[]): Promise<ApplicantPack> {
+    return this.request('PUT', `/v1/ops/applications/${applicationId}/profile/people`, { people });
+  }
+
+  opsAddressHistory(applicationId: string): Promise<AddressHistory> {
+    return this.request('GET', `/v1/ops/applications/${applicationId}/addresses`);
+  }
+
+  opsSaveAddressHistory(applicationId: string, addresses: ApplicantAddress[]): Promise<AddressHistory> {
+    return this.request('PUT', `/v1/ops/applications/${applicationId}/addresses`, { addresses });
+  }
+
+  opsSubmitApplicantPack(applicationId: string): Promise<{ id: string; state: string }> {
+    return this.request('POST', `/v1/ops/applications/${applicationId}/profile/submit`, {});
   }
 
   async opsInspections(on?: string): Promise<OpsInspection[]> {

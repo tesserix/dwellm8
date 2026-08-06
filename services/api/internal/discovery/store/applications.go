@@ -160,13 +160,13 @@ func (s *Applications) ForProspect(ctx context.Context, prospectID string) ([]Ap
 // ForOwner is the review queue, under ordinary tenancy.
 func (s *Applications) ForOwner(ctx context.Context, state string) ([]Application, error) {
 	var out []Application
+	// No tenant predicate: RLS is the boundary, and repeating it here hid the
+	// applications a firm reaches through its mandate (#259).
 	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		if state != "" {
-			return s.list(ctx, tx, &out,
-				` WHERE a.tenant_id = current_tenant_id() AND a.state = $1 ORDER BY a.created_at`, state)
+			return s.list(ctx, tx, &out, ` WHERE a.state = $1 ORDER BY a.created_at`, state)
 		}
-		return s.list(ctx, tx, &out,
-			` WHERE a.tenant_id = current_tenant_id() ORDER BY a.created_at`)
+		return s.list(ctx, tx, &out, ` ORDER BY a.created_at`)
 	})
 	return out, err
 }
