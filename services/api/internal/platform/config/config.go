@@ -39,8 +39,8 @@ type Config struct {
 	Cashfree         Cashfree
 	Twilio           Twilio
 
-	// SMTP is the relay that carries a manager's email verification code (#282).
-	SMTP mail.SMTP
+	// Mail carries a manager's email verification code (#282).
+	Mail mail.Resend
 
 	// Identity is ADR-0027: the GIP project every token must be minted for, and
 	// the prefix that names this product's user pools.
@@ -275,12 +275,9 @@ func Load() (Config, error) {
 		VerifySID:  os.Getenv("TWILIO_VERIFY_SID"),
 	}
 
-	c.SMTP = mail.SMTP{
-		Host:     os.Getenv("SMTP_HOST"),
-		Port:     envInt("SMTP_PORT", 587),
-		Username: os.Getenv("SMTP_USERNAME"),
-		Password: os.Getenv("SMTP_PASSWORD"),
-		From:     os.Getenv("SMTP_FROM"),
+	c.Mail = mail.Resend{
+		APIKey: os.Getenv("RESEND_API_KEY"),
+		From:   get("RESEND_FROM", "Dwellm8 <no-reply@dwellm8.com>"),
 	}
 
 	c.Identity = Identity{

@@ -146,6 +146,10 @@ func TestSchemaAudit(t *testing.T) {
 	// price for the platform, a tenant does not get a private idea of what
 	// Dwellm8 charges, and an organisation that could write this row would price
 	// itself at zero effective last April. Assertion 18 now covers it too.
+	// identity_email_codes is identity_principals' shape and its reason (#282):
+	// a code is issued to prove an address before the organisation it will be
+	// used to create exists, so there is no tenant_id to scope it by. Privilege
+	// is the boundary — only dwellm8_identity may write it.
 	p := pool(t)
 	isolationtest.SchemaAudit(t, p,
 		"ledger_accounts", "posting_templates", "posting_template_lines",
@@ -153,5 +157,5 @@ func TestSchemaAudit(t *testing.T) {
 		"prospects", "prospect_shortlist", "saved_searches", "prospect_push_tokens",
 		"statutory_rules", "statutory_rule_slabs",
 		"platform_fee_rules",
-		"identity_principals")
+		"identity_principals", "identity_email_codes")
 }

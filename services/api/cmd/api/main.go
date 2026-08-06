@@ -768,11 +768,11 @@ func run() error {
 		mux.Handle("POST /v1/onboarding", auth.Middleware(verifier, onboardingMux))
 		// Email verification sits beside it, and before it: onboarding refuses a
 		// password sign-in whose address has not been proved. #282.
-		if !cfg.SMTP.Configured() {
-			logger.Warn("no SMTP relay; email verification cannot send a code",
-				"set", "SMTP_HOST, SMTP_FROM")
+		if !cfg.Mail.Configured() {
+			logger.Warn("no mail provider; email verification cannot send a code",
+				"set", "RESEND_API_KEY, RESEND_FROM")
 		}
-		identityhttp.NewVerification(principals, mail.New(cfg.SMTP), logger).
+		identityhttp.NewVerification(principals, mail.New(cfg.Mail), logger).
 			Routes(authz.NewRegistrar(onboardingMux, guard))
 		mux.Handle("/v1/verification/", auth.Middleware(verifier, onboardingMux))
 		// The profile sits beside onboarding for the same reason: a verified

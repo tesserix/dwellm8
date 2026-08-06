@@ -1,36 +1,36 @@
 // Package mail sends the few emails this API originates itself — today, the
 // one-time code that proves a manager's address before a firm is minted (#282).
 //
-// Everything transactional and high-volume belongs to the notify module and its
-// provider; this is deliberately the smallest thing that can put a code in an
-// inbox, over SMTP, with no template engine and no queue.
+// Resend is the only transport, for the reason it is the only one in HomeChef:
+// the sending domain publishes Resend's DKIM selectors, so a message handed to
+// anything else fails DMARC and lands in spam rather than bouncing visibly.
 package mail
 
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"net/smtp"
-	"strings"
+	"io"
+	"net/http"
 	"time"
 )
 
-// SMTP is the relay to hand the message to. Read from the environment, which
-// reads it from Secret Manager — never from a file in the image.
-type SMTP struct {
-	Host     string
-	Port     int
-	Username string
-	Password string
-	From     string
+const endpoint = "https://api.resend.com/emails"
+
+// Resend is the account to send through. Read from the environment, which reads
+// it from Secret Manager — never from a file in the image.
+type Resend struct {
+	APIKey string
+	// From is the whole sender, "Name <address>", because that is what the API
+	// takes and a display name is not worth a second field to assemble.
+	From string
 }
 
 // Configured reads the credentials themselves rather than a flag somebody has
 // to remember to set alongside them.
-func (c SMTP) Configured() bool {
-	return c.Host != "" && c.Port != 0 && c.From != ""
-}
+func (c Resend) Configured() bool { return c.APIKey != "" && c.From != "" }
 
 // Message is one email.
 type Message struct {
@@ -45,11 +45,24 @@ type Sender interface {
 	Send(ctx context.Context, m Message) error
 }
 
-type sender struct{ cfg SMTP }
+type sender struct {
+	cfg      Resend
+	endpoint string
+	client   *http.Client
+}
 
-func New(cfg SMTP) Sender { return &sender{cfg: cfg} }
+func New(cfg Resend) Sender {
+	return &sender{cfg: cfg, endpoint: endpoint, client: &http.Client{Timeout: 15 * time.Second}}
+}
 
-var errUnconfigured = errors.New("mail: no mail relay is configured")
+var errUnconfigured = errors.New("mail: no mail provider is configured")
+
+type request struct {
+	From    string   `json:"from"`
+	To      []string `json:"to"`
+	Subject string   `json:"subject"`
+	Text    string   `json:"text"`
+}
 
 func (s *sender) Send(ctx context.Context, m Message) error {
 	if !s.cfg.Configured() {
@@ -61,43 +74,26 @@ func (s *sender) Send(ctx context.Context, m Message) error {
 		m.From = s.cfg.From
 	}
 
-	addr := fmt.Sprintf("%s:%d", s.cfg.Host, s.cfg.Port)
-	auth := smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, s.cfg.Host)
-
-	done := make(chan error, 1)
-	go func() {
-		done <- smtp.SendMail(addr, auth, s.cfg.From, []string{m.To}, compose(m))
-	}()
-	select {
-	case err := <-done:
-		if err != nil {
-			return fmt.Errorf("mail: sending to %s: %w", m.To, err)
-		}
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+	body, err := json.Marshal(request{From: m.From, To: []string{m.To}, Subject: m.Subject, Text: m.Body})
+	if err != nil {
+		return fmt.Errorf("mail: encoding the message: %w", err)
 	}
-}
-
-// compose builds the RFC 5322 message. Header values are stripped of CR and LF
-// first: a newline reaching a header field is how a Bcc gets added by whoever
-// controls the data it was built from.
-func compose(m Message) []byte {
-	var b bytes.Buffer
-	h := func(name, value string) {
-		fmt.Fprintf(&b, "%s: %s\r\n", name, header(value))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.endpoint, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("mail: building the request: %w", err)
 	}
-	h("From", m.From)
-	h("To", m.To)
-	h("Subject", m.Subject)
-	h("Date", time.Now().Format(time.RFC1123Z))
-	h("MIME-Version", "1.0")
-	h("Content-Type", "text/plain; charset=UTF-8")
-	b.WriteString("\r\n")
-	b.WriteString(strings.ReplaceAll(m.Body, "\n", "\r\n"))
-	return b.Bytes()
-}
+	req.Header.Set("Authorization", "Bearer "+s.cfg.APIKey)
+	req.Header.Set("Content-Type", "application/json")
 
-func header(v string) string {
-	return strings.NewReplacer("\r", " ", "\n", " ").Replace(v)
+	res, err := s.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("mail: sending to %s: %w", m.To, err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode < 200 || res.StatusCode > 299 {
+		said, _ := io.ReadAll(io.LimitReader(res.Body, 2048))
+		return fmt.Errorf("mail: Resend returned %d: %s", res.StatusCode, bytes.TrimSpace(said))
+	}
+	return nil
 }
