@@ -639,6 +639,22 @@ func run() error {
 	opsHandler.WorklistRoutes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.OnboardingRoutes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.PortfolioRoutes(authz.NewRegistrar(opsMux, guard))
+	// The applicant pack, #258. Gin-native like the applications it hangs off,
+	// mounted here rather than on the owner tree because the firm reaches it
+	// under a mandate, and only this mux carries one.
+	packs := ginx.Engine()
+	discoveryhttp.NewApplicants(
+		discoverystore.NewApplicants(pool, tenancy.NewPlatformPool(platformPool)), logger).
+		OwnerRoutes(ginx.New(packs, guard))
+	for _, p := range []string{
+		"GET /v1/ops/applications/{id}/profile",
+		"PUT /v1/ops/applications/{id}/profile",
+		"POST /v1/ops/applications/{id}/profile/submit",
+		"PUT /v1/ops/applications/{id}/profile/people",
+	} {
+		opsMux.Handle(p, packs)
+	}
+
 	// Every ops request may declare the mandate it acts under (ADR-0005);
 	// the wrapped mux is what both mounts below serve.
 	opsSurface := opssurface.ActingUnderGrant(opsMux)

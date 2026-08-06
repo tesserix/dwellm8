@@ -95,18 +95,18 @@ func TestRegisterAdvertiseFind(t *testing.T) {
 
 	// Register the building. The refusals first: a bad PIN and a bad kind are
 	// named back, never defaulted (#32's guardrails).
-	post(t, mux, "/v1/properties", `{"code": "NB-`+fmt.Sprint(stamp%1_000_000)+`",
+	post(t, mux, "/v1/properties", `{"code": "NB-`+fmt.Sprint(stamp)+`",
 		"name": "Newbuild Heights", "kind": "tower",
 		"address_line1": "1 New Road", "locality": "Kadubeesanahalli",
 		"city": "`+city+`", "state_code": "KA", "pin": "560103"}`, http.StatusUnprocessableEntity)
-	prop := post(t, mux, "/v1/properties", `{"code": "NB-`+fmt.Sprint(stamp%1_000_000)+`",
+	prop := post(t, mux, "/v1/properties", `{"code": "NB-`+fmt.Sprint(stamp)+`",
 		"name": "Newbuild Heights", "kind": "building",
 		"address_line1": "1 New Road", "locality": "Kadubeesanahalli",
 		"city": "`+city+`", "state_code": "KA", "pin": "560103"}`, http.StatusCreated)
 	propertyID := prop["id"].(string)
 
 	// The same code twice is a 409 naming the collision.
-	post(t, mux, "/v1/properties", `{"code": "NB-`+fmt.Sprint(stamp%1_000_000)+`",
+	post(t, mux, "/v1/properties", `{"code": "NB-`+fmt.Sprint(stamp)+`",
 		"name": "Duplicate", "kind": "building", "address_line1": "2 New Road",
 		"locality": "X", "city": "`+city+`", "state_code": "KA", "pin": "560103"}`,
 		http.StatusConflict)
