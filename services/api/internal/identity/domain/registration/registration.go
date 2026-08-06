@@ -10,7 +10,10 @@
 // changes with the law, not with the schema.
 package registration
 
-import "time"
+import (
+	"regexp"
+	"time"
+)
 
 // Constitution is how the managing business is formed. It decides the whole
 // checklist, which is why it is asked first.
@@ -95,7 +98,36 @@ const (
 	FieldRegisteredOffice Field = "registered_office"
 	FieldContact          Field = "contact"
 	FieldRERANumber       Field = "rera_number"
+	FieldPIN              Field = "pin_code"
 )
+
+// The shapes the issuing authorities actually print. Kept beside the database's
+// own check constraints deliberately: the refusal has to name one field, and a
+// constraint violation names none.
+var shapes = map[Field]struct {
+	is  *regexp.Regexp
+	why string
+}{
+	FieldGSTIN: {regexp.MustCompile(`^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$`),
+		"that GSTIN is not a GSTIN — two state digits, a PAN, an entity digit, Z, and a check character"},
+	FieldTAN: {regexp.MustCompile(`^[A-Z]{4}[0-9]{5}[A-Z]$`),
+		"that TAN is not a TAN — four letters, five digits, a letter"},
+	FieldPIN: {regexp.MustCompile(`^[1-9][0-9]{5}$`),
+		"that PIN code is not a PIN code — six digits, and none of them starts with a zero"},
+}
+
+// Refuse says why a typed identifier cannot be filed, or "" when it can. An
+// empty value is for the caller to require or not; the shape is this package's.
+func Refuse(f Field, value string) string {
+	shape, known := shapes[f]
+	if !known || value == "" {
+		return ""
+	}
+	if !shape.is.MatchString(value) {
+		return shape.why
+	}
+	return ""
+}
 
 // common is what every managing firm produces, whatever its shape.
 func common(panSubject Subject, panLabel, panWhy string) []Requirement {

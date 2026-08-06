@@ -64,6 +64,13 @@ describe('DwellmApi — ops surface', () => {
     );
   });
 
+  it('a refusal that names a field carries it, so the form can say it at the field (#287)', async () => {
+    global.fetch = mockFetch(
+      { error: 'that GSTIN is not a GSTIN', field: 'gstin' }, 422) as unknown as typeof fetch;
+    const api = new DwellmApi({ baseUrl });
+    await expect(api.opsToday()).rejects.toMatchObject({ status: 422, field: 'gstin' });
+  });
+
   it('a refusal that says when to come back carries the wait, not just the words', async () => {
     // A screen that has to regex-scrape "try again in 43 seconds" out of a
     // sentence breaks the day somebody rewords the sentence.

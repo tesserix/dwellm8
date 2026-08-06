@@ -188,7 +188,7 @@ export function SearchBar({
 
 export function Field({
   label, value, onChange, placeholder, multiline = false, keyboardType, autoCapitalize,
-  autoCorrect = false, secure = false,
+  autoCorrect = false, secure = false, error,
 }: {
   label: string;
   value: string;
@@ -201,6 +201,8 @@ export function Field({
   // rewrote "Kavita" to "Kabila" on the way into the onboarding wizard.
   autoCorrect?: boolean;
   secure?: boolean;
+  /** Why this value was refused, shown under it (#287). */
+  error?: string;
 }) {
   const capitalise = autoCapitalize
     ?? (keyboardType === 'email-address' || secure ? 'none' : undefined);
@@ -221,6 +223,7 @@ export function Field({
         spellCheck={autoCorrect}
         style={[s.field, multiline && { height: 104, textAlignVertical: 'top', paddingTop: 12 }]}
       />
+      {error ? <Text style={s.fieldError} accessibilityRole="alert">{error}</Text> : null}
     </View>
   );
 }
@@ -531,6 +534,7 @@ const s = StyleSheet.create({
   searchInput: { flex: 1, ...font.body, color: color.inkStrong },
 
   fieldLabel: { ...font.label, color: color.inkSoft, marginBottom: 7 },
+  fieldError: { ...font.small, color: color.negative, marginTop: 6 },
   field: {
     backgroundColor: '#FFF', borderRadius: radius.md, borderWidth: 1, borderColor: color.line,
     paddingHorizontal: space(4), height: 48, ...font.body, color: color.inkStrong,

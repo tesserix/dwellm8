@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -204,6 +205,52 @@ func TestAnAddressGivenOnTheFormBeatsTheSignedInOne(t *testing.T) {
 	}
 	if rows.saved.ContactEmail != "office@example.test" {
 		t.Errorf("the firm's own address must win, got %q", rows.saved.ContactEmail)
+	}
+}
+
+func TestARefusalNamesTheOneFieldThatIsWrong(t *testing.T) {
+	cases := []struct {
+		name  string
+		body  map[string]any
+		field string
+		says  string
+	}{
+		{"a GSTIN that is not one", map[string]any{"gstin": "ZZ99"}, "gstin", "GSTIN"},
+		{"a TAN that is not one", map[string]any{"tan": "CH1S12345E"}, "tan", "TAN"},
+		{"a PIN that India does not issue", map[string]any{"pin_code": "082020"}, "pin_code", "PIN"},
+		{"a PAN that is not one", map[string]any{"pan": "1234567890"}, "pan", "PAN"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			mux, rows := serveRegistration(t)
+			body := map[string]any{
+				"legal_name": "Samyak Rout", "address_line1": "2nd Floor, Chandra Arcade",
+				"city": "Kochi", "state_code": "KL", "pin_code": "682020",
+				"contact_phone": "+919847012345",
+			}
+			for k, v := range c.body {
+				body[k] = v
+			}
+
+			w := put(t, mux, isolationtest.OrgFirm, "/v1/ops/registration", body)
+			if w.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("must be refused, got %d %s", w.Code, w.Body.String())
+			}
+			var out struct {
+				Error string `json:"error"`
+				Field string `json:"field"`
+			}
+			decode(t, w, &out)
+			if out.Field != c.field {
+				t.Errorf("the refusal must name the field, got %q want %q", out.Field, c.field)
+			}
+			if !strings.Contains(out.Error, c.says) {
+				t.Errorf("the message must be about %s, got %q", c.says, out.Error)
+			}
+			if rows.saved.LegalName != "" {
+				t.Error("nothing may be saved when a field is refused")
+			}
+		})
 	}
 }
 

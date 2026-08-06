@@ -658,10 +658,14 @@ export class ApiError extends Error {
   /** Seconds until the same call is worth making again, when the server said
    * so — a screen counting down should not have to read English to do it. */
   retryAfterSeconds?: number;
-  constructor(status: number, message: string, retryAfterSeconds?: number) {
+  /** The one field the refusal is about, when the server named one — a form
+   * shows the reason where the value was typed rather than at the bottom. */
+  field?: string;
+  constructor(status: number, message: string, retryAfterSeconds?: number, field?: string) {
     super(message);
     this.status = status;
     this.retryAfterSeconds = retryAfterSeconds;
+    this.field = field;
   }
 }
 
@@ -712,16 +716,19 @@ export class DwellmApi {
       let message = `request failed (${res.status})`;
       const header = Number(res.headers?.get?.('Retry-After'));
       let retryAfter = Number.isFinite(header) && header > 0 ? header : undefined;
+      let field: string | undefined;
       try {
-        const parsed = JSON.parse(text) as { error?: string; resend_after_seconds?: number };
+        const parsed = JSON.parse(text) as
+          { error?: string; resend_after_seconds?: number; field?: string };
         if (parsed.error) message = parsed.error;
+        if (parsed.field) field = parsed.field;
         if (retryAfter === undefined && parsed.resend_after_seconds) {
           retryAfter = parsed.resend_after_seconds;
         }
       } catch {
         /* the body was not JSON; the status alone will have to explain */
       }
-      throw new ApiError(res.status, message, retryAfter);
+      throw new ApiError(res.status, message, retryAfter, field);
     }
     return (text ? JSON.parse(text) : {}) as T;
   }

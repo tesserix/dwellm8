@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tesserix/dwellm8/services/api/internal/identity/domain/registration"
 	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/auth"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
@@ -178,10 +179,25 @@ func (h *Handler) SaveRegistration(w http.ResponseWriter, r *http.Request) {
 		StateCode: strings.ToUpper(strings.TrimSpace(req.StateCode)), PINCode: strings.TrimSpace(req.PINCode),
 		ContactEmail: strings.TrimSpace(req.ContactEmail), ContactPhone: strings.TrimSpace(req.ContactPhone),
 	}
+	// One field named, rather than three to go and check (#287).
+	for _, f := range []struct {
+		field registration.Field
+		value string
+	}{
+		{registration.FieldGSTIN, profile.GSTIN},
+		{registration.FieldTAN, profile.TAN},
+		{registration.FieldPIN, profile.PINCode},
+	} {
+		if why := registration.Refuse(f.field, f.value); why != "" {
+			writeFieldError(w, http.StatusUnprocessableEntity, string(f.field), why)
+			return
+		}
+	}
 	if pan := strings.TrimSpace(req.PAN); pan != "" {
 		masked, err := pii.Mask(pii.KindPAN, pii.NewSecret(pan))
 		if err != nil {
-			writeError(w, http.StatusUnprocessableEntity, "that PAN is not a PAN — ten characters, five letters, four digits, a letter")
+			writeFieldError(w, http.StatusUnprocessableEntity, string(registration.FieldPAN),
+				"that PAN is not a PAN — ten characters, five letters, four digits, a letter")
 			return
 		}
 		profile.PANMasked = masked

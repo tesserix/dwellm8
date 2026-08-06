@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import {
-  AddressLookup, Button, Card, ChoiceRow, Field, SectionTitle, StatusPill,
+  AddressLookup, ApiError, Button, Card, ChoiceRow, Field, SectionTitle, StatusPill,
   apiFromEnv, color, font, space,
   type AddressSuggestion, type FirmRegistration,
 } from '@dwellm8/mobile-shared';
@@ -28,6 +28,9 @@ export default function Registration() {
   const [standing, setStanding] = useState<FirmRegistration | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // The field the server refused, when it named one — the reason belongs under
+  // the value it is about, not under the button (#287).
+  const [badField, setBadField] = useState('');
 
   const [legalName, setLegalName] = useState('');
   const [tradeName, setTradeName] = useState('');
@@ -94,6 +97,7 @@ export default function Registration() {
 
   const save = async () => {
     setError('');
+    setBadField('');
     setBusy(true);
     try {
       const client = api();
@@ -109,7 +113,10 @@ export default function Registration() {
       setPan('');
       await refreshRegistration();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Those details were refused');
+      const said = e instanceof Error ? e.message : 'Those details were refused';
+      const field = e instanceof ApiError ? e.field ?? '' : '';
+      setBadField(field);
+      setError(said);
     } finally {
       setBusy(false);
     }
@@ -136,6 +143,7 @@ export default function Registration() {
   const needsRegistrar = (standing?.fields ?? []).includes('registrar_id')
     || constitution === 'llp' || constitution === 'company';
   const bodyCorporate = constitution !== 'proprietorship' && constitution !== 'individual';
+  const refusalFor = (field: string) => (badField === field ? error : undefined);
 
   return (
     <KeyboardAvoidingView
@@ -181,14 +189,15 @@ export default function Registration() {
             onChange={(v) => setPan(v.toUpperCase().slice(0, 10))}
             placeholder="ABCDE1234F"
             autoCapitalize="characters"
+            error={refusalFor('pan')}
           />
           {standing?.pan_masked ? <Text style={s.ok}>On file: {standing.pan_masked}</Text> : null}
           <Field label="TAN (needed to deduct TDS on rent, s.194-I)" value={tan}
             onChange={(v) => setTan(v.toUpperCase().slice(0, 10))} placeholder="BLRM12345C"
-            autoCapitalize="characters" />
+            autoCapitalize="characters" error={refusalFor('tan')} />
           <Field label="GSTIN (optional)" value={gstin}
             onChange={(v) => setGstin(v.toUpperCase().slice(0, 15))} placeholder="29ABCDE1234F1Z5"
-            autoCapitalize="characters" />
+            autoCapitalize="characters" error={refusalFor('gstin')} />
           {needsRegistrar ? (
             <Field label={constitution === 'llp' ? 'LLPIN' : 'CIN'} value={registrarId}
               onChange={(v) => setRegistrarId(v.toUpperCase())} placeholder="AAA-1234"
@@ -210,10 +219,10 @@ export default function Registration() {
             onChange={(v) => setStateCode(v.toUpperCase().slice(0, 2))} placeholder="KL"
             autoCapitalize="characters" />
           <Field label="PIN code" value={pin} onChange={(v) => setPin(v.replace(/[^0-9]/g, '').slice(0, 6))}
-            placeholder="682020" keyboardType="numeric" />
+            placeholder="682020" keyboardType="numeric" error={refusalFor('pin_code')} />
           <Field label="Contact phone" value={phone} onChange={setPhone}
             placeholder="+919847012345" keyboardType="phone-pad" />
-          {error ? <Text style={s.error} accessibilityRole="alert">{error}</Text> : null}
+          {error && !badField ? <Text style={s.error} accessibilityRole="alert">{error}</Text> : null}
           <Button label={busy ? 'Saving…' : 'Save details'} onPress={save}
             disabled={busy || legalName.trim().length < 2 || !line1.trim() || !city.trim()
               || stateCode.trim().length !== 2 || pin.trim().length !== 6 || !phone.trim()} />

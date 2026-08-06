@@ -175,3 +175,36 @@ func TestOutstandingReportsEverythingMissingAtOnce(t *testing.T) {
 		t.Fatalf("got %d outstanding, want all %d", len(missing), len(RequiredDocuments(Company)))
 	}
 }
+
+func TestATypedIdentifierIsRefusedByName(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		field   Field
+		value   string
+		refused bool
+	}{
+		{"a GSTIN in the shape the GST portal issues", FieldGSTIN, "29ABCDE1234F1Z5", false},
+		{"a GSTIN with the wrong state digits", FieldGSTIN, "ZZ99", true},
+		{"a GSTIN missing the Z", FieldGSTIN, "29ABCDE1234F1A5", true},
+		{"no GSTIN at all — it is optional", FieldGSTIN, "", false},
+		{"a TAN as the department issues it", FieldTAN, "CHNS12345E", false},
+		{"a TAN with a digit where a letter belongs", FieldTAN, "CH1S12345E", true},
+		{"no TAN — only needed to deduct", FieldTAN, "", false},
+		{"a PIN code", FieldPIN, "682020", false},
+		{"a PIN starting with zero, which India does not issue", FieldPIN, "082020", true},
+		{"a PIN of five digits", FieldPIN, "68202", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			why := Refuse(c.field, c.value)
+			if c.refused && why == "" {
+				t.Fatalf("%q must be refused", c.value)
+			}
+			if !c.refused && why != "" {
+				t.Fatalf("%q is well formed, refused with %q", c.value, why)
+			}
+		})
+	}
+}

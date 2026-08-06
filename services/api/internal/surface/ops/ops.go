@@ -258,3 +258,9 @@ func writeJSON(w http.ResponseWriter, code int, body any) {
 func writeError(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
 }
+
+// writeFieldError refuses one field by name, so a form can put the reason where
+// the value was typed instead of at the bottom of the screen (#287).
+func writeFieldError(w http.ResponseWriter, code int, field, msg string) {
+	writeJSON(w, code, map[string]string{"error": msg, "field": field})
+}

@@ -156,6 +156,14 @@ describe('Field', () => {
     expect(screen.getByText('Notes')).toBeTruthy();
     expect(screen.getByLabelText('Notes')).toBeTruthy();
   });
+
+  it('shows a refusal under the value it refuses, and says so to a screen reader (#287)', async () => {
+    await render(
+      <Field label="GSTIN" value="ZZ99" onChange={() => {}} error="that GSTIN is not a GSTIN" />,
+    );
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(screen.getByText('that GSTIN is not a GSTIN')).toBeTruthy();
+  });
 });
 
 describe('Metric', () => {
