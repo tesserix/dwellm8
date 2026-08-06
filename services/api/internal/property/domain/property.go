@@ -21,3 +21,14 @@ type Property struct {
 	// caller wanting them has to derive them from Units, not read them here.
 	UnitCount int
 }
+
+// Unit is one lettable space in a property, as the register holds it. What is
+// let, to whom and for how much is the lease module's answer, not this one's.
+type Unit struct {
+	ID        string
+	Code      string
+	Kind      string
+	Floor     int
+	Occupancy string
+	CarpetSqf float64
+}

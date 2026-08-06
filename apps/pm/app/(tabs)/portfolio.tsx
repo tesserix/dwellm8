@@ -81,7 +81,7 @@ export default function Portfolio() {
               title={p.name}
               subtitle={`${p.locality ? `${p.locality}, ` : ''}${p.city}`}
               meta={`${p.kind} · ${p.unit_count} unit${p.unit_count === 1 ? '' : 's'} · ${p.code}`}
-              onPress={() => {}}
+              onPress={() => router.push(`/property?id=${p.id}` as Href)}
               last={i === list.length - 1}
             />
           ))}

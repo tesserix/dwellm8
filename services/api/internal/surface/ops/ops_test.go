@@ -151,6 +151,84 @@ func TestOpsSeesItsOwnPortfolioOnly(t *testing.T) {
 	}
 }
 
+// The record a manager opens on site: the property, every lettable unit in
+// it, and for the let ones who is in them and on what terms. The fixture's
+// building has 101 and 102 tenanted, 103 empty, and two parking slots that
+// are not lettable units and have no business on this list (#251).
+func TestOpsPropertyRecordCarriesItsUnitsAndTheirTenancies(t *testing.T) {
+	mux := serve(t)
+
+	w := call(t, mux, isolationtest.OrgOwner, http.MethodGet,
+		"/v1/ops/properties/"+isolationtest.PropertyGranted)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET the property: %d %s", w.Code, w.Body.String())
+	}
+	var out struct {
+		Property struct {
+			ID       string `json:"id"`
+			Name     string `json:"name"`
+			Locality string `json:"locality"`
+		} `json:"property"`
+		Units []struct {
+			ID        string `json:"id"`
+			Code      string `json:"code"`
+			Kind      string `json:"kind"`
+			Occupancy string `json:"occupancy"`
+			Tenant    string `json:"tenant"`
+			LeaseID   string `json:"lease_id"`
+			RentMinor int64  `json:"rent_amount_minor"`
+			LeaseEnds string `json:"lease_ends"`
+		} `json:"units"`
+	}
+	decode(t, w, &out)
+
+	if out.Property.ID != isolationtest.PropertyGranted || out.Property.Name == "" {
+		t.Fatalf("the property asked for is the one returned, got %+v", out.Property)
+	}
+	byCode := map[string]int{}
+	for i, u := range out.Units {
+		byCode[u.Code] = i
+		if u.Kind == "parking" {
+			t.Errorf("a parking slot is not a lettable unit, got %s", u.Code)
+		}
+	}
+	for _, code := range []string{"101", "102", "103"} {
+		if _, ok := byCode[code]; !ok {
+			t.Fatalf("unit %s is missing from %+v", code, out.Units)
+		}
+	}
+
+	let := out.Units[byCode["101"]]
+	if let.Occupancy != "occupied" || let.LeaseID == "" {
+		t.Errorf("101 is let in the fixture, got %+v", let)
+	}
+	if let.Tenant == "" {
+		t.Error("a let unit names who is in it")
+	}
+	if let.RentMinor <= 0 {
+		t.Errorf("a let unit carries the rent in force, got %d", let.RentMinor)
+	}
+	if let.LeaseEnds != "2026-12-31" {
+		t.Errorf("the term ends when the lease says, got %q", let.LeaseEnds)
+	}
+
+	empty := out.Units[byCode["103"]]
+	if empty.LeaseID != "" || empty.Tenant != "" {
+		t.Errorf("103 has no tenancy in the fixture, got %+v", empty)
+	}
+}
+
+// Another organisation's building is not a 403 telling them it exists.
+func TestOpsCannotOpenAnotherOrganisationsProperty(t *testing.T) {
+	mux := serve(t)
+
+	w := call(t, mux, isolationtest.OrgOwner, http.MethodGet,
+		"/v1/ops/properties/"+isolationtest.PropertySecond)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("opening the second landlord's property: %d %s, want 404", w.Code, w.Body.String())
+	}
+}
+
 // The roster carries what each live tenancy owes, derived from the ledger —
 // the fixture raises one invoice per lease and pays neither, so both should
 // show the full rent as due.

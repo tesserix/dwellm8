@@ -81,6 +81,23 @@ export type OpsProperty = {
   unit_count: number;
 };
 
+/** One lettable unit on the property record, with its tenancy when it is let. */
+export type OpsUnit = {
+  id: string;
+  code: string;
+  kind: string;
+  floor: number;
+  occupancy: string;
+  lease_id?: string;
+  tenant?: string;
+  rent_amount_minor?: number;
+  lease_ends?: string;
+  due_amount_minor?: number;
+};
+
+/** A property and its units (GET /v1/ops/properties/{id}). */
+export type OpsPropertyRecord = { property: OpsProperty; units: OpsUnit[] };
+
 /** One live tenancy and what it owes today (GET /v1/ops/arrears). */
 export type OpsArrear = {
   lease_id: string;
@@ -772,6 +789,12 @@ export class DwellmApi {
   async opsProperties(): Promise<OpsProperty[]> {
     const out = await this.request<{ properties: OpsProperty[] }>('GET', '/v1/ops/properties');
     return out.properties ?? [];
+  }
+
+  async opsProperty(id: string): Promise<OpsPropertyRecord> {
+    const out = await this.request<Partial<OpsPropertyRecord>>(
+      'GET', `/v1/ops/properties/${encodeURIComponent(id)}`);
+    return { property: out.property as OpsProperty, units: out.units ?? [] };
   }
 
   async opsArrears(): Promise<OpsArrear[]> {

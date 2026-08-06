@@ -88,6 +88,37 @@ func (s *Properties) Get(ctx context.Context, id string) (domain.Property, error
 	return p, nil
 }
 
+// Units reads a property's lettable units, in the order a manager reads a
+// board: floor, then code. Ancillaries — parking, storage — are excluded for
+// the same reason UnitCount excludes them: they are not separately let.
+func (s *Properties) Units(ctx context.Context, propertyID string) ([]domain.Unit, error) {
+	var out []domain.Unit
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT id::text, code::text, unit_kind, coalesce(floor, 0), occupancy,
+			       coalesce(carpet_area_sqft, 0)::float8
+			  FROM units
+			 WHERE property_id = $1::uuid AND is_ancillary = false AND state = 'active'
+			 ORDER BY floor, code`, propertyID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var u domain.Unit
+			if err := rows.Scan(&u.ID, &u.Code, &u.Kind, &u.Floor, &u.Occupancy, &u.CarpetSqf); err != nil {
+				return err
+			}
+			out = append(out, u)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, fmt.Errorf("property: listing units of %s: %w", propertyID, err)
+	}
+	return out, nil
+}
+
 // TenantOf returns the organisation id that holds this property — the row's
 // tenant_id, which for a delegated read is the agency's organisation, not the
 // caller's own. Callers outside this module use it to resolve a display name

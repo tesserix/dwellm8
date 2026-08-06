@@ -77,6 +77,17 @@ func SeedResidentFixtures(t *testing.T, plat tenancy.PlatformPool) {
 				return fmt.Errorf("seeding the second landlord's flat: %w", err)
 			}
 
+			// The two renters as people, not just party ids: a manager's screen
+			// names who is in a flat, and that name lives here.
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO identity_principals (surface, gip_uid, party_id, phone, sign_in_provider, display_name)
+				VALUES ('live', 'harness-priya', $1, '+919876500011', 'phone', 'Priya Nair'),
+				       ('live', 'harness-rohit', $2, '+919876500012', 'phone', 'Rohit Menon')
+				ON CONFLICT (surface, gip_uid) DO NOTHING`,
+				ResidentPriya, ResidentRohit); err != nil {
+				return fmt.Errorf("seeding the renters: %w", err)
+			}
+
 			leases := []struct {
 				id, org, property, unit, party string
 			}{

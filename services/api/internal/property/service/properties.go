@@ -12,6 +12,9 @@ import (
 // Property is what a caller outside this module sees.
 type Property = domain.Property
 
+// Unit is one lettable space in it.
+type Unit = domain.Unit
+
 // ErrNoProperty is re-exported so a caller can compare against it without an
 // import of store, which is exactly the kind of reach-through property/doc.go
 // forbids.
@@ -31,6 +34,11 @@ func (p *Properties) List(ctx context.Context) ([]Property, error) {
 // Get reads one property.
 func (p *Properties) Get(ctx context.Context, id string) (Property, error) {
 	return p.store.Get(ctx, id)
+}
+
+// Units returns the property's lettable units.
+func (p *Properties) Units(ctx context.Context, id string) ([]Unit, error) {
+	return p.store.Units(ctx, id)
 }
 
 // TenantOf returns the organisation id that holds this property.

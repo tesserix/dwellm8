@@ -15,6 +15,7 @@ package ops
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -69,6 +70,8 @@ func New(p *propertyservice.Properties, l *leaseservice.Leases, s *moneyservice.
 func (h *Handler) Routes(r *authz.Registrar) {
 	r.Handle("GET /v1/ops/properties", authz.Check{
 		Relation: "can_view", Object: authz.Organisation()}, h.Properties)
+	r.Handle("GET /v1/ops/properties/{id}", authz.Check{
+		Relation: "can_view", Object: authz.Organisation()}, h.Property)
 	r.Handle("GET /v1/ops/arrears", authz.Check{
 		Relation: "can_view", Object: authz.Organisation()}, h.Arrears)
 	r.Handle("GET /v1/ops/today", authz.Check{
@@ -107,6 +110,86 @@ func (h *Handler) Properties(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"properties": out})
+}
+
+// unitResponse is one lettable unit and, when it is let, the tenancy in it.
+// The tenancy fields are empty on a vacant unit rather than absent, so the
+// screen renders one row shape either way.
+type unitResponse struct {
+	ID        string `json:"id"`
+	Code      string `json:"code"`
+	Kind      string `json:"kind"`
+	Floor     int    `json:"floor"`
+	Occupancy string `json:"occupancy"`
+	LeaseID   string `json:"lease_id,omitempty"`
+	Tenant    string `json:"tenant,omitempty"`
+	RentMinor int64  `json:"rent_amount_minor,omitempty"`
+	LeaseEnds string `json:"lease_ends,omitempty"`
+	DueMinor  int64  `json:"due_amount_minor,omitempty"`
+}
+
+// Property is the record a manager opens on site: the building, its lettable
+// units, and per let unit who is in it and on what terms. One lease read per
+// unit, the same per-record shape as Arrears and for the same reason.
+func (h *Handler) Property(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	id := r.PathValue("id")
+
+	p, err := h.properties.Get(ctx, id)
+	if errors.Is(err, propertyservice.ErrNoProperty) {
+		writeError(w, http.StatusNotFound, "no such property")
+		return
+	}
+	if err != nil {
+		h.log.Error("reading a property", "property", id, "error", err)
+		writeError(w, http.StatusInternalServerError, "could not read the property")
+		return
+	}
+
+	units, err := h.properties.Units(ctx, id)
+	if err != nil {
+		h.log.Error("reading a property's units", "property", id, "error", err)
+		writeError(w, http.StatusInternalServerError, "could not read the units")
+		return
+	}
+
+	today := effective.DateOf(h.now(), ist)
+	out := make([]unitResponse, 0, len(units))
+	for _, u := range units {
+		item := unitResponse{ID: u.ID, Code: u.Code, Kind: u.Kind, Floor: u.Floor, Occupancy: u.Occupancy}
+		leaseID, err := h.leases.ActiveOnUnit(ctx, u.ID, today)
+		if err != nil {
+			h.log.Warn("reading the tenancy on a unit", "unit", u.ID, "error", err)
+		}
+		if leaseID != "" {
+			// A live tenancy outranks the register's own column, which nothing
+			// updates when a lease starts and which is stale wherever it differs.
+			item.LeaseID, item.Occupancy = leaseID, "occupied"
+			if t, err := h.leases.Tenancy(ctx, leaseID, today); err == nil {
+				item.RentMinor = t.RentMinor
+				if !t.Term.To().Zero() {
+					item.LeaseEnds = t.Term.To().String()
+				}
+			}
+			if tenantParty, _, err := h.leases.PartiesOf(ctx, leaseID, today); err == nil && tenantParty != "" {
+				if profile, err := h.residents.Profile(ctx, tenantParty); err == nil {
+					item.Tenant = profile.DisplayName
+				}
+				if due, err := h.statements.Position(ctx, leaseID, tenantParty); err == nil {
+					item.DueMinor = int64(due.Due)
+				}
+			}
+		}
+		out = append(out, item)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"property": propertyResponse{
+			ID: p.ID, Code: p.Code, Name: p.Name, Kind: p.Kind,
+			AddressLine1: p.AddressLine1, Locality: p.Locality, City: p.City, UnitCount: p.UnitCount,
+		},
+		"units": out,
+	})
 }
 
 // arrearResponse is one live tenancy and what it owes today — the

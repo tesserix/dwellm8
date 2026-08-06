@@ -36,6 +36,29 @@ describe('DwellmApi — ops surface', () => {
     expect(out).toEqual([]);
   });
 
+  it('opsProperty asks for the one property and carries its units (#251)', async () => {
+    const fetchMock = mockFetch({
+      property: { id: 'p1', name: 'Menon Residency' },
+      units: [{ id: 'u1', code: '101', occupancy: 'occupied', tenant: 'Priya Nair' }],
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsProperty('p1');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/ops/properties/p1`,
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(out.property.name).toBe('Menon Residency');
+    expect(out.units[0].tenant).toBe('Priya Nair');
+  });
+
+  it('opsProperty gives an empty unit list rather than undefined', async () => {
+    global.fetch = mockFetch({ property: { id: 'p1' } }) as unknown as typeof fetch;
+    const out = await new DwellmApi({ baseUrl }).opsProperty('p1');
+    expect(out.units).toEqual([]);
+  });
+
   it('opsArrears calls GET /v1/ops/arrears', async () => {
     const fetchMock = mockFetch({ arrears: [] });
     global.fetch = fetchMock as unknown as typeof fetch;
