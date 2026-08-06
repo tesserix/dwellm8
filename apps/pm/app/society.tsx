@@ -34,6 +34,7 @@ export default function Society() {
     <>
       <BackHeader title={society.name} subtitle={`${society.flats} flats · ${society.committee}`} onBack={() => router.back()} />
       <Screen>
+        <DemoNote issue={300} />
         {toast ? <Toast text={toast} /> : null}
 
         <View style={s.metrics}>
@@ -140,4 +141,16 @@ const s = StyleSheet.create({
   body: { ...font.body, color: color.inkSoft, marginTop: 6, lineHeight: 21 },
   at: { ...font.small, color: color.inkFaint },
   note: { ...font.small, color: color.inkSoft, marginHorizontal: space(4), marginTop: space(2), lineHeight: 18 },
+});
+
+/** This screen has no endpoint behind it yet — say so rather than let a
+ * manager act on figures that are not theirs. */
+const DemoNote = ({ issue }: { issue: number }) => (
+  <Text style={sDemo.note}>
+    Demonstration data — this screen has no API behind it yet (#{issue}).
+  </Text>
+);
+
+const sDemo = StyleSheet.create({
+  note: { ...font.small, color: color.inkFaint, marginHorizontal: space(4), marginTop: space(3) },
 });

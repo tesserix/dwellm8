@@ -38,6 +38,7 @@ export default function InspectionScreen() {
       <>
         <BackHeader title="Report queued" onBack={() => router.back()} />
         <Screen>
+        <DemoNote issue={298} />
           <Toast text="Saved on the phone — uploading when you have signal" />
           <Card>
             <StatusPill text="Queued to sync" tone="amber" />
@@ -66,6 +67,7 @@ export default function InspectionScreen() {
         right={<StatusPill text={`${pct}%`} tone={pct === 100 ? 'green' : 'amber'} />}
       />
       <Screen>
+        <DemoNote issue={298} />
         <SyncBadge queued={doneCount} />
 
         <Card>
@@ -136,4 +138,16 @@ const s = StyleSheet.create({
   h2: { ...font.h3, color: color.inkStrong, marginVertical: space(3) },
   h3: { ...font.h3, color: color.inkStrong, marginBottom: space(3) },
   note: { ...font.small, color: color.inkSoft, marginTop: space(3), lineHeight: 18 },
+});
+
+/** This screen has no endpoint behind it yet — say so rather than let a
+ * manager act on figures that are not theirs. */
+const DemoNote = ({ issue }: { issue: number }) => (
+  <Text style={sDemo.note}>
+    Demonstration data — this screen has no API behind it yet (#{issue}).
+  </Text>
+);
+
+const sDemo = StyleSheet.create({
+  note: { ...font.small, color: color.inkFaint, marginHorizontal: space(4), marginTop: space(3) },
 });

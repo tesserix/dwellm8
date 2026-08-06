@@ -43,6 +43,7 @@ export default function Compliance() {
     <>
       <BackHeader title="Compliance register" subtitle="Every certificate, and who owns it" onBack={() => router.back()} />
       <Screen>
+        <DemoNote issue={301} />
         {toast ? <Toast text={toast} /> : null}
 
         <View style={s.metrics}>
@@ -119,4 +120,16 @@ const s = StyleSheet.create({
   icon: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#F3F7FB', alignItems: 'center', justifyContent: 'center' },
   h: { ...font.h3, color: color.inkStrong, flex: 1 },
   body: { ...font.body, color: color.inkSoft, marginTop: space(2), lineHeight: 21 },
+});
+
+/** This screen has no endpoint behind it yet — say so rather than let a
+ * manager act on figures that are not theirs. */
+const DemoNote = ({ issue }: { issue: number }) => (
+  <Text style={sDemo.note}>
+    Demonstration data — this screen has no API behind it yet (#{issue}).
+  </Text>
+);
+
+const sDemo = StyleSheet.create({
+  note: { ...font.small, color: color.inkFaint, marginHorizontal: space(4), marginTop: space(3) },
 });

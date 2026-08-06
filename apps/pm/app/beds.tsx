@@ -46,6 +46,7 @@ export default function Beds() {
     <>
       <BackHeader title="Nest PG, Marathahalli" subtitle="48 beds under management" onBack={() => router.back()} />
       <Screen>
+        <DemoNote issue={299} />
         {toast ? <Toast text={toast} /> : null}
 
         <View style={s.metrics}>
@@ -171,4 +172,16 @@ const s = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 12, height: 12, borderRadius: 4, borderWidth: 1.5 },
   legendText: { ...font.small, color: color.inkSoft },
+});
+
+/** This screen has no endpoint behind it yet — say so rather than let a
+ * manager act on figures that are not theirs. */
+const DemoNote = ({ issue }: { issue: number }) => (
+  <Text style={sDemo.note}>
+    Demonstration data — this screen has no API behind it yet (#{issue}).
+  </Text>
+);
+
+const sDemo = StyleSheet.create({
+  note: { ...font.small, color: color.inkFaint, marginHorizontal: space(4), marginTop: space(3) },
 });
