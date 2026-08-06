@@ -9,7 +9,9 @@
     "skipLibCheck": true,
     "noEmit": true,
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    // TS7 no longer walks up to the workspace root's @types on its own.
+    "types": ["jest", "node"]
   },
   "include": ["src/**/*"]
 }

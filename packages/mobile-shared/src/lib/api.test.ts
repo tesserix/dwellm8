@@ -236,7 +236,7 @@ describe('DwellmApi — first sign-in', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       `${baseUrl}/v1/me`, expect.objectContaining({ method: 'GET' }),
     );
-    expect(out.party_id).toBe('pty-1');
+    expect(out?.party_id).toBe('pty-1');
   });
 
   it('me is null when the sign-in has no account yet, rather than throwing', async () => {
