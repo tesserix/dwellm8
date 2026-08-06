@@ -91,7 +91,14 @@ export default function Collect() {
                   tone={a.due_amount_minor > 0 ? 'red' : 'green'}
                 />
               }
-              onPress={() => router.push(`/thread?id=${a.lease_id}`)}
+              onPress={() => router.push({
+                pathname: '/receipt',
+                params: {
+                  lease: a.lease_id,
+                  unit: `${a.unit}, ${a.property}`,
+                  due: String(Math.max(0, a.due_amount_minor)),
+                },
+              })}
               last={i === list.length - 1}
             />
           ))}
@@ -106,8 +113,8 @@ export default function Collect() {
           <Text style={s.helpTitle}>Recording payments</Text>
           <Text style={s.helpBody}>
             A tenant's UPI payment posts to the ledger and issues a receipt the moment it confirms.
-            Cash and transfers are recorded by the tenant from the Live app and confirmed by you —
-            tap a row to message them about what's owed.
+            Cash, a cheque or a transfer you have seen land is yours to record — tap a row, and the
+            receipt posts to the same ledger the tenant reads.
           </Text>
         </Card>
       </Screen>

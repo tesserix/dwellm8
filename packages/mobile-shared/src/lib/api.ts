@@ -226,6 +226,20 @@ export type OpsToday = {
   tenancies_in_arrears: number;
 };
 
+/** A payment the manager recorded by hand, and where the tenancy stands after
+ * it. `advance_amount_minor` is money no charge has claimed yet — a due of zero
+ * alone cannot say whether the tenant is square or two months ahead. */
+export type OpsCollection = {
+  payment_id: string;
+  lease_id: string;
+  status: string;
+  amount_minor: number;
+  method: string;
+  reference?: string;
+  due_amount_minor: number;
+  advance_amount_minor: number;
+};
+
 /** One public listing card (GET /v1/public/listings), the true cost stated. */
 export type PublicListing = {
   id: string;
@@ -800,6 +814,22 @@ export class DwellmApi {
   async opsArrears(): Promise<OpsArrear[]> {
     const out = await this.request<{ arrears: OpsArrear[] }>('GET', '/v1/ops/arrears');
     return out.arrears ?? [];
+  }
+
+  /** Rent taken in cash, by cheque or by a transfer the manager saw (#297).
+   * The key is what stops a retry on a bad line becoming a second receipt. */
+  opsRecordCollection(leaseId: string, req: {
+    amount_minor: number;
+    method?: 'offline_cash' | 'offline_cheque' | 'offline_transfer';
+    reference?: string;
+    idempotency_key: string;
+  }): Promise<OpsCollection> {
+    return this.request('POST', `/v1/ops/tenancies/${encodeURIComponent(leaseId)}/collections`, {
+      amount_minor: req.amount_minor,
+      method: req.method ?? 'offline_cash',
+      reference: req.reference ?? '',
+      idempotency_key: req.idempotency_key,
+    });
   }
 
   opsToday(): Promise<OpsToday> {

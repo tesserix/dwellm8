@@ -3,50 +3,75 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Field, ChoiceRow, Button, ActionBar, KeyValue,
-  Toast, StatusPill, SwitchRow,
+  Toast, StatusPill,
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
-import { arrears, receiptMethods } from '../src/data/mock';
+import { useRecordCollection, type CollectionMethod } from '../src/data/collection';
 
 /**
  * Record a payment taken in the field.
  *
  * Cash collection is the reality of Indian property management, and it is
- * where money goes missing. The receipt is issued to the tenant the moment
- * this is saved, so the tenant's copy and the ledger cannot diverge.
+ * where money goes missing. The receipt posts to the ledger on save, so the
+ * tenant's copy and the ledger cannot diverge.
  */
+
+const methods: { id: CollectionMethod; label: string; hint?: string }[] = [
+  { id: 'offline_cash', label: 'Cash', hint: 'You are accountable for the cash until it is banked' },
+  { id: 'offline_cheque', label: 'Cheque' },
+  { id: 'offline_transfer', label: 'Bank transfer (NEFT, IMPS, UPI to your account)' },
+];
 
 export default function RecordReceipt() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id?: string }>();
-  const target = arrears.find((a) => a.id === id) ?? arrears[0];
+  const { lease, unit, tenant, due } = useLocalSearchParams<{
+    lease?: string; unit?: string; tenant?: string; due?: string;
+  }>();
+  const owedPaise = Number(due ?? 0) || 0;
 
-  const [amount, setAmount] = useState(String(Math.round(target.duePaise / 100)));
-  const [method, setMethod] = useState(receiptMethods[0]);
+  const [amount, setAmount] = useState(owedPaise > 0 ? String(Math.round(owedPaise / 100)) : '');
+  const [method, setMethod] = useState<CollectionMethod>('offline_cash');
   const [ref, setRef] = useState('');
-  const [notify, setNotify] = useState(true);
-  const [saved, setSaved] = useState(false);
+  const { record, saving, error, result } = useRecordCollection(lease ?? '');
 
   const paise = Math.round((Number(amount.replace(/[^0-9.]/g, '')) || 0) * 100);
-  const remaining = Math.max(0, target.duePaise - paise);
 
-  if (saved) {
+  if (!lease) {
+    return (
+      <>
+        <BackHeader title="Record a payment" onBack={() => router.back()} />
+        <Screen>
+          <Card><Text style={s.sub}>Open this from a tenancy, so the receipt has one to post against.</Text></Card>
+        </Screen>
+      </>
+    );
+  }
+
+  if (result) {
     return (
       <>
         <BackHeader title="Receipt issued" onBack={() => router.back()} />
         <Screen>
-          <Toast text="Posted to the ledger and sent to the tenant" />
+          <Toast text="Posted to the ledger" />
           <Card>
-            <StatusPill text="RCT/2026-27/0433" tone="green" />
-            <Text style={s.amount}>{inr(paise)}</Text>
-            <KeyValue k="From" v={target.tenant} />
-            <KeyValue k="Unit" v={target.unit} />
-            <KeyValue k="Method" v={method} />
-            <KeyValue k="Collected by" v="Ritika Nambiar" />
-            <KeyValue k="Balance remaining" v={inr(remaining)} tone={remaining ? 'amber' : 'green'} last />
+            <StatusPill text={result.status === 'captured' ? 'Captured' : result.status} tone={result.status === 'captured' ? 'green' : 'amber'} />
+            <Text style={s.amount}>{inr(result.amount_minor)}</Text>
+            <KeyValue k="From" v={tenant || 'the tenant'} />
+            <KeyValue k="Unit" v={unit || '—'} />
+            <KeyValue k="Method" v={methods.find((m) => m.id === result.method)?.label ?? result.method} />
+            {ref ? <KeyValue k="Reference" v={ref} /> : null}
+            <KeyValue
+              k="Balance remaining"
+              v={inr(result.due_amount_minor)}
+              tone={result.due_amount_minor ? 'amber' : 'green'}
+              last={!result.advance_amount_minor}
+            />
+            {result.advance_amount_minor ? (
+              <KeyValue k="Held in advance" v={inr(result.advance_amount_minor)} tone="green" last />
+            ) : null}
             <Text style={s.note}>
-              The tenant has the receipt on WhatsApp and in their app. The owner sees it on the next
-              statement; the platform fee is charged once, at payout.
+              The tenant sees this on their own statement. The owner sees it on the next one; the
+              platform fee is charged once, at payout.
             </Text>
           </Card>
           <Button label="Done" onPress={() => router.back()} style={{ marginHorizontal: space(4) }} />
@@ -57,16 +82,19 @@ export default function RecordReceipt() {
 
   return (
     <>
-      <BackHeader title="Record a payment" subtitle={target.unit} onBack={() => router.back()} />
+      <BackHeader title="Record a payment" subtitle={unit} onBack={() => router.back()} />
       <Screen>
         <Card>
-          <Text style={s.h}>{target.tenant}</Text>
-          <Text style={s.sub}>{inr(target.duePaise)} outstanding since {target.dueSince}</Text>
+          {error ? <Text style={s.error} accessibilityRole="alert">{error}</Text> : null}
+          <Text style={s.h}>{tenant || 'This tenancy'}</Text>
+          <Text style={s.sub}>
+            {owedPaise > 0 ? `${inr(owedPaise)} outstanding` : 'Nothing outstanding — anything received is held in advance'}
+          </Text>
           <View style={{ marginTop: space(4) }}>
             <Field label="Amount received (₹)" value={amount} onChange={setAmount} keyboardType="numeric" />
             {paise > 0 ? (
               <Text style={s.calc}>
-                {inr(paise)} received · {remaining ? `${inr(remaining)} will remain outstanding` : 'settles the balance in full'}
+                {inr(paise)} received{owedPaise > paise ? ` · ${inr(owedPaise - paise)} will remain outstanding` : ''}
               </Text>
             ) : null}
           </View>
@@ -74,33 +102,31 @@ export default function RecordReceipt() {
 
         <Card>
           <Text style={s.h}>How was it paid?</Text>
-          {receiptMethods.map((m, i) => (
+          {methods.map((m, i) => (
             <ChoiceRow
-              key={m}
-              label={m}
-              hint={m === 'Cash' ? 'You are accountable for the cash until it is banked' : undefined}
-              selected={method === m}
-              onPress={() => setMethod(m)}
-              last={i === receiptMethods.length - 1}
+              key={m.id}
+              label={m.label}
+              hint={m.hint}
+              selected={method === m.id}
+              onPress={() => setMethod(m.id)}
+              last={i === methods.length - 1}
             />
           ))}
         </Card>
 
         <Card>
           <Field label="Reference (UTR, cheque number)" value={ref} onChange={setRef} placeholder="Optional" />
-          <SwitchRow
-            label="Send the receipt to the tenant"
-            hint="WhatsApp and in-app, immediately on save"
-            value={notify}
-            onChange={setNotify}
-            last
-          />
         </Card>
       </Screen>
 
       <ActionBar>
         <Button label="Cancel" tone="secondary" onPress={() => router.back()} style={{ flex: 1 }} />
-        <Button label="Issue receipt" onPress={() => setSaved(true)} disabled={paise <= 0} style={{ flex: 2 }} />
+        <Button
+          label={saving ? 'Posting…' : 'Issue receipt'}
+          onPress={() => record(paise, method, ref)}
+          disabled={paise <= 0 || saving}
+          style={{ flex: 2 }}
+        />
       </ActionBar>
     </>
   );
@@ -112,4 +138,5 @@ const s = StyleSheet.create({
   calc: { ...font.small, color: color.accent, fontWeight: '600' },
   amount: { ...font.h1, fontSize: 32, color: color.positive, marginVertical: space(3) },
   note: { ...font.small, color: color.inkSoft, marginTop: space(3), lineHeight: 18 },
+  error: { ...font.small, color: color.negative, marginBottom: space(3) },
 });

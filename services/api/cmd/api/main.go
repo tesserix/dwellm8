@@ -644,7 +644,8 @@ func run() error {
 		WithMerchants(moneyservice.NewMerchants(moneystore.NewMerchants(pool), providers)).
 		WithSettlements(moneyservice.NewSettlements(
 			moneystore.NewSettlements(pool), moneystore.NewMerchants(pool), providers)).
-		WithRegistrations(identityservice.NewRegistrations(principals))
+		WithRegistrations(identityservice.NewRegistrations(principals)).
+		WithPayments(payments)
 	opsHandler.Routes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.WorklistRoutes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.OnboardingRoutes(authz.NewRegistrar(opsMux, guard))
@@ -657,6 +658,8 @@ func run() error {
 	// What the firm must hold to manage somebody else's property at all — RERA
 	// s.9, the constitution's PAN, and the documents that evidence both, #282.
 	opsHandler.RegistrationRoutes(authz.NewRegistrar(opsMux, guard))
+	// Rent taken in cash, by cheque or by a transfer the manager saw, #297.
+	opsHandler.CollectionRoutes(authz.NewRegistrar(opsMux, guard))
 	// The applicant pack, #258. Gin-native like the applications it hangs off,
 	// mounted here rather than on the owner tree because the firm reaches it
 	// under a mandate, and only this mux carries one.

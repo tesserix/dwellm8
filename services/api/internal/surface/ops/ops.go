@@ -51,6 +51,7 @@ type Handler struct {
 	owners      *identityservice.Owners
 	merchants   *moneyservice.Merchants
 	settlements *moneyservice.Settlements
+	payments    *moneyservice.Payments
 
 	registrations *identityservice.Registrations
 	log           *slog.Logger

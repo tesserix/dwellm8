@@ -69,6 +69,49 @@ describe('DwellmApi — ops surface', () => {
     );
   });
 
+  it('opsRecordCollection posts the receipt against the one tenancy (#297)', async () => {
+    const fetchMock = mockFetch({
+      payment_id: 'pay-1', lease_id: 'l1', status: 'captured',
+      amount_minor: 250000, method: 'offline_cash', due_amount_minor: 0, advance_amount_minor: 0,
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsRecordCollection('l1', {
+      amount_minor: 250000, method: 'offline_cash', reference: 'receipt book 41',
+      idempotency_key: 'k1',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/ops/tenancies/l1/collections`,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          amount_minor: 250000, method: 'offline_cash',
+          reference: 'receipt book 41', idempotency_key: 'k1',
+        }),
+      }),
+    );
+    expect(out.status).toBe('captured');
+  });
+
+  it('opsRecordCollection sends cash and no reference when none is given', async () => {
+    const fetchMock = mockFetch({ payment_id: 'pay-2', status: 'captured' });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await new DwellmApi({ baseUrl }).opsRecordCollection('l1', {
+      amount_minor: 100, idempotency_key: 'k2',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/ops/tenancies/l1/collections`,
+      expect.objectContaining({
+        body: JSON.stringify({
+          amount_minor: 100, method: 'offline_cash', reference: '', idempotency_key: 'k2',
+        }),
+      }),
+    );
+  });
+
   it('opsToday calls GET /v1/ops/today and returns the body as-is', async () => {
     const today = {
       as_of: '2026-08-01', active_tenancies: 2, rent_roll_amount_minor: 5000000,
