@@ -275,3 +275,104 @@ describe('DwellmApi — the solo manager (#268)', () => {
     expect(out.grant_id).toBe('');
   });
 });
+
+describe('DwellmApi — email verification (#282)', () => {
+  const baseUrl = 'https://api.test';
+
+  it('sends a code to the address the manager signed up with', async () => {
+    const fetchMock = mockFetch({ email: 'pm@example.test', verified: false, resend_after_seconds: 60 }, 202);
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).sendEmailCode();
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${baseUrl}/v1/verification/email`);
+    expect(init.method).toBe('POST');
+    expect(out.resend_after_seconds).toBe(60);
+  });
+
+  it('confirms the code the manager typed', async () => {
+    const fetchMock = mockFetch({ email: 'pm@example.test', verified: true });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).confirmEmailCode('123456');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${baseUrl}/v1/verification/email/confirm`);
+    expect(JSON.parse(init.body)).toEqual({ code: '123456' });
+    expect(out.verified).toBe(true);
+  });
+
+  it('reads whether the address is already proved, and how long the button stays dead', async () => {
+    const fetchMock = mockFetch({ email: 'pm@example.test', verified: false, resend_after_seconds: 41 });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).emailVerification();
+
+    expect(fetchMock.mock.calls[0][0]).toBe(`${baseUrl}/v1/verification/email`);
+    expect(fetchMock.mock.calls[0][1].method).toBe('GET');
+    expect(out.resend_after_seconds).toBe(41);
+  });
+});
+
+describe('DwellmApi — the firm’s statutory registration (#282)', () => {
+  const baseUrl = 'https://api.test';
+
+  it('reads the checklist, defaulting every list so a screen can map over it', async () => {
+    global.fetch = mockFetch({ legal_name: 'Menon Estates', constitution: 'llp', state: 'draft' }) as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsRegistration();
+
+    expect(out.constitution).toBe('llp');
+    expect(out.outstanding).toEqual([]);
+    expect(out.required).toEqual([]);
+    expect(out.authorities).toEqual([]);
+    expect(out.fields).toEqual([]);
+  });
+
+  it('sends the PAN whole — the server masks it, and no screen stores it', async () => {
+    const fetchMock = mockFetch({ legal_name: 'Menon Estates', pan_masked: 'XXXXXX234F' });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsSaveRegistration({
+      legal_name: 'Menon Estates', constitution: 'llp', pan: 'ABCDE1234F', registrar_id: 'AAA-1234',
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${baseUrl}/v1/ops/registration`);
+    expect(init.method).toBe('PUT');
+    expect(JSON.parse(init.body).pan).toBe('ABCDE1234F');
+    expect(out.pan_masked).toBe('XXXXXX234F');
+  });
+
+  it('files one state’s agent registration with its validity window', async () => {
+    const fetchMock = mockFetch({ legal_name: 'Menon Estates', authorities: [{ id: 'r1' }] });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsFileRegistration({
+      state_code: 'KL', number: 'K-RERA/AG/123', valid_from: '2026-04-01', valid_to: '2031-03-31',
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${baseUrl}/v1/ops/registration/authorities`);
+    expect(JSON.parse(init.body)).toEqual({
+      authority: 'rera', state_code: 'KL', number: 'K-RERA/AG/123',
+      valid_from: '2026-04-01', valid_to: '2031-03-31',
+    });
+    expect(out.authorities).toHaveLength(1);
+  });
+
+  it('records a document that has already reached the bucket', async () => {
+    const fetchMock = mockFetch({ legal_name: 'Menon Estates', outstanding: [] });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await new DwellmApi({ baseUrl }).opsRecordDocument({
+      kind: 'llp_agreement', object_path: 'firm/llp.pdf', filename: 'llp.pdf', content_type: 'application/pdf',
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${baseUrl}/v1/ops/registration/documents`);
+    expect(JSON.parse(init.body).kind).toBe('llp_agreement');
+    expect(JSON.parse(init.body).expires_on).toBe('');
+  });
+});

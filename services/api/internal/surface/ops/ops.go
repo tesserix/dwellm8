@@ -50,8 +50,10 @@ type Handler struct {
 	owners      *identityservice.Owners
 	merchants   *moneyservice.Merchants
 	settlements *moneyservice.Settlements
-	log         *slog.Logger
-	now         func() time.Time
+
+	registrations *identityservice.Registrations
+	log           *slog.Logger
+	now           func() time.Time
 }
 
 // New wires the surface to the services it composes.

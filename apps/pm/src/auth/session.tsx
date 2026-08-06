@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { Identity, identityFromEnv, setTokenSource, type Session } from '@dwellm8/mobile-shared';
+import {
+  apiFromEnv, Identity, identityFromEnv, setTokenSource, type Session,
+} from '@dwellm8/mobile-shared';
 
 /**
  * Who is signed into the manager's app.
@@ -19,6 +21,17 @@ type SessionState = {
   session: Session | null;
   identity: Identity | null;
   restoring: boolean;
+  /** null while we are still asking. A verified sign-in is not yet a firm, and
+   * the difference decides which screen the app opens on. */
+  hasFirm: boolean | null;
+  refreshFirm: () => Promise<void>;
+  /** Whether the address this sign-in used has been proved (#282). null while
+   * we are still asking; true for a phone sign-in, which arrived by OTP. */
+  verified: boolean | null;
+  refreshVerification: () => Promise<void>;
+  /** Whether the firm has filed its statutory details at all (#282). */
+  registered: boolean | null;
+  refreshRegistration: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<Session>;
   signUp: (email: string, password: string) => Promise<Session>;
   signOut: () => Promise<void>;
@@ -68,10 +81,65 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return () => setTokenSource(null);
   }, [identity, session, remember]);
 
+  const [hasFirm, setHasFirm] = useState<boolean | null>(null);
+
+  const refreshFirm = useCallback(async () => {
+    if (!session) { setHasFirm(null); return; }
+    const api = apiFromEnv(async () => session.idToken);
+    if (!api) { setHasFirm(true); return; }
+    try {
+      setHasFirm(!!(await api.me()));
+    } catch {
+      // A network failure is not "no firm" — it must not send a working
+      // manager back through onboarding.
+      setHasFirm(null);
+    }
+  }, [session]);
+
+  useEffect(() => { void refreshFirm(); }, [refreshFirm]);
+
+  const [verified, setVerified] = useState<boolean | null>(null);
+
+  const refreshVerification = useCallback(async () => {
+    if (!session) { setVerified(null); return; }
+    const api = apiFromEnv(async () => session.idToken);
+    if (!api) { setVerified(true); return; }
+    try {
+      setVerified((await api.emailVerification()).verified);
+    } catch {
+      setVerified(null);
+    }
+  }, [session]);
+
+  useEffect(() => { void refreshVerification(); }, [refreshVerification]);
+
+  const [registered, setRegistered] = useState<boolean | null>(null);
+
+  const refreshRegistration = useCallback(async () => {
+    if (!session || !hasFirm) { setRegistered(null); return; }
+    const api = apiFromEnv(async () => session.idToken);
+    if (!api) { setRegistered(true); return; }
+    try {
+      // Draft means nothing has been filed yet. A firm that has filed and still
+      // has gaps is let through — the checklist stays reachable from the tabs.
+      setRegistered((await api.opsRegistration()).state !== 'draft');
+    } catch {
+      setRegistered(null);
+    }
+  }, [session, hasFirm]);
+
+  useEffect(() => { void refreshRegistration(); }, [refreshRegistration]);
+
   const value = useMemo<SessionState>(() => ({
     session,
     identity,
     restoring,
+    hasFirm,
+    refreshFirm,
+    verified,
+    refreshVerification,
+    registered,
+    refreshRegistration,
     signIn: async (email, password) => {
       if (!identity) throw new Error('This build has no sign-in configured');
       const s = await identity.signIn(email.trim(), password);
@@ -84,8 +152,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       await remember(s);
       return s;
     },
-    signOut: () => remember(null),
-  }), [identity, session, restoring, remember]);
+    signOut: async () => {
+      setHasFirm(null);
+      setVerified(null);
+      setRegistered(null);
+      await remember(null);
+    },
+  }), [identity, session, restoring, hasFirm, refreshFirm, verified, refreshVerification,
+    registered, refreshRegistration, remember]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

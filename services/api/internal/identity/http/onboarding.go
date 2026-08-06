@@ -150,6 +150,26 @@ func (h *Onboarding) Onboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A password proves possession of a password. Before a firm is minted under
+	// an email address — and the owner statements and payout notices that follow
+	// go to it — that address has to be proved to reach the person. A phone
+	// sign-in arrived through an OTP and is already proved.
+	if p.SignInProvider == "password" || p.SignInProvider == "email" {
+		verified, err := h.principals.EmailVerified(r.Context(), p)
+		if err != nil {
+			h.log.Error("reading email verification", "surface", p.Surface, "error", err)
+			writeError(w, http.StatusInternalServerError, "could not create the organisation")
+			return
+		}
+		if !verified {
+			writeJSON(w, http.StatusForbidden, map[string]any{
+				"error":        "verify your email address first",
+				"verify_email": true,
+			})
+			return
+		}
+	}
+
 	slug := strings.TrimSpace(req.Slug)
 	if slug == "" {
 		slug = slugFrom(req.OrganisationName)

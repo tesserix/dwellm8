@@ -52,6 +52,7 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/platform/events/natsx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/ginx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/mail"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/push"
 	tdsstore "github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
@@ -637,7 +638,8 @@ func run() error {
 		WithTickets(tickets).WithCommunity(community).WithOwners(owners).
 		WithMerchants(moneyservice.NewMerchants(moneystore.NewMerchants(pool), providers)).
 		WithSettlements(moneyservice.NewSettlements(
-			moneystore.NewSettlements(pool), moneystore.NewMerchants(pool), providers))
+			moneystore.NewSettlements(pool), moneystore.NewMerchants(pool), providers)).
+		WithRegistrations(identityservice.NewRegistrations(principals))
 	opsHandler.Routes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.WorklistRoutes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.OnboardingRoutes(authz.NewRegistrar(opsMux, guard))
@@ -647,6 +649,9 @@ func run() error {
 	opsHandler.MerchantRoutes(authz.NewRegistrar(opsMux, guard))
 	// How one collection is divided, and the owner's leg released, #270.
 	opsHandler.SettlementRoutes(authz.NewRegistrar(opsMux, guard))
+	// What the firm must hold to manage somebody else's property at all — RERA
+	// s.9, the constitution's PAN, and the documents that evidence both, #282.
+	opsHandler.RegistrationRoutes(authz.NewRegistrar(opsMux, guard))
 	// The applicant pack, #258. Gin-native like the applications it hangs off,
 	// mounted here rather than on the owner tree because the firm reaches it
 	// under a mandate, and only this mux carries one.
@@ -761,6 +766,15 @@ func run() error {
 		onboardingMux := http.NewServeMux()
 		identityhttp.NewOnboarding(principals, logger).Routes(authz.NewRegistrar(onboardingMux, guard))
 		mux.Handle("POST /v1/onboarding", auth.Middleware(verifier, onboardingMux))
+		// Email verification sits beside it, and before it: onboarding refuses a
+		// password sign-in whose address has not been proved. #282.
+		if !cfg.SMTP.Configured() {
+			logger.Warn("no SMTP relay; email verification cannot send a code",
+				"set", "SMTP_HOST, SMTP_FROM")
+		}
+		identityhttp.NewVerification(principals, mail.New(cfg.SMTP), logger).
+			Routes(authz.NewRegistrar(onboardingMux, guard))
+		mux.Handle("/v1/verification/", auth.Middleware(verifier, onboardingMux))
 		// The profile sits beside onboarding for the same reason: a verified
 		// sign-in editing their own name needs no membership resolved. #240.
 		mux.Handle("/v1/me", auth.Middleware(verifier, onboardingMux))

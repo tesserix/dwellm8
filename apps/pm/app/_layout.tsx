@@ -16,6 +16,9 @@ export default function RootLayout() {
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.bgTop } }}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="signin" />
+              <Stack.Screen name="verify" />
+              <Stack.Screen name="firm" />
+              <Stack.Screen name="registration" />
               <Stack.Screen name="arrear" options={{ presentation: 'modal' }} />
               <Stack.Screen name="receipt" options={{ presentation: 'modal' }} />
               <Stack.Screen name="ticket" options={{ presentation: 'modal' }} />
@@ -45,16 +48,31 @@ export default function RootLayout() {
 /** Guards in the layout, not per screen: a per-screen redirect flashes the
  * arrears of whoever was signed in last. */
 function Guard({ children }: { children: React.ReactNode }) {
-  const { session, identity, restoring } = useSession();
+  const { session, identity, restoring, hasFirm, verified, registered } = useSession();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
     if (restoring || !identity) return;
-    const onSignIn = segments[0] === 'signin';
-    if (!session && !onSignIn) router.replace('/signin');
-    else if (session && onSignIn) router.replace('/(tabs)');
-  }, [session, identity, restoring, segments, router]);
+    const at = segments[0];
+    const gate = at === 'signin' || at === 'verify' || at === 'firm' || at === 'registration';
+    if (!session) {
+      if (at !== 'signin') router.replace('/signin');
+      return;
+    }
+    // The gates in the order the law and the schema put them: an address that
+    // reaches the manager, then the organisation every /v1/ops call is scoped
+    // by, then what the firm must hold to manage anybody else's property.
+    if (verified === false) {
+      if (at !== 'verify') router.replace('/verify');
+    } else if (hasFirm === false) {
+      if (at !== 'firm') router.replace('/firm');
+    } else if (hasFirm === true && registered === false) {
+      if (at !== 'registration') router.replace('/registration');
+    } else if (hasFirm === true && registered !== false && gate) {
+      router.replace('/(tabs)');
+    }
+  }, [session, identity, restoring, hasFirm, verified, registered, segments, router]);
 
   if (restoring) {
     return (

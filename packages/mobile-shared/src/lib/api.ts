@@ -395,6 +395,67 @@ export type Me = {
   display_name?: string;
 };
 
+/** Whether the address a manager signed up with reaches them (#282). */
+export type EmailVerification = {
+  email?: string;
+  verified: boolean;
+  /** How many seconds the resend button stays dead. */
+  resend_after_seconds?: number;
+};
+
+/** One line of the statutory checklist. */
+export type FirmRequirement = {
+  kind: string;
+  /** of_the_firm for a body corporate's own PAN, of_the_person for a proprietor's. */
+  subject: string;
+  label: string;
+  why: string;
+  expires?: boolean;
+};
+
+export type FirmAuthority = {
+  id: string;
+  authority: string;
+  state_code: string;
+  number: string;
+  valid_from: string;
+  valid_to: string;
+};
+
+/** The firm's own registration and what is still missing from it (#282). */
+export type FirmRegistration = {
+  legal_name: string;
+  trade_name?: string;
+  constitution: string;
+  pan_masked?: string;
+  tan?: string;
+  gstin?: string;
+  registrar_id?: string;
+  address_line1?: string;
+  address_line2?: string;
+  locality?: string;
+  city?: string;
+  state_code?: string;
+  pin_code?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  state: string;
+  authorities: FirmAuthority[];
+  required: FirmRequirement[];
+  outstanding: FirmRequirement[];
+  /** Which fields this constitution must fill in — registrar_id only for a body corporate. */
+  fields: string[];
+  may_manage: boolean;
+};
+
+function fillRegistration(r: FirmRegistration): FirmRegistration {
+  return {
+    ...r,
+    authorities: r.authorities ?? [], required: r.required ?? [],
+    outstanding: r.outstanding ?? [], fields: r.fields ?? [],
+  };
+}
+
 /** What a first sign-in produced (POST /v1/onboarding). */
 export type Onboarded = {
   organisation_id: string;
@@ -1180,6 +1241,64 @@ export class DwellmApi {
       if (err instanceof ApiError && err.status === 404) return null;
       throw err;
     }
+  }
+
+  /** Whether the address this sign-in used has been proved (#282). */
+  emailVerification(): Promise<EmailVerification> {
+    return this.request('GET', '/v1/verification/email');
+  }
+
+  /** Mail a fresh code. 429 carries resend_after_seconds. */
+  sendEmailCode(): Promise<EmailVerification> {
+    return this.request('POST', '/v1/verification/email', {});
+  }
+
+  confirmEmailCode(code: string): Promise<EmailVerification> {
+    return this.request('POST', '/v1/verification/email/confirm', { code });
+  }
+
+  /** What the firm must hold to manage somebody else's property (#282). */
+  async opsRegistration(): Promise<FirmRegistration> {
+    return fillRegistration(await this.request<FirmRegistration>('GET', '/v1/ops/registration'));
+  }
+
+  /** The PAN travels whole and is masked server-side; nothing keeps it here. */
+  async opsSaveRegistration(req: {
+    legal_name: string; trade_name?: string; constitution: string;
+    pan?: string; tan?: string; gstin?: string; registrar_id?: string;
+    address_line1?: string; address_line2?: string; locality?: string; city?: string;
+    state_code?: string; pin_code?: string; contact_email?: string; contact_phone?: string;
+  }): Promise<FirmRegistration> {
+    return fillRegistration(await this.request<FirmRegistration>('PUT', '/v1/ops/registration', {
+      legal_name: req.legal_name, trade_name: req.trade_name ?? '',
+      constitution: req.constitution, pan: req.pan ?? '', tan: req.tan ?? '',
+      gstin: req.gstin ?? '', registrar_id: req.registrar_id ?? '',
+      address_line1: req.address_line1 ?? '', address_line2: req.address_line2 ?? '',
+      locality: req.locality ?? '', city: req.city ?? '',
+      state_code: req.state_code ?? '', pin_code: req.pin_code ?? '',
+      contact_email: req.contact_email ?? '', contact_phone: req.contact_phone ?? '',
+    }));
+  }
+
+  /** One state's agent registration. RERA s.9 is per state and expires. */
+  async opsFileRegistration(req: {
+    authority?: string; state_code: string; number: string; valid_from: string; valid_to: string;
+  }): Promise<FirmRegistration> {
+    return fillRegistration(await this.request<FirmRegistration>(
+      'POST', '/v1/ops/registration/authorities', {
+        authority: req.authority ?? 'rera', state_code: req.state_code, number: req.number,
+        valid_from: req.valid_from, valid_to: req.valid_to,
+      }));
+  }
+
+  async opsRecordDocument(req: {
+    kind: string; object_path: string; filename: string; content_type: string; expires_on?: string;
+  }): Promise<FirmRegistration> {
+    return fillRegistration(await this.request<FirmRegistration>(
+      'POST', '/v1/ops/registration/documents', {
+        kind: req.kind, object_path: req.object_path, filename: req.filename,
+        content_type: req.content_type, expires_on: req.expires_on ?? '',
+      }));
   }
 
   /** The first sign-in naming the firm it is creating (#31). */

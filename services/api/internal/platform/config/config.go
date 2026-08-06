@@ -8,6 +8,7 @@ package config
 import (
 	"fmt"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/mail"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/workflow"
 	"os"
 	"sort"
@@ -37,6 +38,9 @@ type Config struct {
 	PaymentProviders []string
 	Cashfree         Cashfree
 	Twilio           Twilio
+
+	// SMTP is the relay that carries a manager's email verification code (#282).
+	SMTP mail.SMTP
 
 	// Identity is ADR-0027: the GIP project every token must be minted for, and
 	// the prefix that names this product's user pools.
@@ -269,6 +273,14 @@ func Load() (Config, error) {
 		AccountSID: os.Getenv("TWILIO_ACCOUNT_SID"),
 		AuthToken:  os.Getenv("TWILIO_AUTH_TOKEN"),
 		VerifySID:  os.Getenv("TWILIO_VERIFY_SID"),
+	}
+
+	c.SMTP = mail.SMTP{
+		Host:     os.Getenv("SMTP_HOST"),
+		Port:     envInt("SMTP_PORT", 587),
+		Username: os.Getenv("SMTP_USERNAME"),
+		Password: os.Getenv("SMTP_PASSWORD"),
+		From:     os.Getenv("SMTP_FROM"),
 	}
 
 	c.Identity = Identity{

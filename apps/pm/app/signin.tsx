@@ -1,24 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
-import {
-  Button, Card, Field, apiFromEnv, color, font, space,
-} from '@dwellm8/mobile-shared';
+import { Button, Card, Field, color, font, space } from '@dwellm8/mobile-shared';
 import { useSession } from '../src/auth/session';
 
 /**
- * The way into the manager's app. A verified sign-in is not yet a firm: a new
- * manager names theirs here, because /v1/onboarding is the only call that
- * turns a token into an organisation everything else is scoped by (#31).
+ * The way into the manager's app. It only proves who signed in — whether they
+ * have a firm yet is the guard's question, so nothing here navigates.
  */
 export default function SignIn() {
-  const router = useRouter();
   const { identity, signIn, signUp } = useSession();
   const [mode, setMode] = useState<'in' | 'up'>('in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [firm, setFirm] = useState('');
-  const [naming, setNaming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -26,28 +19,10 @@ export default function SignIn() {
     setError('');
     setBusy(true);
     try {
-      const session = mode === 'in' ? await signIn(email, password) : await signUp(email, password);
-      const api = apiFromEnv(async () => session.idToken);
-      if (!api) { router.replace('/(tabs)'); return; }
-      if (await api.me()) { router.replace('/(tabs)'); return; }
-      setNaming(true);
+      if (mode === 'in') await signIn(email, password);
+      else await signUp(email, password);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not sign in');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const createFirm = async () => {
-    setError('');
-    setBusy(true);
-    try {
-      const api = apiFromEnv();
-      if (!api) throw new Error('This build has no API configured');
-      await api.onboard(firm.trim());
-      router.replace('/(tabs)');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not create the firm');
     } finally {
       setBusy(false);
     }
@@ -71,20 +46,6 @@ export default function SignIn() {
               This build has no identity pool. Set EXPO_PUBLIC_GIP_API_KEY and
               EXPO_PUBLIC_GIP_TENANT_ID and reload.
             </Text>
-          </Card>
-        ) : naming ? (
-          <Card>
-            <Text style={s.h}>Name your firm</Text>
-            <Text style={s.note}>
-              Every property, owner and payout you handle sits under this firm.
-            </Text>
-            <Field label="Firm name" value={firm} onChange={setFirm} placeholder="Menon Properties" />
-            {error ? <Text style={s.error} accessibilityRole="alert">{error}</Text> : null}
-            <Button
-              label={busy ? 'Creating…' : 'Create firm'}
-              onPress={createFirm}
-              disabled={busy || firm.trim().length < 2}
-            />
           </Card>
         ) : (
           <Card>
