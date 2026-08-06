@@ -41,7 +41,7 @@ The owner-operator: their own flats, their own Cashfree account, no delegation.
 | A10 | Save with a malformed PAN / GSTIN / PIN | Refused per field, at the field | fixed #287 — verify after deploy |
 | A10a | Search for the registered office | Picking a match fills line, locality, city, state code and PIN | blocked — endpoint not deployed |
 | A10b | Search while the geocoder is down | "unavailable", and the fields stay typeable by hand | pass — #285 |
-| A11 | Add a property, "It's mine" | Property owned by the firm; `grant_id` empty on every later call | |
+| A11 | Add a property, "It's mine" | Property owned by the firm; `grant_id` empty on every later call | blocked by #288 — fixed, verify after deploy |
 | A12 | Add units to that property | Units listed under the property, addressable in a tenancy | |
 | A13 | Onboard a tenant into a unit | Tenancy `pending_signature`; rent, deposit and dates as entered | |
 | A14 | Today screen after the first tenancy | Rent roll and arrears real, not the demonstration figures | |
