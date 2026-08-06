@@ -189,6 +189,13 @@ func (h *Handler) SaveRegistration(w http.ResponseWriter, r *http.Request) {
 	if profile.Constitution == "" {
 		profile.Constitution = "proprietorship"
 	}
+	// Notices under the Act are served at this address, so it is never left to
+	// whatever the client had in memory — the caller's own is known (#286).
+	if profile.ContactEmail == "" {
+		if p, ok := auth.From(r.Context()); ok {
+			profile.ContactEmail = p.Email
+		}
+	}
 
 	if err := h.registrations.Save(r.Context(), firm, profile); err != nil {
 		h.log.Error("saving the firm registration", "error", err)

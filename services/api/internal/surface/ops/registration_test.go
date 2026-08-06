@@ -14,6 +14,7 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/identity/domain/registration"
 	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 	identitystore "github.com/tesserix/dwellm8/services/api/internal/identity/store"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/auth"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy/isolationtest"
@@ -87,6 +88,12 @@ func serveRegistration(t *testing.T) (*http.ServeMux, *registrationRows) {
 
 func put(t *testing.T, mux *http.ServeMux, org tenancy.ID, path string, body any) *httptest.ResponseRecorder {
 	t.Helper()
+	return putAs(t, mux, org, auth.Principal{}, path, body)
+}
+
+func putAs(t *testing.T, mux *http.ServeMux, org tenancy.ID, who auth.Principal,
+	path string, body any) *httptest.ResponseRecorder {
+	t.Helper()
 	raw, err := json.Marshal(body)
 	if err != nil {
 		t.Fatalf("encoding the request: %v", err)
@@ -94,7 +101,8 @@ func put(t *testing.T, mux *http.ServeMux, org tenancy.ID, path string, body any
 	r := httptest.NewRequest(http.MethodPut, path, bytes.NewReader(raw))
 	r.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, r.WithContext(tenancy.With(r.Context(), org)))
+	ctx := auth.With(tenancy.With(r.Context(), org), who)
+	mux.ServeHTTP(w, r.WithContext(ctx))
 	return w
 }
 
@@ -159,6 +167,43 @@ func TestOnlyTheMaskOfAPANEverComesBack(t *testing.T) {
 	// The whole number must not survive anywhere on the way back out.
 	if body := w.Body.String(); bytes.Contains([]byte(body), []byte("ABCDE1234F")) {
 		t.Fatalf("a whole PAN reached the response:\n%s", body)
+	}
+}
+
+func TestCorrespondenceFallsBackToTheSignedInAddressRatherThanBeingBlank(t *testing.T) {
+	mux, rows := serveRegistration(t)
+
+	w := putAs(t, mux, isolationtest.OrgFirm, auth.Principal{Email: "manager@example.test"},
+		"/v1/ops/registration", map[string]any{
+			"legal_name": "Samyak Rout", "constitution": "proprietorship",
+			"address_line1": "2nd Floor, Chandra Arcade", "city": "Kochi",
+			"state_code": "KL", "pin_code": "682020", "contact_phone": "+919847012345",
+		})
+	if w.Code != http.StatusOK {
+		t.Fatalf("PUT registration: %d %s", w.Code, w.Body.String())
+	}
+
+	// Notices under the Act are served at this address; a blank one is a firm
+	// that cannot be reached (#286).
+	if rows.saved.ContactEmail != "manager@example.test" {
+		t.Errorf("contact email must fall back to the caller's, got %q", rows.saved.ContactEmail)
+	}
+}
+
+func TestAnAddressGivenOnTheFormBeatsTheSignedInOne(t *testing.T) {
+	mux, rows := serveRegistration(t)
+
+	w := putAs(t, mux, isolationtest.OrgFirm, auth.Principal{Email: "manager@example.test"},
+		"/v1/ops/registration", map[string]any{
+			"legal_name": "Samyak Rout", "address_line1": "x", "city": "Kochi",
+			"state_code": "KL", "pin_code": "682020",
+			"contact_email": "office@example.test",
+		})
+	if w.Code != http.StatusOK {
+		t.Fatalf("PUT registration: %d %s", w.Code, w.Body.String())
+	}
+	if rows.saved.ContactEmail != "office@example.test" {
+		t.Errorf("the firm's own address must win, got %q", rows.saved.ContactEmail)
 	}
 }
 
