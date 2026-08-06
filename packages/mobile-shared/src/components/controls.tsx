@@ -187,26 +187,34 @@ export function SearchBar({
 
 export function Field({
   label, value, onChange, placeholder, multiline = false, keyboardType, autoCapitalize,
+  autoCorrect = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   multiline?: boolean;
-  keyboardType?: 'default' | 'numeric' | 'phone-pad';
+  keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'email-address';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  // Correction is opt-in: a name, a unit code and a PIN are data, and iOS
+  // rewrote "Kavita" to "Kabila" on the way into the onboarding wizard.
+  autoCorrect?: boolean;
 }) {
+  const capitalise = autoCapitalize ?? (keyboardType === 'email-address' ? 'none' : undefined);
   return (
     <View style={{ marginBottom: space(4) }}>
       <Text style={s.fieldLabel}>{label}</Text>
       <TextInput
+        accessibilityLabel={label}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
         placeholderTextColor={color.inkFaint}
         multiline={multiline}
         keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
+        autoCapitalize={capitalise}
+        autoCorrect={autoCorrect}
+        spellCheck={autoCorrect}
         style={[s.field, multiline && { height: 104, textAlignVertical: 'top', paddingTop: 12 }]}
       />
     </View>

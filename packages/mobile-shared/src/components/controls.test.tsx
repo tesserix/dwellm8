@@ -151,13 +151,10 @@ describe('Field', () => {
     expect(onChange).toHaveBeenCalledWith('left a key with the guard');
   });
 
-  it('renders the visible label text next to the input', async () => {
-    // The label is a plain <Text>, not wired to the TextInput via an
-    // accessibility label — so it reads as a heading, not a form label, to a
-    // screen reader. Documented here rather than silently assumed correct.
+  it('labels the input, not just the space above it', async () => {
     await render(<Field label="Notes" value="" onChange={() => {}} />);
     expect(screen.getByText('Notes')).toBeTruthy();
-    expect(screen.queryByLabelText('Notes')).toBeNull();
+    expect(screen.getByLabelText('Notes')).toBeTruthy();
   });
 });
 
@@ -228,5 +225,25 @@ describe('BackHeader', () => {
   it('shows the subtitle only when given', async () => {
     await render(<BackHeader title="Ticket #4021" subtitle="Leaking tap" />);
     expect(screen.getByText('Leaking tap')).toBeTruthy();
+  });
+});
+
+describe('Field', () => {
+  // A name, a PIN, a unit code and an email are all data, and iOS autocorrect
+  // rewrites data: "Kavita" became "Kabila" on the onboarding wizard, and the
+  // email arrived capitalised. Both are wrong for every field this component
+  // serves, so correction is opt-in.
+  it('leaves what is typed alone', async () => {
+    await render(<Field label="Owner's name" value="" onChange={() => {}} />);
+    const input = screen.getByLabelText("Owner's name");
+    expect(input.props.autoCorrect).toBe(false);
+    expect(input.props.spellCheck).toBe(false);
+  });
+
+  it('does not capitalise an email address', async () => {
+    await render(
+      <Field label="Email" value="" onChange={() => {}} keyboardType="email-address" />,
+    );
+    expect(screen.getByLabelText('Email').props.autoCapitalize).toBe('none');
   });
 });

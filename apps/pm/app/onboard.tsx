@@ -225,7 +225,7 @@ export default function Onboard() {
               <>
                 <Field label="Owner's name" value={ownerName} onChange={setOwnerName} placeholder="Meera Sharma" />
                 <Field label="Mobile number" value={phone} onChange={setPhone} placeholder="+919886021745" keyboardType="phone-pad" />
-                <Field label="Email — optional, they can add it later" value={email} onChange={setEmail} placeholder="meera@example.in" />
+                <Field label="Email — optional, they can add it later" value={email} onChange={setEmail} placeholder="meera@example.in" keyboardType="email-address" />
               </>
             ) : null}
           </Card>
