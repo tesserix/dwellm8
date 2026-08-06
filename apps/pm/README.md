@@ -15,8 +15,9 @@ the app carries what happens away from a desk.
 | Let a vacant unit | `leads` |
 | Pay the owners | `payouts` — the single point the platform fee is charged |
 
-Everything renders from `src/data/mock.ts`, which is demonstration data per
-requirements §9.6. No network call is made and no side effect originates here.
+Screens read the live API through `src/data/*`. Four remain on `src/data/mock.ts`
+because they have no endpoint behind them yet — `beds` (#299), `society` (#300),
+`compliance` (#301) and `inspection` (#298) — and each says so on screen.
 
 ```bash
 npm install          # from the repository root
