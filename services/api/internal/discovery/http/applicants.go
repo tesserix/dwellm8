@@ -35,6 +35,103 @@ func (h *ApplicantsHandler) OwnerRoutes(r *ginx.Registrar) {
 	r.Handle(http.MethodPut, "/v1/ops/applications/:id/profile", op, h.Save)
 	r.Handle(http.MethodPost, "/v1/ops/applications/:id/profile/submit", op, h.Submit)
 	r.Handle(http.MethodPut, "/v1/ops/applications/:id/profile/people", op, h.SavePeople)
+	r.Handle(http.MethodGet, "/v1/ops/applications/:id/addresses", view, h.Addresses)
+	r.Handle(http.MethodPut, "/v1/ops/applications/:id/addresses", op, h.SaveAddresses)
+}
+
+type addressRequest struct {
+	Kind      string `json:"kind" binding:"required,oneof=rented owned family employer_provided hostel"`
+	Line1     string `json:"line1" binding:"required,max=300"`
+	Locality  string `json:"locality" binding:"omitempty,max=200"`
+	City      string `json:"city" binding:"required,max=200"`
+	StateCode string `json:"state_code" binding:"omitempty,len=2"`
+	Pin       string `json:"pin" binding:"omitempty,len=6"`
+	Country   string `json:"country" binding:"omitempty,len=2"`
+	// Months, as YYYY-MM: nobody remembers the day they moved in 2021.
+	From          string `json:"from" binding:"required,len=7"`
+	To            string `json:"to" binding:"omitempty,len=7"`
+	LandlordName  string `json:"landlord_name" binding:"omitempty,max=200"`
+	LandlordPhone string `json:"landlord_phone" binding:"omitempty,max=16"`
+}
+
+// SaveAddresses replaces the five-year history whole.
+func (h *ApplicantsHandler) SaveAddresses(c *gin.Context) {
+	var req struct {
+		Addresses []addressRequest `json:"addresses" binding:"dive"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+	list := make([]store.Address, 0, len(req.Addresses))
+	for _, a := range req.Addresses {
+		from, err := month(a.From)
+		if err != nil {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{
+				"error": a.Line1 + ": from must be a month, as YYYY-MM"})
+			return
+		}
+		var to *time.Time
+		if a.To != "" {
+			t, err := month(a.To)
+			if err != nil {
+				c.JSON(http.StatusUnprocessableEntity, gin.H{
+					"error": a.Line1 + ": to must be a month, as YYYY-MM"})
+				return
+			}
+			to = &t
+		}
+		list = append(list, store.Address{
+			Kind: a.Kind, Line1: a.Line1, Locality: a.Locality, City: a.City,
+			StateCode: a.StateCode, Pin: a.Pin, Country: a.Country, From: from, To: to,
+			LandlordName: a.LandlordName, LandlordPhone: a.LandlordPhone,
+		})
+	}
+	if err := h.packs.SaveAddresses(c.Request.Context(), c.Param("id"), list); err != nil {
+		h.fail(c, "save the history", err)
+		return
+	}
+	h.Addresses(c)
+}
+
+// Addresses is the history with its gaps named — the manager asks about them
+// rather than discovering them after the keys are handed over.
+func (h *ApplicantsHandler) Addresses(c *gin.Context) {
+	history, err := h.packs.Addresses(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		h.fail(c, "read the history", err)
+		return
+	}
+	addresses := make([]gin.H, 0, len(history.Addresses))
+	for _, a := range history.Addresses {
+		v := gin.H{
+			"id": a.ID, "kind": a.Kind, "line1": a.Line1, "city": a.City,
+			"country": a.Country, "from": a.From.Format("2006-01"),
+		}
+		for k, s := range map[string]string{
+			"locality": a.Locality, "state_code": a.StateCode, "pin": a.Pin,
+			"landlord_name": a.LandlordName, "landlord_phone": a.LandlordPhone,
+		} {
+			if s != "" {
+				v[k] = s
+			}
+		}
+		if a.To != nil {
+			v["to"] = a.To.Format("2006-01")
+		}
+		addresses = append(addresses, v)
+	}
+	gaps := make([]gin.H, 0, len(history.Gaps))
+	for _, g := range history.Gaps {
+		gaps = append(gaps, gin.H{"from": g.From.Format("2006-01"), "to": g.To.Format("2006-01")})
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"addresses": addresses, "gaps": gaps, "complete": history.Complete,
+	})
+}
+
+func month(s string) (time.Time, error) {
+	return time.Parse("2006-01", s)
 }
 
 type profileRequest struct {
@@ -130,7 +227,14 @@ func (h *ApplicantsHandler) Get(c *gin.Context) {
 		h.fail(c, "read the household", err)
 		return
 	}
-	c.JSON(http.StatusOK, profileView(p, household))
+	view := profileView(p, household)
+	// The pack says whether the five years hold together; the detail is a
+	// click away on /addresses.
+	if history, err := h.packs.Addresses(c.Request.Context(), c.Param("id")); err == nil {
+		view["address_history_complete"] = history.Complete
+		view["address_history_gaps"] = len(history.Gaps)
+	}
+	c.JSON(http.StatusOK, view)
 }
 
 // Submit closes the draft. Only a submitted pack is decidable.
@@ -153,6 +257,8 @@ func (h *ApplicantsHandler) fail(c *gin.Context, what string, err error) {
 	case errors.Is(err, store.ErrPhone):
 		c.JSON(http.StatusUnprocessableEntity, gin.H{
 			"error": "a phone number must include its country code, as +919847033222"})
+	case errors.Is(err, store.ErrAddressWindow), errors.Is(err, store.ErrAddressShape):
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 	default:
 		h.log.Error("the applicant pack: "+what, "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not " + what})

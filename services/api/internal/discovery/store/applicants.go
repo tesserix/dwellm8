@@ -123,13 +123,22 @@ func (s *Applicants) SaveProfile(ctx context.Context, applicationID string, p Pr
 		if previous == "" {
 			return nil
 		}
-		// The household travels with the pack. Correcting a tax residency must
-		// not quietly drop the spouse and the children.
-		_, err = tx.Exec(ctx, `
+		// Everything hanging off the pack travels with it. Correcting a tax
+		// residency must not quietly drop the spouse or five years of history.
+		if _, err := tx.Exec(ctx, `
 			INSERT INTO applicant_people (tenant_id, profile_id, role, full_name,
 			                              relationship, date_of_birth, phone, email)
 			SELECT tenant_id, $1, role, full_name, relationship, date_of_birth, phone, email
-			  FROM applicant_people WHERE profile_id = $2`, out.ID, previous)
+			  FROM applicant_people WHERE profile_id = $2`, out.ID, previous); err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `
+			INSERT INTO applicant_addresses (tenant_id, profile_id, kind, line1, locality, city,
+			                                 state_code, pin, country, from_month, to_month,
+			                                 landlord_name, landlord_phone)
+			SELECT tenant_id, $1, kind, line1, locality, city, state_code, pin, country,
+			       from_month, to_month, landlord_name, landlord_phone
+			  FROM applicant_addresses WHERE profile_id = $2`, out.ID, previous)
 		return err
 	})
 	return out, err
@@ -184,13 +193,7 @@ func (s *Applicants) SavePeople(ctx context.Context, applicationID string, peopl
 		}
 	}
 	return tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
-		var profile, tenant string
-		err := tx.QueryRow(ctx, `
-			SELECT id::text, tenant_id::text FROM applicant_profiles`+liveProfile, applicationID).
-			Scan(&profile, &tenant)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNoProfile
-		}
+		profile, tenant, err := liveProfileOf(ctx, tx, applicationID)
 		if err != nil {
 			return err
 		}

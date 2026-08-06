@@ -651,6 +651,8 @@ func run() error {
 		"PUT /v1/ops/applications/{id}/profile",
 		"POST /v1/ops/applications/{id}/profile/submit",
 		"PUT /v1/ops/applications/{id}/profile/people",
+		"GET /v1/ops/applications/{id}/addresses",
+		"PUT /v1/ops/applications/{id}/addresses",
 	} {
 		opsMux.Handle(p, packs)
 	}
