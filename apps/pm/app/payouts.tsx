@@ -1,100 +1,125 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, ListRow, StatusPill, Button, KeyValue, Toast, Metric,
-  color, font, inr, space, PLATFORM_FEE_PCT,
+  BackHeader, Button, Card, EmptyState, Field, KeyValue, ListRow, Metric, Screen, StatusPill, Toast,
+  color, font, inr, space,
 } from '@dwellm8/mobile-shared';
-import { payouts } from '../src/data/mock';
+import type { Settlement, Tone } from '@dwellm8/mobile-shared';
+import { releaseSettlement, useSettlements } from '../src/data/settlements';
 
 /**
- * Owner payouts.
- *
- * The single point where the platform fee is charged (requirements §5.5): it
- * is deducted here, once, from the manager's payout — never added to a
- * tenant's payable and never charged twice.
+ * Owner payouts (#270). Every share on this screen was computed once, when the
+ * payment was captured, and is read back here — the platform's fee was retained
+ * by the aggregator, so nothing is charged again at release.
  */
+
+const stateTone: Record<Settlement['state'], Tone> = {
+  pending: 'blue', instructed: 'amber', settled: 'green', failed: 'red',
+};
+
+const stateLabel: Record<Settlement['state'], string> = {
+  pending: 'Ready', instructed: 'Sent', settled: 'Settled', failed: 'Blocked',
+};
 
 export default function Payouts() {
   const router = useRouter();
-  const [released, setReleased] = useState<string[]>([]);
+  const { loading, error, data: settlements } = useSettlements();
+  const [open, setOpen] = useState<string | null>(null);
+  const [beneficiary, setBeneficiary] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [open, setOpen] = useState<string | null>(payouts[0].id);
 
-  const release = (id: string, owner: string) => {
-    setReleased((r) => [...r, id]);
-    setToast(`Payout to ${owner} released — UTR will appear within 2 hours`);
-    setTimeout(() => setToast(null), 3000);
+  const ready = settlements.filter((s) => s.state === 'pending');
+  const late = settlements.filter((s) => s.overdue);
+  const owed = ready.reduce((a, s) => a + s.owner_amount_minor, 0);
+
+  const release = async (s: Settlement) => {
+    setBusy(true);
+    setFailure(null);
+    try {
+      await releaseSettlement(s.id, beneficiary.trim());
+      setBeneficiary('');
+      setToast('Sent to your provider — the UTR appears once they settle it');
+      setTimeout(() => setToast(null), 3500);
+    } catch (err) {
+      setFailure((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
-
-  const ready = payouts.filter((p) => p.state.startsWith('Ready') && !released.includes(p.id));
-  const readyTotal = ready.reduce((a, p) => a + p.netPaise, 0);
 
   return (
     <>
-      <BackHeader title="Owner payouts" subtitle="Fortnightly cycle · 29 July" onBack={() => router.back()} />
+      <BackHeader title="Owner payouts" subtitle="What you are holding for somebody else" onBack={() => router.back()} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 
-        <View style={s.metrics}>
-          <Metric value={String(ready.length)} label="ready to release" tone="green" />
-          <Metric value={inr(readyTotal, { noPaise: true })} label="net to owners" tone="blue" />
-          <Metric value="2" label="blocked" tone="red" />
-        </View>
+        {loading ? <View style={s.wait}><ActivityIndicator /></View> : null}
+        {error ? <Text style={s.empty}>{error}</Text> : null}
 
-        {payouts.map((p) => {
-          const isReleased = released.includes(p.id);
-          const blocked = p.state.startsWith('Blocked');
-          const isOpen = open === p.id;
+        {settlements.length ? (
+          <View style={s.metrics}>
+            <Metric value={String(ready.length)} label="ready to release" tone="green" />
+            <Metric value={inr(owed, { noPaise: true })} label="net to owners" tone="blue" />
+            <Metric value={String(late.length)} label="past their date" tone={late.length ? 'red' : 'neutral'} />
+          </View>
+        ) : null}
+
+        {settlements.map((row) => {
+          const isOpen = open === row.id;
           return (
-            <Card key={p.id} padded={false} style={{ paddingHorizontal: space(4), paddingVertical: space(2) }}>
+            <Card key={row.id} padded={false} style={{ paddingHorizontal: space(4), paddingVertical: space(2) }}>
               <ListRow
-                title={p.owner}
-                subtitle={p.propertyName}
-                meta={`Due ${p.due}`}
-                right={
-                  <StatusPill
-                    text={isReleased ? 'Released' : blocked ? 'Blocked' : 'Ready'}
-                    tone={isReleased ? 'green' : blocked ? 'red' : 'blue'}
-                  />
-                }
-                onPress={() => setOpen(isOpen ? null : p.id)}
+                title={inr(row.owner_amount_minor)}
+                subtitle={row.lease_id ? `Tenancy ${row.lease_id.slice(0, 8)}` : row.payment_id.slice(0, 8)}
+                meta={row.expected_on ? `Expected ${row.expected_on}` : 'No promised date'}
+                right={<StatusPill text={row.overdue && row.state !== 'settled' ? 'Late' : stateLabel[row.state]} tone={row.overdue && row.state !== 'settled' ? 'red' : stateTone[row.state]} />}
+                onPress={() => setOpen(isOpen ? null : row.id)}
                 last
               />
               {isOpen ? (
                 <View style={{ paddingBottom: space(3) }}>
-                  {blocked ? (
-                    <View style={s.warn}>
-                      <Text style={s.warnText}>{p.state}. Nothing can be released until this clears.</Text>
-                    </View>
-                  ) : (
+                  <KeyValue k="Rent collected" v={inr(row.gross_amount_minor)} tone="green" />
+                  <KeyValue k="Platform fee" v={`− ${inr(row.platform_amount_minor)}`} tone="red" />
+                  <KeyValue k="Your management fee" v={`− ${inr(row.management_amount_minor)}`} tone="red" />
+                  <KeyValue k="TDS withheld" v={`− ${inr(row.tds_amount_minor)}`} tone="red" />
+                  <KeyValue k="Net to owner" v={inr(row.owner_amount_minor)} last={row.state === 'settled'} />
+                  {row.transfer_ref ? <KeyValue k="Reference" v={row.transfer_ref} last /> : null}
+                  {row.reason ? <Text style={s.failure}>{row.reason}</Text> : null}
+                  {row.state === 'pending' || row.state === 'failed' ? (
                     <>
-                      <KeyValue k="Rent collected" v={inr(p.grossPaise)} tone="green" />
-                      <KeyValue k={`Platform fee (${PLATFORM_FEE_PCT}%)`} v={`− ${inr(p.feePaise)}`} tone="red" />
-                      <KeyValue k="Management fee (8%)" v={`− ${inr(Math.round(p.grossPaise * 0.08))}`} tone="red" />
-                      <KeyValue k="Net to owner" v={inr(p.netPaise - Math.round(p.grossPaise * 0.08))} last />
+                      {/* The owner's beneficiary at the provider; registering it from here is #271. */}
+                      <Field
+                        label="Owner's beneficiary reference"
+                        value={beneficiary}
+                        onChange={setBeneficiary}
+                        placeholder="BENE-0001"
+                        autoCapitalize="characters"
+                      />
                       <Button
-                        label={isReleased ? 'Released' : 'Release payout'}
-                        onPress={() => release(p.id, p.owner)}
-                        disabled={isReleased}
-                        style={{ marginTop: space(3) }}
+                        label={busy ? 'Sending…' : 'Release payout'}
+                        onPress={() => release(row)}
+                        disabled={busy || !beneficiary.trim()}
+                        style={{ marginTop: space(2) }}
                       />
                     </>
-                  )}
+                  ) : null}
                 </View>
               ) : null}
             </Card>
           );
         })}
 
-        <Card>
-          <Text style={s.h}>Where the fee is charged</Text>
-          <Text style={s.body}>
-            Dwellm8 takes {PLATFORM_FEE_PCT}% once, here, deducted from the payout. Instrument costs —
-            a card surcharge, an NEFT charge — are passed through separately and shown before anyone
-            pays. A tenant paying by UPI is never charged a platform fee.
-          </Text>
-        </Card>
+        {!loading && !error && !settlements.length ? (
+          <EmptyState
+            title="Nothing owed onward"
+            body="When rent is collected it is divided here — the platform's fee, your management fee, any TDS, and the owner's share."
+          />
+        ) : null}
+
+        {failure ? <Text style={s.failure}>{failure}</Text> : null}
       </Screen>
     </>
   );
@@ -102,8 +127,7 @@ export default function Payouts() {
 
 const s = StyleSheet.create({
   metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4), marginBottom: space(3) },
-  h: { ...font.h3, color: color.inkStrong },
-  body: { ...font.body, color: color.inkSoft, marginTop: space(2), lineHeight: 21 },
-  warn: { backgroundColor: '#FBE6E4', borderRadius: 10, padding: space(3), marginTop: space(2) },
-  warnText: { ...font.small, color: '#C0433D', lineHeight: 18 },
+  wait: { paddingVertical: space(6), alignItems: 'center' },
+  empty: { ...font.body, color: color.inkSoft, paddingVertical: space(6), textAlign: 'center' },
+  failure: { ...font.body, color: color.negative, marginTop: space(2) },
 });

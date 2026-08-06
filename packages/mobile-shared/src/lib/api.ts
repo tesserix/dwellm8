@@ -501,6 +501,26 @@ export type MerchantAccount = {
   next_action: string;
 };
 
+export type Settlement = {
+  id: string;
+  payment_id: string;
+  lease_id?: string;
+  currency: string;
+  gross_amount_minor: number;
+  platform_amount_minor: number;
+  management_amount_minor: number;
+  tds_amount_minor: number;
+  owner_amount_minor: number;
+  state: 'pending' | 'instructed' | 'settled' | 'failed';
+  provider?: string;
+  transfer_ref?: string;
+  expected_on?: string;
+  settled_on?: string;
+  reason?: string;
+  /** Money the schedule promised by a date that has passed. */
+  overdue: boolean;
+};
+
 export type ConnectMerchant = {
   provider: string;
   business_name: string;
@@ -782,6 +802,15 @@ export class DwellmApi {
 
   opsRefreshMerchant(provider: string): Promise<MerchantAccount> {
     return this.request('POST', `/v1/ops/merchant/${provider}/refresh`);
+  }
+
+  async opsSettlements(): Promise<Settlement[]> {
+    const out = await this.request<{ settlements?: Settlement[] }>('GET', '/v1/ops/settlements');
+    return out.settlements ?? [];
+  }
+
+  opsReleaseSettlement(id: string, beneficiaryRef: string): Promise<Settlement> {
+    return this.request('POST', `/v1/ops/settlements/${id}/release`, { beneficiary_ref: beneficiaryRef });
   }
 
   opsApplicantPack(applicationId: string): Promise<ApplicantPack> {

@@ -40,17 +40,18 @@ const activityLimit = 100
 
 // Handler serves the ops surface.
 type Handler struct {
-	properties *propertyservice.Properties
-	leases     *leaseservice.Leases
-	statements *moneyservice.Statements
-	residents  *identityservice.Residents
-	activity   activity.Feeder
-	tickets    *maintenanceservice.Tickets
-	community  *communityservice.Community
-	owners     *identityservice.Owners
-	merchants  *moneyservice.Merchants
-	log        *slog.Logger
-	now        func() time.Time
+	properties  *propertyservice.Properties
+	leases      *leaseservice.Leases
+	statements  *moneyservice.Statements
+	residents   *identityservice.Residents
+	activity    activity.Feeder
+	tickets     *maintenanceservice.Tickets
+	community   *communityservice.Community
+	owners      *identityservice.Owners
+	merchants   *moneyservice.Merchants
+	settlements *moneyservice.Settlements
+	log         *slog.Logger
+	now         func() time.Time
 }
 
 // New wires the surface to the services it composes.

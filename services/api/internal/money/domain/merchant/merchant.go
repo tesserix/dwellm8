@@ -92,6 +92,20 @@ type Account struct {
 	Reason string
 	// VerifiedAt is when the provider last said it would settle to this account.
 	VerifiedAt time.Time
+	// SettlementDays is the provider's promise: T+1, T+2. It decides the date an
+	// owner is told to expect their rent, so it is read rather than assumed.
+	SettlementDays int
+	// SettlementManual is a manager who releases each payout by hand.
+	SettlementManual bool
+}
+
+// SettlesOn is the date money collected on a day should reach the account. A
+// manual account has no promised date — the manager makes it.
+func (a Account) SettlesOn(paid time.Time) time.Time {
+	if a.SettlementManual {
+		return time.Time{}
+	}
+	return paid.AddDate(0, 0, a.SettlementDays)
 }
 
 var ifsc = regexp.MustCompile(`^[A-Z]{4}0[A-Z0-9]{6}$`)

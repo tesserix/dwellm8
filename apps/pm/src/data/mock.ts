@@ -417,15 +417,6 @@ export const leads: Lead[] = [
   { id: 'l4', name: 'Tanvi Desai', initials: 'TD', interest: 'Flat 501, Brigade Palm Grove', budgetPaise: 4_20_00_00, source: 'Portal', stage: 'Offer', since: '22 Jul', phone: '+91 99001 45566' },
 ];
 
-/* --------------------------------------------------------------- payouts */
-
-export const payouts = [
-  { id: 'po-881', owner: 'Samyak Rout', propertyName: 'Brigade Palm Grove', grossPaise: 8_60_00_00, feePaise: 25_71_40, netPaise: 7_58_28_60, state: 'Ready to release', due: 'Today' },
-  { id: 'po-880', owner: 'Nandini Gupta', propertyName: 'Sobha Dream Acres', grossPaise: 0, feePaise: 0, netPaise: 0, state: 'Blocked — rent not collected', due: 'Today' },
-  { id: 'po-879', owner: 'Nest Living LLP', propertyName: 'Nest PG', grossPaise: 6_12_00_00, feePaise: 18_29_88, netPaise: 5_44_70_12, state: 'Ready to release', due: 'Tomorrow' },
-  { id: 'po-878', owner: 'Anchor Holdings', propertyName: 'Anchor Arcade', grossPaise: 0, feePaise: 0, netPaise: 0, state: 'Blocked — TDS certificate pending', due: '31 Jul' },
-];
-
 /* ---------------------------------------------------------------- inbox */
 
 export const threads = [

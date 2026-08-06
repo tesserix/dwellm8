@@ -26,7 +26,7 @@ var ErrNoMerchant = errors.New("no merchant account with that provider")
 const merchantColumns = `provider, coalesce(merchant_ref, ''), country, business_name,
 	business_type, state, coalesce(reason, ''), coalesce(settlement_holder, ''),
 	coalesce(settlement_masked, ''), coalesce(settlement_ifsc, ''), settlement_currency,
-	coalesce(settlement_swift, ''), verified_at`
+	coalesce(settlement_swift, ''), verified_at, settlement_days, settlement_manual`
 
 func scanMerchant(row pgx.Row) (merchant.Account, error) {
 	var a merchant.Account
@@ -34,7 +34,7 @@ func scanMerchant(row pgx.Row) (merchant.Account, error) {
 	err := row.Scan(&a.Provider, &a.MerchantRef, &a.Country, &a.BusinessName,
 		&a.BusinessType, &a.State, &a.Reason, &a.Settlement.Holder,
 		&a.Settlement.Masked, &a.Settlement.IFSC, &a.Settlement.Currency,
-		&a.Settlement.SwiftBIC, &verified)
+		&a.Settlement.SwiftBIC, &verified, &a.SettlementDays, &a.SettlementManual)
 	if err != nil {
 		return merchant.Account{}, err
 	}

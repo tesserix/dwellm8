@@ -160,6 +160,32 @@ describe('DwellmApi — the applicant pack (#258, #259)', () => {
     );
   });
 
+  it('opsSettlements reads the queue of what is owed', async () => {
+    const fetchMock = mockFetch({ settlements: [{ id: 's1', owner_amount_minor: 2767036, overdue: true }] });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsSettlements();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/ops/settlements`,
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(out[0].overdue).toBe(true);
+  });
+
+  it('opsReleaseSettlement names who is being paid', async () => {
+    const fetchMock = mockFetch({ id: 's1', state: 'instructed' });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsReleaseSettlement('s1', 'BENE-1');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${baseUrl}/v1/ops/settlements/s1/release`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body).beneficiary_ref).toBe('BENE-1');
+    expect(out.state).toBe('instructed');
+  });
+
   it('opsSaveAddressHistory sends the whole set and returns the gaps', async () => {
     const fetchMock = mockFetch({ addresses: [], gaps: [{ from: '2023-03', to: '2023-06' }], complete: false });
     global.fetch = fetchMock as unknown as typeof fetch;
