@@ -42,7 +42,8 @@ func (r *registrationRows) ManagerProfile(context.Context, tenancy.ID) (identity
 
 func (r *registrationRows) SaveManagerProfile(_ context.Context, _ tenancy.ID, p identitystore.ManagerProfile) error {
 	r.saved, r.profile = p, p
-	if r.profile.State == "" {
+	// As the store does: filing leaves draft, approval and lapse stand (#288).
+	if r.profile.State == "" || r.profile.State == "draft" {
 		r.profile.State = "submitted"
 	}
 	return nil

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/tesserix/dwellm8/services/api/internal/identity/domain/registration"
 	"github.com/tesserix/dwellm8/services/api/internal/identity/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/auth"
@@ -62,10 +63,10 @@ func TestSaveAndReadTheManagerProfile(t *testing.T) {
 	if got.LegalName != in.LegalName || got.GSTIN != in.GSTIN || got.StateCode != "KA" {
 		t.Fatalf("read back %+v", got)
 	}
-	// A profile with nothing uploaded and no live registration is not a firm
-	// that may take a mandate.
-	if got.State != "draft" {
-		t.Fatalf("a new profile is a draft, got %q", got.State)
+	// Draft means nothing has been filed. These details are filed, so the firm
+	// is past the gate — what it still lacks is the checklist's business (#288).
+	if got.State != "submitted" {
+		t.Fatalf("filed details leave the profile submitted, got %q", got.State)
 	}
 
 	// Saving again corrects rather than duplicates: one firm, one profile.
@@ -79,6 +80,42 @@ func TestSaveAndReadTheManagerProfile(t *testing.T) {
 	}
 	if got.TradeName != "Menon Property Services" {
 		t.Fatalf("the correction did not stick: %+v", got)
+	}
+}
+
+func TestCorrectingAnApprovedProfileDoesNotUnapproveIt(t *testing.T) {
+	s, plat := principals(t)
+	ctx := context.Background()
+	firm := aFirm(t, s, "already-approved")
+
+	in := store.ManagerProfile{
+		LegalName: "Approved Estates LLP", Constitution: string(registration.LLP),
+		RegistrarID: "AAB-1234", AddressLine1: "3 MG Road", City: "Kochi",
+		StateCode: "KL", PINCode: "682020",
+		ContactEmail: "office@approved.example.test", ContactPhone: "+919847012345",
+	}
+	if err := s.SaveManagerProfile(ctx, firm, in); err != nil {
+		t.Fatalf("saving: %v", err)
+	}
+	if err := tenancy.Platform(ctx, plat, "test: approving a profile",
+		func(ctx context.Context, tx pgx.Tx) error {
+			_, err := tx.Exec(ctx,
+				`UPDATE manager_profiles SET state = 'active' WHERE tenant_id = $1::uuid`, string(firm))
+			return err
+		}); err != nil {
+		t.Fatalf("approving: %v", err)
+	}
+
+	in.TradeName = "Approved Estates"
+	if err := s.SaveManagerProfile(ctx, firm, in); err != nil {
+		t.Fatalf("correcting: %v", err)
+	}
+	got, err := s.ManagerProfile(ctx, firm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.State != "active" {
+		t.Fatalf("a typo fixed on an approved profile leaves it approved, got %q", got.State)
 	}
 }
 

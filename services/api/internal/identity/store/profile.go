@@ -67,11 +67,11 @@ func (s *Principals) SaveManagerProfile(ctx context.Context, firm tenancy.ID, p 
 					tenant_id, legal_name, trade_name, constitution,
 					pan_masked, tan, gstin, registrar_id,
 					address_line1, address_line2, locality, city, state_code, pin_code,
-					contact_email, contact_phone)
+					contact_email, contact_phone, state)
 				VALUES ($1::uuid, $2, nullif($3,''), $4,
 				        nullif($5,''), nullif($6,''), nullif($7,''), nullif($8,''),
 				        $9, nullif($10,''), nullif($11,''), $12, $13, $14,
-				        $15, $16)
+				        $15, $16, 'submitted')
 				ON CONFLICT (tenant_id) DO UPDATE SET
 					legal_name = excluded.legal_name,
 					trade_name = excluded.trade_name,
@@ -88,6 +88,10 @@ func (s *Principals) SaveManagerProfile(ctx context.Context, firm tenancy.ID, p 
 					pin_code = excluded.pin_code,
 					contact_email = excluded.contact_email,
 					contact_phone = excluded.contact_phone,
+					-- Filing details is what leaves draft; approval and lapse are
+					-- somebody else's decision and a correction must not undo it (#288).
+					state = CASE WHEN manager_profiles.state = 'draft'
+					             THEN 'submitted' ELSE manager_profiles.state END,
 					updated_at = now()`,
 				string(firm), p.LegalName, p.TradeName, p.Constitution,
 				p.PANMasked, p.TAN, p.GSTIN, p.RegistrarID,

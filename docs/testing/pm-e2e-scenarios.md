@@ -38,7 +38,7 @@ The owner-operator: their own flats, their own Cashfree account, no delegation.
 | A7 | Relaunch the app after verifying | Opens past the code screen, offline as well | |
 | A8 | Name the firm | Organisation minted; gate passes to registration | pass |
 | A9 | File statutory details as a sole proprietor | Own PAN asked for, not an entity PAN; state and PIN validated | pass — #286 |
-| A10 | Save with a malformed PAN / GSTIN / PIN | Refused per field, at the field | |
+| A10 | Save with a malformed PAN / GSTIN / PIN | Refused per field, at the field | fixed #287 — verify after deploy |
 | A10a | Search for the registered office | Picking a match fills line, locality, city, state code and PIN | blocked — endpoint not deployed |
 | A10b | Search while the geocoder is down | "unavailable", and the fields stay typeable by hand | pass — #285 |
 | A11 | Add a property, "It's mine" | Property owned by the firm; `grant_id` empty on every later call | |
