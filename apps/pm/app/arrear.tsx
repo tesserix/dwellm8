@@ -1,186 +1,167 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, KeyValue, StatusPill, Button, Timeline, Toast,
-  ListRow, Avatar, ActionBar, PhoneIcon, ChatIcon, RupeeIcon, RefreshIcon, Field,
+  BackHeader, Card, Screen, KeyValue, StatusPill, Button, Toast,
+  Avatar, ActionBar, PhoneIcon, ChatIcon, RupeeIcon, Field,
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
-import { arrears, collectionActions } from '../src/data/mock';
-import { historyByLease } from '../src/data/automations';
+import { useArrear } from '../src/data/arrear';
+import { useOpsThread } from '../src/data/worklists';
 
 /**
  * One tenancy in arrears — the whole recovery decision on a single screen.
  *
- * Every action here is recorded against the tenancy: a manager standing at a
- * door can log what happened without opening a laptop, and nothing about the
- * ledger changes silently.
+ * Only what the ledger and the message thread actually say appears here. A
+ * deposit or a promise to pay that nobody recorded is worse than a blank: a
+ * manager standing at a door will act on it.
  */
 
 export default function ArrearScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const a = arrears.find((x) => x.id === id) ?? arrears[0];
+  const { loading, error, row, owes } = useArrear(id);
+  const thread = useOpsThread(id);
 
-  const [done, setDone] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
 
-  const act = (label: string) => {
-    setDone(label);
-    setTimeout(() => setDone(null), 2600);
+  const say = (text: string) => {
+    setSent(text);
+    setTimeout(() => setSent(null), 2600);
   };
+
+  const send = async () => {
+    setSending(true);
+    setFailure(null);
+    try {
+      await thread.send(note.trim());
+      setNote('');
+      say('Sent to the tenant');
+    } catch (err) {
+      setFailure((err as Error).message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <>
+        <BackHeader title="Tenancy" onBack={() => router.back()} />
+        <Screen><View style={s.wait}><ActivityIndicator /></View></Screen>
+      </>
+    );
+  }
+
+  if (!row) {
+    return (
+      <>
+        <BackHeader title="Tenancy" onBack={() => router.back()} />
+        <Screen><Card><Text style={s.note}>{error ?? 'That tenancy is not on this roster.'}</Text></Card></Screen>
+      </>
+    );
+  }
 
   return (
     <>
-      <BackHeader title={a.tenant} subtitle={a.unit} onBack={() => router.back()} />
+      <BackHeader title={row.unit} subtitle={row.property} onBack={() => router.back()} />
       <Screen>
-        {done ? <Toast text={`${done} — recorded against the tenancy`} /> : null}
+        {sent ? <Toast text={sent} /> : null}
 
         <Card>
           <View style={s.head}>
-            <Avatar initials={a.initials} size={48} tone={a.daysLate > 20 ? 'red' : 'blue'} />
+            <Avatar initials={row.unit.slice(0, 2).toUpperCase()} size={48} tone={owes ? 'red' : 'green'} />
             <View style={{ flex: 1 }}>
-              <Text style={s.due}>{inr(a.duePaise)}</Text>
-              <Text style={s.dueSub}>overdue since {a.dueSince} · {a.daysLate} days</Text>
+              <Text style={[s.due, !owes && { color: color.positive }]}>
+                {inr(Math.max(0, row.due_amount_minor))}
+              </Text>
+              <Text style={s.dueSub}>outstanding as of {row.as_of}</Text>
             </View>
-            <StatusPill text={a.stage} tone={a.stage === 'Notice' || a.stage === 'Escalated' ? 'red' : 'amber'} />
+            <StatusPill text={owes ? 'Owes' : 'Clear'} tone={owes ? 'red' : 'green'} />
           </View>
 
           <View style={{ marginTop: space(2) }}>
-            <KeyValue k="Autopay mandate" v={a.mandate} tone={a.mandate === 'Active' ? 'green' : 'red'} />
-            <KeyValue k="Last contact" v={a.lastContact} />
-            <KeyValue k="Promise to pay" v={a.promiseToPay ?? 'None recorded'} tone={a.promiseToPay ? 'amber' : undefined} />
-            <KeyValue k="Phone" v={a.phone} last />
+            <KeyValue k="Rent" v={inr(row.rent_amount_minor)} />
+            <KeyValue k="Locality" v={row.locality} />
+            <KeyValue k="Phone" v={row.phone || 'Not on file'} last />
           </View>
 
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: space(4) }}>
-            <Button label="Call" tone="secondary" small icon={<PhoneIcon size={17} c={color.accent} />} onPress={() => act('Call logged')} style={{ flex: 1 }} />
-            <Button label="WhatsApp" tone="secondary" small icon={<ChatIcon size={17} c={color.accent} />} onPress={() => act('Reminder sent')} style={{ flex: 1 }} />
-          </View>
+          {row.phone ? (
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: space(4) }}>
+              <Button label="Call" tone="secondary" small icon={<PhoneIcon size={17} c={color.accent} />}
+                onPress={() => Linking.openURL(`tel:${row.phone}`)} style={{ flex: 1 }} />
+              <Button label="Message" tone="secondary" small icon={<ChatIcon size={17} c={color.accent} />}
+                onPress={() => router.push(`/thread?id=${row.lease_id}`)} style={{ flex: 1 }} />
+            </View>
+          ) : null}
         </Card>
 
         <Card>
-          <Text style={s.h}>What the ledger shows</Text>
-          <KeyValue k="Rent — July 2026" v={inr(a.duePaise)} />
-          <KeyValue k="Late fee (not yet applied)" v="₹0.00" />
-          <KeyValue k="Deposit held" v={inr(a.duePaise * 2)} />
-          <KeyValue k="Balance outstanding" v={inr(a.duePaise)} tone="red" last />
+          <Text style={s.h}>Send a message</Text>
           <Text style={s.note}>
-            Deposit is never set against rent without the tenant's written consent — it appears here as
-            context only.
+            It reaches the tenant in their own app and stays on the tenancy’s thread, so whoever
+            picks this up next can see what was already said.
           </Text>
-        </Card>
-
-        <Card>
-          <Text style={s.h}>Actions</Text>
-          {collectionActions.map((c, i) => (
-            <ListRow
-              key={c.id}
-              title={c.label}
-              subtitle={c.hint}
-              onPress={() => (c.id === 'a3' ? router.push(`/receipt?id=${a.id}`) : act(c.label))}
-              last={i === collectionActions.length - 1}
-            />
-          ))}
-        </Card>
-
-        <Card>
-          <Text style={s.h}>Add a note</Text>
           <Field
-            label="Visible to your team and the audit trail"
+            label="To the tenant"
             value={note}
             onChange={setNote}
-            placeholder="Tenant says salary is delayed to 31 July…"
+            placeholder="The August rent is outstanding. Can you let me know when it will be paid?"
             multiline
           />
-          <Button label="Save note" tone="secondary" onPress={() => { setNote(''); act('Note saved'); }} />
+          <Button label={sending ? 'Sending…' : 'Send'} tone="secondary"
+            onPress={send} disabled={sending || !note.trim()} />
+          {failure ? <Text style={s.error} accessibilityRole="alert">{failure}</Text> : null}
         </Card>
 
         <Card>
-          <Text style={s.h}>History</Text>
-          <Timeline
-            items={[
-              { at: '05 Jul', what: 'Rent invoice raised' },
-              { at: '06 Jul', what: 'Autopay presented and failed — insufficient funds' },
-              { at: '08 Jul', what: 'Automatic WhatsApp reminder delivered' },
-              { at: '15 Jul', what: 'Second reminder delivered' },
-              { at: '26 Jul', what: 'You called — tenant asked for time' },
-              { at: 'Now', what: 'Escalation to notice available', done: false },
-            ]}
-          />
-        </Card>
-        <Card>
-          <View style={sAuto.head}>
-            <RefreshIcon size={19} c={color.inkSoft} />
-            <Text style={sAuto.h}>What ran by itself</Text>
-          </View>
-          <Text style={sAuto.body}>
-            Every line here was an automation rather than a person. ADR-0033: a record has to be
-            able to say which one, or "a reminder was sent" is all anybody ever learns.
-          </Text>
-          {(historyByLease['lease-a302'] ?? []).map((line, i, all) => (
-            <View
-              key={line.id}
-              style={[sAuto.line, i === all.length - 1 && { borderBottomWidth: 0 }]}
-            >
+          <Text style={s.h}>What has been said</Text>
+          {thread.loading ? <View style={s.wait}><ActivityIndicator /></View> : null}
+          {thread.data.map((m) => (
+            <View key={m.message_id} style={s.line}>
               <View style={{ flex: 1 }}>
-                <Text style={sAuto.action}>{line.action}</Text>
-                <Text style={sAuto.meta}>
-                  {line.automationName} · {line.occurredAt}
-                </Text>
-                {line.detail ? <Text style={sAuto.meta}>{line.detail}</Text> : null}
+                <Text style={s.action}>{m.body}</Text>
+                <Text style={s.meta}>{m.sender === 'resident' ? 'Tenant' : 'You'} · {m.sent_at}</Text>
               </View>
-              <StatusPill
-                text={
-                  line.outcome === 'acted' ? 'Done'
-                  : line.outcome === 'awaiting_approval' ? 'Needs you'
-                  : line.outcome === 'failed' ? 'Failed'
-                  : 'Skipped'
-                }
-                tone={
-                  line.outcome === 'acted' ? 'green'
-                  : line.outcome === 'awaiting_approval' ? 'amber'
-                  : line.outcome === 'failed' ? 'red'
-                  : 'neutral'
-                }
-              />
             </View>
           ))}
-          <Button
-            label="All automations"
-            tone="secondary"
-            small
-            style={{ marginTop: space(4) }}
-            onPress={() => router.push('/automations')}
-          />
+          {!thread.loading && !thread.data.length ? (
+            <Text style={s.note}>Nothing yet on this tenancy.</Text>
+          ) : null}
         </Card>
-
       </Screen>
 
       <ActionBar>
-        <Button label="Record payment" icon={<RupeeIcon size={18} c="#FFF" />} onPress={() => router.push(`/receipt?id=${a.id}`)} style={{ flex: 1 }} />
-        <Button label="Escalate" tone="secondary" onPress={() => act('Escalated to notice')} style={{ flex: 1 }} />
+        <Button
+          label="Record payment"
+          icon={<RupeeIcon size={18} c="#FFF" />}
+          onPress={() => router.push({
+            pathname: '/receipt',
+            params: {
+              lease: row.lease_id,
+              unit: `${row.unit}, ${row.property}`,
+              due: String(Math.max(0, row.due_amount_minor)),
+            },
+          })}
+          style={{ flex: 1 }}
+        />
       </ActionBar>
     </>
   );
 }
 
 const s = StyleSheet.create({
+  wait: { paddingVertical: space(6), alignItems: 'center' },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   due: { ...font.h1, color: color.negative },
   dueSub: { ...font.small, color: color.inkSoft, marginTop: 2 },
   h: { ...font.h3, color: color.inkStrong, marginBottom: space(1) },
-  note: { ...font.small, color: color.inkSoft, marginTop: space(3), lineHeight: 18 },
-});
-
-const sAuto = StyleSheet.create({
-  head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  h: { ...font.h3, color: color.inkStrong },
-  body: { ...font.body, color: color.inkSoft, marginTop: 8, lineHeight: 21 },
-  line: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    paddingVertical: space(3), borderBottomWidth: 1, borderBottomColor: color.line,
-  },
-  action: { ...font.label, color: color.inkStrong },
+  note: { ...font.small, color: color.inkSoft, marginTop: space(2), lineHeight: 18 },
+  error: { ...font.small, color: color.negative, marginTop: space(2) },
+  line: { flexDirection: 'row', gap: 10, paddingVertical: space(3), borderBottomWidth: 1, borderBottomColor: color.line },
+  action: { ...font.body, color: color.inkStrong },
   meta: { ...font.small, color: color.inkSoft, marginTop: 2 },
 });

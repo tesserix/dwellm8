@@ -91,14 +91,7 @@ export default function Collect() {
                   tone={a.due_amount_minor > 0 ? 'red' : 'green'}
                 />
               }
-              onPress={() => router.push({
-                pathname: '/receipt',
-                params: {
-                  lease: a.lease_id,
-                  unit: `${a.unit}, ${a.property}`,
-                  due: String(Math.max(0, a.due_amount_minor)),
-                },
-              })}
+              onPress={() => router.push(`/arrear?id=${a.lease_id}`)}
               last={i === list.length - 1}
             />
           ))}
