@@ -1,7 +1,7 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import {
-  Avatar, BackHeader, Button, ChoiceRow, Field, KeyValue, ListRow, Metric,
+  AddressLookup, Avatar, BackHeader, Button, ChoiceRow, Field, KeyValue, ListRow, Metric,
   PhotoStrip, SearchBar, StatusPill, SwitchRow, SyncBadge, Timeline, Toast,
   toneColor, TriState,
 } from './controls';
@@ -252,5 +252,55 @@ describe('Field', () => {
     const input = screen.getByLabelText('Password');
     expect(input.props.secureTextEntry).toBe(true);
     expect(input.props.autoCapitalize).toBe('none');
+  });
+});
+
+describe('AddressLookup', () => {
+  const kochi = {
+    description: 'Chandra Arcade, Kadavanthra, Kochi, Kerala, 682020',
+    line1: '12 Kadavanthra Road, Chandra Arcade', locality: 'Kadavanthra',
+    city: 'Kochi', state_code: 'KL', pin_code: '682020',
+  };
+
+  it('searches once the term is long enough and lists what came back', async () => {
+    const search = jest.fn().mockResolvedValue([kochi]);
+    await render(<AddressLookup search={search} onPick={jest.fn()} />);
+
+    await fireEvent.changeText(screen.getByLabelText('Search for the address'), 'chandra arcade');
+    await waitFor(() => expect(screen.getByText(kochi.description)).toBeTruthy());
+    expect(search).toHaveBeenCalledWith('chandra arcade');
+  });
+
+  it('leaves a term too short to match alone', async () => {
+    const search = jest.fn().mockResolvedValue([]);
+    await render(<AddressLookup search={search} onPick={jest.fn()} />);
+    await fireEvent.changeText(screen.getByLabelText('Search for the address'), 'ko');
+    await waitFor(() => expect(search).not.toHaveBeenCalled());
+  });
+
+  it('hands the whole split address back when one is picked, and clears the list', async () => {
+    const onPick = jest.fn();
+    await render(<AddressLookup search={jest.fn().mockResolvedValue([kochi])} onPick={onPick} />);
+
+    await fireEvent.changeText(screen.getByLabelText('Search for the address'), 'chandra arcade');
+    await waitFor(() => expect(screen.getByText(kochi.description)).toBeTruthy());
+    await fireEvent.press(screen.getByText(kochi.description));
+
+    expect(onPick).toHaveBeenCalledWith(kochi);
+    expect(screen.queryByText(kochi.description)).toBeNull();
+  });
+
+  it('says the lookup is down rather than that the address does not exist', async () => {
+    const search = jest.fn().mockRejectedValue(new Error('Address lookup is unavailable just now'));
+    await render(<AddressLookup search={search} onPick={jest.fn()} />);
+    await fireEvent.changeText(screen.getByLabelText('Search for the address'), 'chandra arcade');
+    await waitFor(() =>
+      expect(screen.getByText(/lookup is unavailable/i)).toBeTruthy());
+  });
+
+  it('says so when a real search matched nothing, so the field is not silently empty', async () => {
+    await render(<AddressLookup search={jest.fn().mockResolvedValue([])} onPick={jest.fn()} />);
+    await fireEvent.changeText(screen.getByLabelText('Search for the address'), 'zzzzzzzz');
+    await waitFor(() => expect(screen.getByText(/no match/i)).toBeTruthy());
   });
 });

@@ -400,3 +400,33 @@ describe('DwellmApi — the firm’s statutory registration (#282)', () => {
     expect(JSON.parse(init.body).expires_on).toBe('');
   });
 });
+
+describe('DwellmApi — address lookup', () => {
+  const baseUrl = 'https://api.example.test';
+
+  it('searches addresses through GET /v1/places/autocomplete with the term encoded', async () => {
+    const fetchMock = mockFetch({
+      suggestions: [{ description: 'Chandra Arcade, Kochi', line1: '12 Kadavanthra Road',
+        city: 'Kochi', state_code: 'KL', pin_code: '682020' }],
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).searchAddresses('chandra arcade, kochi');
+
+    expect(fetchMock.mock.calls[0][0])
+      .toBe(`${baseUrl}/v1/places/autocomplete?q=chandra%20arcade%2C%20kochi`);
+    expect(out[0].state_code).toBe('KL');
+  });
+
+  it('returns an empty list rather than undefined when nothing matched', async () => {
+    global.fetch = mockFetch({}) as unknown as typeof fetch;
+    expect(await new DwellmApi({ baseUrl }).searchAddresses('zzzz')).toEqual([]);
+  });
+
+  it('does not call the geocoder for a term too short to match anything', async () => {
+    const fetchMock = mockFetch({ suggestions: [] });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    expect(await new DwellmApi({ baseUrl }).searchAddresses('ko')).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

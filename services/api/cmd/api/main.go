@@ -53,6 +53,7 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/platform/ginx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/mail"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/places"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/push"
 	tdsstore "github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
@@ -612,6 +613,10 @@ func run() error {
 	// The period close, #190. Enforcement is the database trigger; these routes
 	// are the checklist, the history, and the audit pack.
 	moneyhttp.NewPeriods(moneystore.NewPeriods(pool), logger).Routes(authz.NewRegistrar(protected, guard))
+
+	// Address lookup, behind every address field on every surface (#282).
+	places.NewHandler(places.New(cfg.Places, logger), logger).
+		Routes(authz.NewRegistrar(protected, guard))
 
 	// The owner's view — the Own app's surface (#55). Composition only: the
 	// property module's read, the lease's active tenancy, money's owner

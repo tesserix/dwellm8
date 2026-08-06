@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import {
-  Button, Card, ChoiceRow, Field, SectionTitle, StatusPill, apiFromEnv, color, font, space,
-  type FirmRegistration,
+  AddressLookup, Button, Card, ChoiceRow, Field, SectionTitle, StatusPill,
+  apiFromEnv, color, font, space,
+  type AddressSuggestion, type FirmRegistration,
 } from '@dwellm8/mobile-shared';
 import { useSession } from '../src/auth/session';
 
@@ -51,6 +52,21 @@ export default function Registration() {
     () => apiFromEnv(async () => session?.idToken ?? null),
     [session],
   );
+
+  const findAddress = useCallback(async (q: string) => {
+    const client = api();
+    return client ? client.searchAddresses(q) : [];
+  }, [api]);
+
+  // A picked address overwrites: the point of picking one is not to keep what
+  // was half-typed. Only fields the geocoder actually knew are touched.
+  const takeAddress = useCallback((a: AddressSuggestion) => {
+    setLine1(a.line1 || a.description);
+    if (a.locality) setLocality(a.locality);
+    if (a.city) setCity(a.city);
+    if (a.state_code) setStateCode(a.state_code);
+    if (a.pin_code) setPin(a.pin_code);
+  }, []);
 
   const load = useCallback(async () => {
     const client = api();
@@ -183,6 +199,11 @@ export default function Registration() {
 
         <Card>
           <SectionTitle>Registered office</SectionTitle>
+          <Text style={s.note}>
+            This is the address notices are served at. Search for it and the
+            state code and PIN are filled from the map rather than from memory.
+          </Text>
+          <AddressLookup search={findAddress} onPick={takeAddress} />
           <Field label="Address" value={line1} onChange={setLine1} placeholder="2nd Floor, Chandra Arcade" />
           <Field label="Locality" value={locality} onChange={setLocality} placeholder="Kadavanthra" />
           <Field label="City" value={city} onChange={setCity} placeholder="Kochi" />

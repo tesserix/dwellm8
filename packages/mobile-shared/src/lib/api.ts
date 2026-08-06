@@ -422,6 +422,19 @@ export type FirmAuthority = {
   valid_to: string;
 };
 
+/** One address match, split into the fields a registration form holds. */
+export type AddressSuggestion = {
+  description: string;
+  line1: string;
+  locality?: string;
+  city?: string;
+  state_code?: string;
+  state?: string;
+  pin_code?: string;
+  lat?: number;
+  lon?: number;
+};
+
 /** The firm's own registration and what is still missing from it (#282). */
 export type FirmRegistration = {
   legal_name: string;
@@ -1264,6 +1277,19 @@ export class DwellmApi {
 
   confirmEmailCode(code: string): Promise<EmailVerification> {
     return this.request('POST', '/v1/verification/email/confirm', { code });
+  }
+
+  /**
+   * Addresses, already split into the fields a form holds. Short terms never
+   * leave the device — the server would refuse them and a geocoder would be
+   * billed for somebody's first two keystrokes.
+   */
+  async searchAddresses(q: string): Promise<AddressSuggestion[]> {
+    const term = q.trim();
+    if (term.length < 3) return [];
+    const out = await this.request<{ suggestions?: AddressSuggestion[] }>(
+      'GET', `/v1/places/autocomplete?q=${encodeURIComponent(term)}`);
+    return out.suggestions ?? [];
   }
 
   /** What the firm must hold to manage somebody else's property (#282). */

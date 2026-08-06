@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/httpx"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/mail"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/places"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/workflow"
 	"os"
 	"sort"
@@ -41,6 +42,10 @@ type Config struct {
 
 	// Mail carries a manager's email verification code (#282).
 	Mail mail.Resend
+
+	// Places is the address lookup behind every address field. Empty is a
+	// working configuration — the chain falls back to Photon.
+	Places places.Config
 
 	// Identity is ADR-0027: the GIP project every token must be minted for, and
 	// the prefix that names this product's user pools.
@@ -278,6 +283,11 @@ func Load() (Config, error) {
 	c.Mail = mail.Resend{
 		APIKey: os.Getenv("RESEND_API_KEY"),
 		From:   get("RESEND_FROM", "Dwellm8 <no-reply@dwellm8.com>"),
+	}
+
+	c.Places = places.Config{
+		MapplsClientID:     os.Getenv("MAPPLS_CLIENT_ID"),
+		MapplsClientSecret: os.Getenv("MAPPLS_CLIENT_SECRET"),
 	}
 
 	c.Identity = Identity{

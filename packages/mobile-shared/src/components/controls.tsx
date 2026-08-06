@@ -5,6 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, font, radius, shadow, space } from '../theme/tokens';
 import { CheckIcon, ChevronLeft, ChevronRight, SearchIcon } from './icons';
+import type { AddressSuggestion } from '../lib/api';
 
 /**
  * The working parts — buttons, pills, rows, inputs and timelines.
@@ -224,6 +225,100 @@ export function Field({
   );
 }
 
+/**
+ * Type an address, pick the real one. What it hands back is already split into
+ * line, locality, city, state code and PIN, because the state code decides RERA
+ * jurisdiction and nobody types their own reliably.
+ *
+ * It takes a `search` function rather than the API client so the same control
+ * serves a firm's registered office, a property and a tenant's past addresses.
+ */
+export function AddressLookup({
+  label = 'Search for the address',
+  placeholder = 'Chandra Arcade, Kadavanthra, Kochi',
+  search,
+  onPick,
+}: {
+  label?: string;
+  placeholder?: string;
+  search: (q: string) => Promise<AddressSuggestion[]>;
+  onPick: (a: AddressSuggestion) => void;
+}) {
+  const [term, setTerm] = React.useState('');
+  const [found, setFound] = React.useState<AddressSuggestion[]>([]);
+  const [state, setState] = React.useState<'idle' | 'searching' | 'empty' | 'failed'>('idle');
+  const [failure, setFailure] = React.useState('');
+  const latest = React.useRef(0);
+
+  React.useEffect(() => {
+    const q = term.trim();
+    if (q.length < 3) {
+      setFound([]);
+      setState('idle');
+      return;
+    }
+    // A search per keystroke is a search per keystroke's worth of billing, and
+    // the answers arrive out of order; the ticket is what discards the stale one.
+    const ticket = ++latest.current;
+    const t = setTimeout(async () => {
+      setState('searching');
+      try {
+        const out = await search(q);
+        if (ticket !== latest.current) return;
+        setFound(out);
+        setState(out.length ? 'idle' : 'empty');
+      } catch (e) {
+        if (ticket !== latest.current) return;
+        setFound([]);
+        setFailure(e instanceof Error ? e.message : 'Address lookup is unavailable just now');
+        setState('failed');
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [term, search]);
+
+  const pick = (a: AddressSuggestion) => {
+    latest.current++;
+    setFound([]);
+    setTerm('');
+    setState('idle');
+    onPick(a);
+  };
+
+  return (
+    <View style={{ marginBottom: space(4) }}>
+      <Text style={s.fieldLabel}>{label}</Text>
+      <TextInput
+        accessibilityLabel={label}
+        value={term}
+        onChangeText={setTerm}
+        placeholder={placeholder}
+        placeholderTextColor={color.inkFaint}
+        autoCorrect={false}
+        style={s.field}
+      />
+      {state === 'failed' ? <Text style={s.lookupNote}>{failure}</Text> : null}
+      {state === 'empty' ? (
+        <Text style={s.lookupNote}>No match — fill the fields below by hand.</Text>
+      ) : null}
+      {found.length > 0 ? (
+        <View style={s.lookupList}>
+          {found.map((a, i) => (
+            <Pressable
+              key={`${a.description}-${i}`}
+              onPress={() => pick(a)}
+              accessibilityRole="button"
+              style={[s.lookupRow, i === found.length - 1 && { borderBottomWidth: 0 }]}
+            >
+              <Text style={s.lookupText}>{a.description}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export function SwitchRow({
   label, hint, value, onChange, last = false,
 }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void; last?: boolean }) {
@@ -436,6 +531,17 @@ const s = StyleSheet.create({
     backgroundColor: '#FFF', borderRadius: radius.md, borderWidth: 1, borderColor: color.line,
     paddingHorizontal: space(4), height: 48, ...font.body, color: color.inkStrong,
   },
+
+  lookupNote: { ...font.small, color: color.inkSoft, marginTop: space(2) },
+  lookupList: {
+    marginTop: space(2), backgroundColor: '#FFF', borderRadius: radius.md,
+    borderWidth: 1, borderColor: color.line, overflow: 'hidden',
+  },
+  lookupRow: {
+    paddingHorizontal: space(4), paddingVertical: 11,
+    borderBottomWidth: 1, borderBottomColor: color.line,
+  },
+  lookupText: { ...font.small, color: color.inkStrong, lineHeight: 19 },
 
   switchRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13 },
   radio: {
