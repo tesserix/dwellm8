@@ -60,6 +60,11 @@ describe('SwitchRow', () => {
     await fireEvent(screen.getByRole('switch'), 'valueChange', true);
     expect(onChange).toHaveBeenCalledWith(true);
   });
+
+  it('carries its own name, so it is not an unlabelled toggle (#292)', async () => {
+    await render(<SwitchRow label="Autopay" hint="Optional" value={false} onChange={jest.fn()} />);
+    expect(screen.getByRole('switch', { name: 'Autopay' })).toBeTruthy();
+  });
 });
 
 describe('TriState', () => {

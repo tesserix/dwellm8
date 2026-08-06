@@ -1,12 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import {
   AppHeader, AvatarButton, Button, Card, Screen, SearchBar, ListRow, Metric,
   BuildingIcon, PlusIcon,
-  apiFromEnv, color, font, space,
+  color, font, space,
 } from '@dwellm8/mobile-shared';
-import type { OpsProperty } from '@dwellm8/mobile-shared';
+import { usePortfolio } from '../../src/data/portfolio';
 
 /**
  * Portfolio — the properties under this scope (GET /v1/ops/properties): the
@@ -16,24 +16,12 @@ import type { OpsProperty } from '@dwellm8/mobile-shared';
 
 export default function Portfolio() {
   const router = useRouter();
-  const api = useMemo(() => apiFromEnv(), []);
   const [q, setQ] = useState('');
-  const [rows, setRows] = useState<OpsProperty[]>([]);
-  const [loading, setLoading] = useState(!!api);
-  const [error, setError] = useState<string | null>(null);
+  const { loading, error, rows, units, reload } = usePortfolio();
 
-  useEffect(() => {
-    if (!api) {
-      setError('The API is not configured on this build.');
-      setLoading(false);
-      return;
-    }
-    let alive = true;
-    api.opsProperties()
-      .then((list) => { if (alive) { setRows(list); setLoading(false); } })
-      .catch((err: Error) => { if (alive) { setError(err.message); setLoading(false); } });
-    return () => { alive = false; };
-  }, [api]);
+  // A property onboarded one screen away is here when the manager comes back,
+  // rather than after a relaunch (#289).
+  useFocusEffect(useCallback(() => { reload(); }, [reload]));
 
   const list = useMemo(() => {
     const needle = q.toLowerCase();
@@ -45,8 +33,6 @@ export default function Portfolio() {
     );
   }, [rows, q]);
 
-  const units = rows.reduce((a, p) => a + p.unit_count, 0);
-
   return (
     <>
       <AppHeader
@@ -56,8 +42,16 @@ export default function Portfolio() {
       />
       <Screen>
         <View style={s.metrics}>
-          <Metric value={loading ? '…' : String(rows.length)} label="properties" tone="blue" />
-          <Metric value={loading ? '…' : String(units)} label="units managed" tone="green" />
+          <Metric
+            value={loading ? '…' : String(rows.length)}
+            label={rows.length === 1 ? 'property' : 'properties'}
+            tone="blue"
+          />
+          <Metric
+            value={loading ? '…' : String(units)}
+            label={units === 1 ? 'unit managed' : 'units managed'}
+            tone="green"
+          />
         </View>
 
         <Button

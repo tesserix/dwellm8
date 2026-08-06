@@ -38,13 +38,13 @@ The owner-operator: their own flats, their own Cashfree account, no delegation.
 | A7 | Relaunch the app after verifying | Opens past the code screen, offline as well | |
 | A8 | Name the firm | Organisation minted; gate passes to registration | pass |
 | A9 | File statutory details as a sole proprietor | Own PAN asked for, not an entity PAN; state and PIN validated | pass — #286 |
-| A10 | Save with a malformed PAN / GSTIN / PIN | Refused per field, at the field | fixed #287 — verify after deploy |
-| A10a | Search for the registered office | Picking a match fills line, locality, city, state code and PIN | blocked — endpoint not deployed |
+| A10 | Save with a malformed PAN / GSTIN / PIN | Refused per field, at the field | pass — #287 |
+| A10a | Search for the registered office | Picking a match fills line, locality, city, state code and PIN | pass |
 | A10b | Search while the geocoder is down | "unavailable", and the fields stay typeable by hand | pass — #285 |
-| A11 | Add a property, "It's mine" | Property owned by the firm; `grant_id` empty on every later call | blocked by #288 — fixed, verify after deploy |
-| A12 | Add units to that property | Units listed under the property, addressable in a tenancy | |
-| A13 | Onboard a tenant into a unit | Tenancy `pending_signature`; rent, deposit and dates as entered | |
-| A14 | Today screen after the first tenancy | Rent roll and arrears real, not the demonstration figures | |
+| A11 | Add a property, "It's mine" | Property owned by the firm; `grant_id` empty on every later call | pass — property `KVH` minted under the firm, no grant |
+| A12 | Add units to that property | Units listed under the property, addressable in a tenancy | pass in the API; screen blocked on CI queue |
+| A13 | Onboard a tenant into a unit | Tenancy live on unit 101; rent, deposit and dates as entered | pass — first tenancy activates through the tax gate, so `active` not `pending_signature` |
+| A14 | Today screen after the first tenancy | Rent roll and arrears real, not the demonstration figures | rent roll live (₹0 before the term starts); the date and four tiles still demo — #291, #251 |
 | A15 | Connect the firm's own Cashfree account | Merchant recorded against this organisation only | |
 | A16 | Record an offline rent payment | Ledger entry and receipt; arrears fall by the amount | |
 

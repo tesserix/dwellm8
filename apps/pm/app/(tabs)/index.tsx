@@ -8,7 +8,8 @@ import {
   KeyIcon, RupeeIcon, ShieldIcon, UsersIcon, WrenchIcon,
   color, font, inr, inrShort, radius, space,
 } from '@dwellm8/mobile-shared';
-import { approvals, staff, today } from '../../src/data/mock';
+import { approvals, staff } from '../../src/data/mock';
+import { istDate } from '../../src/data/clock';
 import { useOpsTodayData, useOpsWho, useOpsWorklist, type OpsTask } from '../../src/data/source';
 
 /**
@@ -33,10 +34,8 @@ export default function Today() {
   const roster = useOpsTodayData();
   const who = useOpsWho();
   const work = useOpsWorklist();
-  // Billed and outstanding are real in live mode (the roster's rent-roll and
-  // position-today, GET /v1/ops/today) — everything else on this screen
-  // (payouts, jobs, inspections, occupancy) has no API yet and stays on the
-  // demonstration figures, per source.ts's file comment.
+  // Every figure comes from the roster, which serves the demonstration set in
+  // demo mode and zeroes what has no endpoint yet in live mode (#284, #296).
   const billedPaise = roster.billedPaise;
   const collectedPaise = billedPaise - roster.outstandingPaise;
   const pct = billedPaise > 0 ? Math.round((collectedPaise / billedPaise) * 100) : 0;
@@ -64,7 +63,7 @@ export default function Today() {
 
         <View style={s.greetWrap}>
           <Text style={s.greet}>{who.firstName ? `Good morning, ${who.firstName}` : 'Good morning'}</Text>
-          <Text style={s.date}>{today.date}</Text>
+          <Text style={s.date}>{istDate()}</Text>
         </View>
 
         {/* the rent roll and what's outstanding against it — real in live mode */}
@@ -88,8 +87,8 @@ export default function Today() {
               onPress={() => router.push('/(tabs)/collect')}
             />
             <Metric
-              value={String(today.payoutsPending)}
-              label={`payouts due · ${inrShort(today.payoutsPaise)}`}
+              value={String(roster.payoutsPending)}
+              label={`payouts due · ${inrShort(roster.payoutsPaise)}`}
               tone="blue"
               onPress={() => router.push('/payouts')}
             />
@@ -98,20 +97,20 @@ export default function Today() {
 
         <View style={s.metricRow}>
           <Metric
-            value={String(today.openTickets)}
-            label={`open jobs · ${today.breachingSla} breaching`}
-            tone={today.breachingSla ? 'amber' : 'neutral'}
+            value={String(roster.openTickets)}
+            label={`open jobs · ${roster.breachingSla} breaching`}
+            tone={roster.breachingSla ? 'amber' : 'neutral'}
             onPress={() => router.push('/(tabs)/jobs')}
           />
           <Metric
-            value={`${today.visitsDone}/${today.inspectionsToday}`}
+            value={`${roster.visitsDone}/${roster.inspectionsToday}`}
             label="inspections today"
             tone="violet"
             onPress={() => router.push('/(tabs)/inspect')}
           />
           <Metric
-            value={`${today.occupancyPct}%`}
-            label={`occupied · ${today.vacantUnits} vacant`}
+            value={`${roster.occupancyPct}%`}
+            label={`occupied · ${roster.vacantUnits} vacant`}
             tone="green"
             onPress={() => router.push('/(tabs)/portfolio')}
           />

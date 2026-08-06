@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  ActionBar, BackHeader, Button, Card, ChoiceRow, Field, HouseArt, KeyValue,
+  ActionBar, AddressLookup, BackHeader, Button, Card, ChoiceRow, Field, HouseArt, KeyValue,
   Screen, StatusPill, SwitchRow, Toast,
   apiFromEnv, color, font, inr, radius, space,
+  type AddressSuggestion,
 } from '@dwellm8/mobile-shared';
 import type { OpsPortfolio, OwnerOnboarded } from '@dwellm8/mobile-shared';
+import { useFirmContact } from '../src/data/firm';
 
 /**
  * Onboard an owner (#240) — one guided flow, five small questions.
@@ -43,6 +45,7 @@ export default function Onboard() {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [done, setDone] = useState<OwnerOnboarded | null>(null);
+  const firm = useFirmContact();
 
   // The owner — one the firm already acts for, or somebody new
   const [portfolios, setPortfolios] = useState<OpsPortfolio[]>([]);
@@ -78,6 +81,21 @@ export default function Onboard() {
   const [ownerResident, setOwnerResident] = useState(true);
 
   const unitList = units.split(',').map((c) => c.trim()).filter(Boolean);
+
+  const findAddress = useCallback(async (q: string) => {
+    const client = apiFromEnv();
+    return client ? client.searchAddresses(q) : [];
+  }, []);
+
+  // The address a listing, an agreement and every receipt will carry: picked
+  // from the map, not typed from memory (#293).
+  const takeAddress = useCallback((a: AddressSuggestion) => {
+    setAddressLine1(a.line1 || a.description);
+    if (a.locality) setLocality(a.locality);
+    if (a.city) setCity(a.city);
+    if (a.state_code) setStateCode(a.state_code);
+    if (a.pin_code) setPin(a.pin_code);
+  }, []);
 
   useEffect(() => {
     const api = apiFromEnv();
@@ -228,7 +246,13 @@ export default function Onboard() {
               label="It's mine"
               hint="You own it and you manage it — your own books, no mandate between"
               selected={existing === null && mine}
-              onPress={() => { setExisting(null); setMine(true); }}
+              onPress={() => {
+                setExisting(null);
+                setMine(true);
+                // The register already holds who you are — don't ask again (#295).
+                setOwnerName((v) => v || firm.name);
+                setPhone((v) => v || firm.phone);
+              }}
             />
             <ChoiceRow
               label="Somebody new"
@@ -259,6 +283,7 @@ export default function Onboard() {
             {kinds.map((k, i) => (
               <ChoiceRow key={k.code} label={k.label} selected={kind === k.code} onPress={() => setKind(k.code)} last={i === kinds.length - 1} />
             ))}
+            <AddressLookup search={findAddress} onPick={takeAddress} />
             <Field label="Address" value={addressLine1} onChange={setAddressLine1} placeholder="12 Palm Avenue" />
             <Field label="Locality" value={locality} onChange={setLocality} placeholder="Whitefield" />
             <Field label="City" value={city} onChange={setCity} placeholder="Bengaluru" />

@@ -337,6 +337,7 @@ export function SwitchRow({
           {hint ? <Text style={s.rowSub}>{hint}</Text> : null}
         </View>
         <Switch
+          accessibilityLabel={label}
           value={value}
           onValueChange={onChange}
           trackColor={{ true: color.accent, false: '#CBD5E0' }}
