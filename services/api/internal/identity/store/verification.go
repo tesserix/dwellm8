@@ -39,8 +39,8 @@ func (s *Principals) IssueEmailCode(ctx context.Context, p auth.Principal, email
 			}
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO identity_email_codes (surface, gip_uid, email, code_hash, expires_at)
-				VALUES ($1, $2, $3, $4, now() + $5::interval)`,
-				string(p.Surface), p.UID, email, hash, verification.TTL.String()); err != nil {
+				VALUES ($1, $2, $3, $4, now() + make_interval(secs => $5))`,
+				string(p.Surface), p.UID, email, hash, verification.TTL.Seconds()); err != nil {
 				return fmt.Errorf("identity: writing the code: %w", err)
 			}
 			return nil
@@ -90,8 +90,8 @@ func (s *Principals) EmailCodesIssued(ctx context.Context, p auth.Principal, win
 				SELECT count(*), min(sent_at)
 				  FROM identity_email_codes
 				 WHERE surface = $1 AND gip_uid = $2
-				   AND sent_at > now() - $3::interval`,
-				string(p.Surface), p.UID, window.String()).Scan(&n, &oldest)
+				   AND sent_at > now() - make_interval(secs => $3)`,
+				string(p.Surface), p.UID, window.Seconds()).Scan(&n, &oldest)
 		})
 	if err != nil {
 		return 0, time.Time{}, fmt.Errorf("identity: counting codes issued: %w", err)
