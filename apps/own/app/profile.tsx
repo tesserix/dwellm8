@@ -34,7 +34,7 @@ function useMe() {
     let alive = true;
     api.me()
       .then((me) => {
-        if (alive) setState({ live: true, loading: false, name: me.display_name ?? '', email: me.email ?? '', phone: me.phone ?? '' });
+        if (alive) setState({ live: true, loading: false, name: me?.display_name ?? '', email: me?.email ?? '', phone: me?.phone ?? '' });
       })
       .catch(() => { if (alive) setState((p) => ({ ...p, loading: false })); });
     return () => { alive = false; };

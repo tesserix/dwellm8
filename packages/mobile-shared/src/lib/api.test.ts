@@ -1,4 +1,4 @@
-import { apiFromEnv, ApiError, DwellmApi } from './api';
+import { apiFromEnv, ApiError, DwellmApi, setTokenSource } from './api';
 
 // The one HTTP client every app talks through. What matters here is the
 // contract every screen relies on without re-checking it: the right path and
@@ -78,6 +78,17 @@ describe('apiFromEnv', () => {
   const original = process.env.EXPO_PUBLIC_API_URL;
   afterEach(() => {
     process.env.EXPO_PUBLIC_API_URL = original;
+  });
+
+  it('signs a request with the app-wide token source when the client has none', async () => {
+    const fetchMock = mockFetch({ settlements: [] });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    setTokenSource(async () => 'tok_session');
+
+    await new DwellmApi({ baseUrl: 'https://api.example.test' }).opsSettlements();
+
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer tok_session');
+    setTokenSource(null);
   });
 
   it('is null when no API URL is configured — the demo-mode switch', () => {
@@ -210,6 +221,40 @@ describe('DwellmApi — the applicant pack (#258, #259)', () => {
       `${baseUrl}/v1/ops/applications/a1/profile/submit`,
       expect.objectContaining({ method: 'POST' }),
     );
+  });
+});
+
+describe('DwellmApi — first sign-in', () => {
+  const baseUrl = 'https://api.example.test';
+
+  it('me reads the signed-in person', async () => {
+    const fetchMock = mockFetch({ party_id: 'pty-1', email: 'ritika@example.test' });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).me();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/me`, expect.objectContaining({ method: 'GET' }),
+    );
+    expect(out.party_id).toBe('pty-1');
+  });
+
+  it('me is null when the sign-in has no account yet, rather than throwing', async () => {
+    global.fetch = mockFetch({ error: 'this sign-in has no account yet' }, 404) as unknown as typeof fetch;
+    expect(await new DwellmApi({ baseUrl }).me()).toBeNull();
+  });
+
+  it('onboard names the firm the manager is creating', async () => {
+    const fetchMock = mockFetch({ organisation_id: 'org-1', party_id: 'pty-1', role: 'owner', created: true }, 201);
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).onboard('Menon Properties');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${baseUrl}/v1/onboarding`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ organisation_name: 'Menon Properties' });
+    expect(out.created).toBe(true);
   });
 });
 

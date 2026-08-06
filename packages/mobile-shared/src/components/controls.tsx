@@ -187,7 +187,7 @@ export function SearchBar({
 
 export function Field({
   label, value, onChange, placeholder, multiline = false, keyboardType, autoCapitalize,
-  autoCorrect = false,
+  autoCorrect = false, secure = false,
 }: {
   label: string;
   value: string;
@@ -199,8 +199,10 @@ export function Field({
   // Correction is opt-in: a name, a unit code and a PIN are data, and iOS
   // rewrote "Kavita" to "Kabila" on the way into the onboarding wizard.
   autoCorrect?: boolean;
+  secure?: boolean;
 }) {
-  const capitalise = autoCapitalize ?? (keyboardType === 'email-address' ? 'none' : undefined);
+  const capitalise = autoCapitalize
+    ?? (keyboardType === 'email-address' || secure ? 'none' : undefined);
   return (
     <View style={{ marginBottom: space(4) }}>
       <Text style={s.fieldLabel}>{label}</Text>
@@ -211,6 +213,7 @@ export function Field({
         placeholder={placeholder}
         placeholderTextColor={color.inkFaint}
         multiline={multiline}
+        secureTextEntry={secure}
         keyboardType={keyboardType}
         autoCapitalize={capitalise}
         autoCorrect={autoCorrect}

@@ -395,6 +395,14 @@ export type Me = {
   display_name?: string;
 };
 
+/** What a first sign-in produced (POST /v1/onboarding). */
+export type Onboarded = {
+  organisation_id: string;
+  party_id: string;
+  role: string;
+  created: boolean;
+};
+
 /** What manager-led owner onboarding produced (POST /v1/ops/onboardings). */
 export type OwnerOnboarded = {
   owner_org_id: string;
@@ -592,6 +600,15 @@ export function getActingGrant(): string | null {
   return actingGrant;
 }
 
+/** Who is signed in, app-wide. Module-level for the same reason the grant is:
+ * apiFromEnv() builds a client per hook, and a screen must not have to know
+ * where the token comes from to be authenticated. */
+let tokenSource: (() => Promise<string | null>) | null = null;
+
+export function setTokenSource(fn: (() => Promise<string | null>) | null): void {
+  tokenSource = fn;
+}
+
 export class DwellmApi {
   private cfg: ApiConfig;
   constructor(cfg: ApiConfig) {
@@ -603,7 +620,8 @@ export class DwellmApi {
     const headers: Record<string, string> = { Accept: 'application/json', ...extra };
     if (actingGrant && path.startsWith('/v1/ops/')) headers['X-Dwellm8-Grant'] = actingGrant;
     if (body !== undefined) headers['Content-Type'] = 'application/json';
-    const token = this.cfg.getToken ? await this.cfg.getToken() : null;
+    const getToken = this.cfg.getToken ?? tokenSource;
+    const token = getToken ? await getToken() : null;
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const res = await fetch(this.cfg.baseUrl + path, {
@@ -1153,9 +1171,20 @@ export class DwellmApi {
       { display_name: patch.display_name ?? '', email: patch.email ?? '' });
   }
 
-  /** The verified sign-in's own profile — the Own app's "me" (#240). */
-  me(): Promise<Me> {
-    return this.request('GET', '/v1/me');
+  /** The verified sign-in's own profile — the Own app's "me" (#240). Null is
+   * the first sign-in: verified, but with no account behind it yet. */
+  async me(): Promise<Me | null> {
+    try {
+      return await this.request<Me>('GET', '/v1/me');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return null;
+      throw err;
+    }
+  }
+
+  /** The first sign-in naming the firm it is creating (#31). */
+  onboard(organisationName: string): Promise<Onboarded> {
+    return this.request('POST', '/v1/onboarding', { organisation_name: organisationName });
   }
 
   updateMe(patch: { display_name?: string; email?: string }): Promise<Me> {

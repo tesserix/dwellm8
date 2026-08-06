@@ -7,11 +7,27 @@
     "scheme": "dwellm8pm",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "splash": { "backgroundColor": "#EAF2FA", "resizeMode": "contain" },
-    "ios": { "supportsTablet": true, "bundleIdentifier": "app.dwellm8.pm" },
-    "android": { "package": "app.dwellm8.pm" },
-    "web": { "bundler": "metro", "output": "single" },
-    "plugins": ["expo-router"],
-    "experiments": { "typedRoutes": true }
+    "splash": {
+      "backgroundColor": "#EAF2FA",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.dwellm8.pm"
+    },
+    "android": {
+      "package": "app.dwellm8.pm"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

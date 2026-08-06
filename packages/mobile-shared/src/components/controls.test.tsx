@@ -246,4 +246,11 @@ describe('Field', () => {
     );
     expect(screen.getByLabelText('Email').props.autoCapitalize).toBe('none');
   });
+
+  it('hides a password and never capitalises it', async () => {
+    await render(<Field label="Password" value="" onChange={() => {}} secure />);
+    const input = screen.getByLabelText('Password');
+    expect(input.props.secureTextEntry).toBe(true);
+    expect(input.props.autoCapitalize).toBe('none');
+  });
 });
