@@ -8,9 +8,9 @@ import {
   KeyIcon, RupeeIcon, ShieldIcon, UsersIcon, WrenchIcon,
   color, font, inr, inrShort, radius, space,
 } from '@dwellm8/mobile-shared';
-import { approvals, staff } from '../../src/data/mock';
 import { istDate } from '../../src/data/clock';
 import { useOpsTodayData, useOpsWho, useOpsWorklist, type OpsTask } from '../../src/data/source';
+import { fmtDate, useOpsApprovals } from '../../src/data/worklists';
 
 /**
  * Today — the manager's first screen of the day.
@@ -34,6 +34,7 @@ export default function Today() {
   const roster = useOpsTodayData();
   const who = useOpsWho();
   const work = useOpsWorklist();
+  const { data: approvals } = useOpsApprovals();
   // Every figure comes from the roster, which serves the demonstration set in
   // demo mode and zeroes what has no endpoint yet in live mode (#284, #296).
   const billedPaise = roster.billedPaise;
@@ -141,23 +142,23 @@ export default function Today() {
           ))}
         </Card>
 
-        {/* Demonstration only: live approvals are rows on the worklist above. */}
-        {work.mode === 'demo' ? (
+        {/* An automation stopped at its ceiling and is waiting for a person. */}
+        {approvals.length ? (
           <>
-        <SectionTitle>Waiting on someone else</SectionTitle>
-        <Card padded={false} style={{ paddingHorizontal: space(4) }}>
-          {approvals.map((a, i) => (
-            <ListRow
-              key={a.id}
-              left={<Avatar initials={a.who.split(' ').map((w) => w[0]).join('')} tone="violet" />}
-              title={`${a.title} — ${inr(a.amountPaise, { noPaise: true })}`}
-              subtitle={`${a.who} · ${a.property}`}
-              meta={a.state}
-              onPress={() => router.push(`/ticket?id=${a.ref}`)}
-              last={i === approvals.length - 1}
-            />
-          ))}
-        </Card>
+            <SectionTitle>Waiting on you</SectionTitle>
+            <Card padded={false} style={{ paddingHorizontal: space(4) }}>
+              {approvals.map((a, i) => (
+                <ListRow
+                  key={a.id}
+                  left={<Avatar initials={a.automation.slice(0, 2).toUpperCase()} tone="violet" />}
+                  title={`${a.automation} — ${inr(a.amount_minor, { noPaise: true })}`}
+                  subtitle={`over its ${inr(a.ceiling_minor, { noPaise: true })} ceiling · ${a.subject_kind}`}
+                  meta={fmtDate(a.requested_at)}
+                  onPress={() => router.push(`/ticket?id=${a.subject_id}`)}
+                  last={i === approvals.length - 1}
+                />
+              ))}
+            </Card>
           </>
         ) : null}
 
@@ -179,9 +180,8 @@ export default function Today() {
           <AlertIcon size={16} c={color.inkFaint} />
           <Text style={s.footText}>
             {roster.mode === 'live'
-              ? 'Rent roll and arrears are live. Everything else on this screen is demonstration data — no API yet.'
-              : 'Demonstration data.'}{' '}
-            Your spend authority is {inr(staff.spendAuthorityPaise, { noPaise: true })} per job.
+              ? 'Rent roll, arrears, your worklist and approvals are live. Payouts, jobs and occupancy read zero until their endpoints land.'
+              : 'Demonstration data.'}
           </Text>
         </View>
       </Screen>

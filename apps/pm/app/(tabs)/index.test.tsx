@@ -22,7 +22,15 @@ jest.mock('../../src/data/source', () => ({
   useOpsWorklist: () => ({ mode: 'live', loading: false, tasks: [] }),
 }));
 
+const mockApprovals = { loading: false, data: [] as any[] };
+jest.mock('../../src/data/worklists', () => ({
+  ...jest.requireActual('../../src/data/worklists'),
+  useOpsApprovals: () => mockApprovals,
+}));
+
 describe('Today, in live mode', () => {
+  beforeEach(() => { mockApprovals.data = []; });
+
   it('shows no payout, job or occupancy figure it was not given', async () => {
     const { queryByText, getByText } = await render(<Today />);
 
@@ -31,5 +39,24 @@ describe('Today, in live mode', () => {
     expect(queryByText(/94%/)).toBeNull();
     expect(getByText(/payouts due · ₹0/)).toBeTruthy();
     expect(getByText(/open jobs · 0 breaching/)).toBeTruthy();
+  });
+
+  it('shows what an automation is asking to spend, and its ceiling', async () => {
+    mockApprovals.data = [{
+      id: 'ap-1', automation: 'Approve repair quotes', subject_kind: 'ticket',
+      subject_id: 'TK-9', action: 'approve_quote',
+      amount_minor: 4500000, ceiling_minor: 2500000, requested_at: '2026-08-06T09:00:00Z',
+    }];
+    const { getByText, queryByText } = await render(<Today />);
+
+    expect(getByText(/Approve repair quotes/)).toBeTruthy();
+    expect(getByText(/45,000/)).toBeTruthy();
+    // The demonstration set's own approvals must not reach a live screen.
+    expect(queryByText(/Sanitary riser/)).toBeNull();
+  });
+
+  it('says nothing is waiting rather than borrowing the demonstration set', async () => {
+    const { queryByText } = await render(<Today />);
+    expect(queryByText(/Waiting on someone else/)).toBeNull();
   });
 });

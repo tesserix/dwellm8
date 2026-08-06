@@ -6,11 +6,18 @@ import {
   BellIcon, DocIcon, GlobeIcon, RefreshIcon, ShieldIcon, UsersIcon,
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
-import { org, staff } from '../src/data/mock';
+import { useAccount } from '../src/data/account';
+import { version } from '../package.json';
+
+const constitutionLabel: Record<string, string> = {
+  individual: 'Individual', proprietorship: 'Sole proprietorship', partnership: 'Partnership firm',
+  llp: 'LLP', company: 'Company', trust: 'Trust or society',
+};
 
 /** Who you are, what you may do, and what the app is holding for you. */
 export default function Profile() {
   const router = useRouter();
+  const me = useAccount();
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
@@ -22,20 +29,25 @@ export default function Profile() {
       />
       <ScrollView contentContainerStyle={{ paddingBottom: space(10) }}>
         <View style={s.hero}>
-          <Avatar initials={staff.initials} size={96} tone="blue" />
-          <Text style={s.name}>{staff.name}</Text>
-          <StatusPill text={staff.role} tone="blue" />
-          <Text style={s.detail}>{staff.email}</Text>
-          <Text style={s.detail}>{staff.phone}</Text>
+          <Avatar initials={me.initials || '—'} size={96} tone="blue" />
+          <Text style={s.name}>{me.name || (me.loading ? '…' : 'Not signed in')}</Text>
+          {me.firmName ? <StatusPill text={me.firmName} tone="blue" /> : null}
+          {me.email ? <Text style={s.detail}>{me.email}</Text> : null}
+          {me.phone ? <Text style={s.detail}>{me.phone}</Text> : null}
         </View>
 
         <Card>
           <Text style={s.h}>What you may do</Text>
-          <KeyValue k="Organisation" v={org.name} />
-          <KeyValue k="Spend authority" v={`${inr(staff.spendAuthorityPaise, { noPaise: true })} per job`} />
-          <KeyValue k="Release payouts" v="Yes, up to ₹5,00,000" />
-          <KeyValue k="Change fees or mandates" v="No — web console only" tone="red" />
-          <KeyValue k="Portfolios" v={`${org.portfolios.length} assigned`} last />
+          <KeyValue k="Acting for" v={me.firmName || 'No firm registered yet'} />
+          {me.constitution ? (
+            <KeyValue k="Constituted as" v={constitutionLabel[me.constitution] ?? me.constitution} />
+          ) : null}
+          <KeyValue
+            k="May hold a mandate"
+            v={me.mayManage ? 'Yes' : 'Not yet — the registration is incomplete'}
+            tone={me.mayManage ? 'green' : 'red'}
+          />
+          <KeyValue k="Properties in scope" v={String(me.properties)} last />
           <Text style={s.note}>
             Permissions are scoped to this organisation. Switching to another organisation switches
             the whole context — nothing is ever merged across the two.
@@ -43,7 +55,7 @@ export default function Profile() {
         </Card>
 
         <Card padded={false} style={{ paddingHorizontal: space(4) }}>
-          <ListRow left={<UsersIcon size={20} />} title="Switch portfolio" subtitle={org.portfolios[0].name} onPress={() => router.push('/switcher')} />
+          <ListRow left={<UsersIcon size={20} />} title="Switch portfolio" subtitle={me.firmName || 'Choose whose properties you are acting on'} onPress={() => router.push('/switcher')} />
           <ListRow left={<BellIcon size={20} />} title="Notifications" subtitle="SLA breaches, failed mandates, owner approvals" onPress={() => {}} />
           <ListRow left={<RefreshIcon size={20} />} title="Offline queue" subtitle="2 items waiting to sync" onPress={() => {}} />
           <ListRow left={<GlobeIcon size={20} />} title="Language" subtitle="English · हिन्दी available" onPress={() => {}} />
@@ -52,7 +64,7 @@ export default function Profile() {
         </Card>
 
         <Button label="Web console" tone="secondary" onPress={() => {}} style={{ marginHorizontal: space(4) }} />
-        <Text style={s.version}>Dwellm8 PM {staff.version} · demonstration data</Text>
+        <Text style={s.version}>Dwellm8 PM {version}</Text>
       </ScrollView>
     </View>
   );

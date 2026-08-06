@@ -46,7 +46,7 @@ The owner-operator: their own flats, their own Cashfree account, no delegation.
 | A13 | Onboard a tenant into a unit | Tenancy live on unit 101; rent, deposit and dates as entered | pass — first tenancy activates through the tax gate, so `active` not `pending_signature` |
 | A14 | Today screen after the first tenancy | Rent roll and arrears real, not the demonstration figures | rent roll live (₹0 before the term starts); the date and four tiles still demo — #291, #251 |
 | A15 | Connect the firm's own Cashfree account | Merchant recorded against this organisation only | |
-| A16 | Record an offline rent payment | Ledger entry and receipt; arrears fall by the amount | |
+| A16 | Record an offline rent payment | Ledger entry and receipt; arrears fall by the amount | built (#297) — API and receipt screen live; device pass pending deploy |
 
 ## B — Firm managing for other owners
 
