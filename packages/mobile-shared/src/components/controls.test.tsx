@@ -298,6 +298,15 @@ describe('AddressLookup', () => {
       expect(screen.getByText(/lookup is unavailable/i)).toBeTruthy());
   });
 
+  it('never puts the transport failure on the form — the field is typeable either way (#285)', async () => {
+    const search = jest.fn().mockRejectedValue(new Error('request failed (404)'));
+    await render(<AddressLookup search={search} onPick={jest.fn()} />);
+    await fireEvent.changeText(screen.getByLabelText('Search for the address'), 'chandra arcade');
+
+    await waitFor(() => expect(screen.getByText(/enter the address by hand/i)).toBeTruthy());
+    expect(screen.queryByText(/404/)).toBeNull();
+  });
+
   it('says so when a real search matched nothing, so the field is not silently empty', async () => {
     await render(<AddressLookup search={jest.fn().mockResolvedValue([])} onPick={jest.fn()} />);
     await fireEvent.changeText(screen.getByLabelText('Search for the address'), 'zzzzzzzz');

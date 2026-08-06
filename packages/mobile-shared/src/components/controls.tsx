@@ -247,7 +247,6 @@ export function AddressLookup({
   const [term, setTerm] = React.useState('');
   const [found, setFound] = React.useState<AddressSuggestion[]>([]);
   const [state, setState] = React.useState<'idle' | 'searching' | 'empty' | 'failed'>('idle');
-  const [failure, setFailure] = React.useState('');
   const latest = React.useRef(0);
 
   React.useEffect(() => {
@@ -267,10 +266,11 @@ export function AddressLookup({
         if (ticket !== latest.current) return;
         setFound(out);
         setState(out.length ? 'idle' : 'empty');
-      } catch (e) {
+      } catch {
+        // Which layer broke is a log line, not something a manager filling in a
+        // registration can act on — the fields below take typing either way (#285).
         if (ticket !== latest.current) return;
         setFound([]);
-        setFailure(e instanceof Error ? e.message : 'Address lookup is unavailable just now');
         setState('failed');
       }
     }, 350);
@@ -297,7 +297,11 @@ export function AddressLookup({
         autoCorrect={false}
         style={s.field}
       />
-      {state === 'failed' ? <Text style={s.lookupNote}>{failure}</Text> : null}
+      {state === 'failed' ? (
+        <Text style={s.lookupNote}>
+          Address lookup is unavailable just now — enter the address by hand.
+        </Text>
+      ) : null}
       {state === 'empty' ? (
         <Text style={s.lookupNote}>No match — fill the fields below by hand.</Text>
       ) : null}
