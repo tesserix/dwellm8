@@ -116,7 +116,7 @@ func (s *Principals) PreOnboardOwner(ctx context.Context, o OwnerOnboarding) (Ow
 				}
 				env, err := events.New("identity.organisation.created", out.OrgID,
 					events.Subject{Kind: "organisation", ID: out.OrgID},
-					events.Actor{Kind: events.ActorUser, ID: o.ByPartyID},
+					onboardingActor(o.ByPartyID),
 					struct {
 						PartyID string `json:"party_id"`
 						Role    string `json:"role"`
@@ -152,13 +152,13 @@ func (s *Principals) PreOnboardOwner(ctx context.Context, o OwnerOnboarding) (Ow
 					return fmt.Errorf("identity: minting the mandate: %w", err)
 				}
 				if _, err := tx.Exec(ctx, `
-					INSERT INTO delegation_grant_scopes (grant_id, scope_kind, scope_id)
-					VALUES ($1::uuid, 'portfolio', NULL)`, out.GrantID); err != nil {
+					INSERT INTO delegation_grant_scopes (grant_id, tenant_id, scope_kind, scope_id)
+					VALUES ($1::uuid, $2::uuid, 'portfolio', NULL)`, out.GrantID, out.OrgID); err != nil {
 					return fmt.Errorf("identity: scoping the mandate: %w", err)
 				}
 				env, err := events.New("identity.delegation.granted", out.OrgID,
 					events.Subject{Kind: "delegation", ID: out.GrantID},
-					events.Actor{Kind: events.ActorUser, ID: o.ByPartyID},
+					onboardingActor(o.ByPartyID),
 					struct {
 						GranteeOrgID string   `json:"grantee_org_id"`
 						Permissions  []string `json:"permissions"`
@@ -179,6 +179,17 @@ func (s *Principals) PreOnboardOwner(ctx context.Context, o OwnerOnboarding) (Ow
 		return OwnerOnboarded{}, err
 	}
 	return out, nil
+}
+
+// onboardingActor names who onboarded the owner. Until #229 lands real
+// tokens a dev-impersonated session has no person behind it, and an
+// onboarding must not fail for want of one — the fact is the system's then,
+// not an anonymous user's.
+func onboardingActor(partyID string) events.Actor {
+	if partyID == "" {
+		return events.Actor{Kind: events.ActorSystem}
+	}
+	return events.Actor{Kind: events.ActorUser, ID: partyID}
 }
 
 // ownerSlug derives a unique-enough handle, the same shape the self-service
@@ -244,12 +255,16 @@ func (s *Principals) ClaimOwner(ctx context.Context, p auth.Principal) (Person, 
 
 // ManagedPortfolio is one owner's books this firm holds a live mandate over.
 type ManagedPortfolio struct {
-	GrantID     string
-	OwnerOrgID  string
-	OwnerName   string
-	Permissions []string
-	Since       time.Time
+	GrantID       string
+	OwnerOrgID    string
+	OwnerName     string
+	Permissions   []string
+	Since         time.Time
+	PropertyCount int
 }
+
+// ErrNoMandate says this firm holds no live grant over that owner's books.
+var ErrNoMandate = errors.New("identity: no live mandate over that owner")
 
 // PortfoliosFor lists the live mandates a firm holds, named — the Ops app's
 // portfolio switcher. Platform-mediated because the grantor's organisation
@@ -258,22 +273,15 @@ func (s *Principals) PortfoliosFor(ctx context.Context, firmOrgID string) ([]Man
 	var out []ManagedPortfolio
 	err := tenancy.Platform(ctx, s.platform, "listing a firm's managed portfolios",
 		func(ctx context.Context, tx pgx.Tx) error {
-			rows, err := tx.Query(ctx, `
-				SELECT g.id::text, g.tenant_id::text, o.name, g.permissions, g.created_at
-				  FROM delegation_grants g
-				  JOIN organisations o ON o.id = g.tenant_id
-				 WHERE g.grantee_org_id = $1::uuid
-				   AND g.revoked_at IS NULL
-				   AND now() >= g.valid_from
-				   AND (g.valid_to IS NULL OR now() < g.valid_to)
-				 ORDER BY o.name`, firmOrgID)
+			rows, err := tx.Query(ctx, switcherQuery, firmOrgID)
 			if err != nil {
 				return err
 			}
 			defer rows.Close()
 			for rows.Next() {
 				var p ManagedPortfolio
-				if err := rows.Scan(&p.GrantID, &p.OwnerOrgID, &p.OwnerName, &p.Permissions, &p.Since); err != nil {
+				if err := rows.Scan(&p.GrantID, &p.OwnerOrgID, &p.OwnerName,
+					&p.Permissions, &p.Since, &p.PropertyCount); err != nil {
 					return err
 				}
 				out = append(out, p)
@@ -281,6 +289,64 @@ func (s *Principals) PortfoliosFor(ctx context.Context, firmOrgID string) ([]Man
 			return rows.Err()
 		})
 	return out, err
+}
+
+// portfolioQuery is the live-mandate read both the switcher and the
+// single-owner lookup run — one definition of "live", not two.
+const portfolioQuery = `
+	SELECT g.id::text, g.tenant_id::text, o.name, g.permissions, g.created_at,
+	       (SELECT count(*) FROM properties p WHERE p.tenant_id = g.tenant_id)
+	  FROM delegation_grants g
+	  JOIN organisations o ON o.id = g.tenant_id
+	 WHERE g.grantee_org_id = $1::uuid
+	   AND g.revoked_at IS NULL
+	   AND now() >= g.valid_from
+	   AND (g.valid_to IS NULL OR now() < g.valid_to)`
+
+// switcherQuery lists owners, not grants. A firm may hold several live
+// mandates over the same books — a portfolio-wide one and a narrower later one
+// — and the switcher is a list of whose books the firm can open, so it shows
+// the owner once: the newest grant, everything all the live ones together
+// permit, and the date the firm began acting for them.
+const switcherQuery = `
+	SELECT * FROM (
+		SELECT DISTINCT ON (g.tenant_id)
+		       g.id::text, g.tenant_id::text, o.name AS owner_name,
+		       (SELECT array_agg(DISTINCT perm)
+		          FROM delegation_grants w, unnest(w.permissions) AS perm
+		         WHERE w.grantee_org_id = g.grantee_org_id
+		           AND w.tenant_id = g.tenant_id
+		           AND w.revoked_at IS NULL
+		           AND now() >= w.valid_from
+		           AND (w.valid_to IS NULL OR now() < w.valid_to)),
+		       min(g.created_at) OVER (PARTITION BY g.tenant_id),
+		       (SELECT count(*) FROM properties p WHERE p.tenant_id = g.tenant_id)
+		  FROM delegation_grants g
+		  JOIN organisations o ON o.id = g.tenant_id
+		 WHERE g.grantee_org_id = $1::uuid
+		   AND g.revoked_at IS NULL
+		   AND now() >= g.valid_from
+		   AND (g.valid_to IS NULL OR now() < g.valid_to)
+		 ORDER BY g.tenant_id, g.created_at DESC
+	) owners ORDER BY owner_name`
+
+// PortfolioFor is one owner's mandate, for a firm adding a second property to
+// books it already manages. ErrNoMandate when the firm does not act for them.
+func (s *Principals) PortfolioFor(ctx context.Context, firmOrgID, ownerOrgID string) (ManagedPortfolio, error) {
+	var p ManagedPortfolio
+	err := tenancy.Platform(ctx, s.platform, "reading a firm's mandate over one owner",
+		func(ctx context.Context, tx pgx.Tx) error {
+			err := tx.QueryRow(ctx, portfolioQuery+`
+				   AND g.tenant_id = $2::uuid
+				 ORDER BY g.created_at DESC
+				 LIMIT 1`, firmOrgID, ownerOrgID).
+				Scan(&p.GrantID, &p.OwnerOrgID, &p.OwnerName, &p.Permissions, &p.Since, &p.PropertyCount)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNoMandate
+			}
+			return err
+		})
+	return p, err
 }
 
 // Profile is the person as they present themselves: the verified anchors and

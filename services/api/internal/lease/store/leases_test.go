@@ -267,3 +267,31 @@ func send(ctx context.Context, p tenancy.Pool, id string) error {
 		return err
 	})
 }
+
+// Sending a draft out for signature — the edge ADR-0010 §3 has between draft
+// and active, and the only way a lease reaches the state activation starts
+// from. A lease already out stays out, so a retried send is not a refusal.
+func TestSendingADraftOutForSignature(t *testing.T) {
+	req, plat := pools(t)
+	ctx := tenancy.With(context.Background(), isolationtest.OrgOwner)
+	property, unitID := unit(t, plat, "S-"+token())
+	from := effective.Day(2029, 9, 5)
+
+	s := store.New(req)
+	created, err := s.Create(ctx, draft(t, property, unitID, from, effective.Day(2030, 9, 5), resident(from)))
+	if err != nil {
+		t.Fatalf("creating: %v", err)
+	}
+	if err := s.Offer(ctx, created.ID, domain.ActorOwner); err != nil {
+		t.Fatalf("sending for signature: %v", err)
+	}
+	if err := s.Offer(ctx, created.ID, domain.ActorOwner); err != nil {
+		t.Errorf("re-sending a lease already out: %v", err)
+	}
+	if err := s.Activate(ctx, created.ID, domain.ActorOwner); err != nil {
+		t.Errorf("activating what was sent: %v", err)
+	}
+	if err := s.Offer(ctx, created.ID, domain.ActorOwner); !errors.Is(err, store.ErrNoLease) {
+		t.Errorf("sending a live tenancy out for signature: %v, want no such lease", err)
+	}
+}

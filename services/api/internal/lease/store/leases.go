@@ -125,6 +125,34 @@ func writeTaxFacts(ctx context.Context, tx pgx.Tx, tenant, lease string, h tds.H
 	return nil
 }
 
+// Offer sends a draft out for signature. Nothing is published: ADR-0010 §3
+// gives the edge no event because nobody outside the lease acts on it.
+//
+// A lease already out is left where it is rather than refused — a manager who
+// presses send twice has not made a mistake.
+func (s *Leases) Offer(ctx context.Context, id string, by domain.Actor) error {
+	tenant, ok := tenancy.From(ctx)
+	if !ok {
+		return tenancy.ErrNoTenant
+	}
+	if !domain.MayTransition(domain.StateDraft, domain.StatePendingSignature, by) {
+		return fmt.Errorf("%w: %s may not send a lease for signature", domain.ErrTransition, by)
+	}
+	return tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `
+			UPDATE leases SET state = 'pending_signature'
+			 WHERE id = $1 AND tenant_id = $2 AND state IN ('draft', 'pending_signature')`,
+			id, tenant.String())
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrNoLease
+		}
+		return nil
+	})
+}
+
 // Activate moves a lease to active, and is where the two guards the database
 // owns actually fire: the no-double-let exclusion and the deferred tax-path
 // trigger.

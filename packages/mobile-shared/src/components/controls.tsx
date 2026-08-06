@@ -186,7 +186,7 @@ export function SearchBar({
 }
 
 export function Field({
-  label, value, onChange, placeholder, multiline = false, keyboardType,
+  label, value, onChange, placeholder, multiline = false, keyboardType, autoCapitalize,
 }: {
   label: string;
   value: string;
@@ -194,6 +194,7 @@ export function Field({
   placeholder?: string;
   multiline?: boolean;
   keyboardType?: 'default' | 'numeric' | 'phone-pad';
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
 }) {
   return (
     <View style={{ marginBottom: space(4) }}>
@@ -205,6 +206,7 @@ export function Field({
         placeholderTextColor={color.inkFaint}
         multiline={multiline}
         keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
         style={[s.field, multiline && { height: 104, textAlignVertical: 'top', paddingTop: 12 }]}
       />
     </View>

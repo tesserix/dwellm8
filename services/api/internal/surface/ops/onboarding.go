@@ -30,6 +30,10 @@ func (h *Handler) OnboardingRoutes(r *authz.Registrar) {
 
 type onboardOwnerRequest struct {
 	Owner struct {
+		// OrgID names an owner the firm already acts for — the second and
+		// every later property. Their identity is not re-entered, and the
+		// mandate already held is the one it lands under.
+		OrgID string `json:"org_id"`
 		Name  string `json:"name"`
 		Phone string `json:"phone"`
 		Email string `json:"email"`
@@ -113,17 +117,11 @@ func (h *Handler) OnboardOwner(w http.ResponseWriter, r *http.Request) {
 	if err := decode(w, r, &req); err != nil {
 		return
 	}
-	orgName := req.OrganisationName
-	if orgName == "" {
-		orgName = req.Owner.Name
-	}
-
-	onboarded, err := h.owners.PreOnboard(r.Context(), identityservice.OwnerOnboarding{
-		FirmOrgID: firm.String(),
-		OwnerName: req.Owner.Name, Phone: req.Owner.Phone, Email: req.Owner.Email,
-		OrgName: orgName,
-	})
+	onboarded, err := h.resolveOwner(r, firm.String(), req)
 	switch {
+	case errors.Is(err, identitystore.ErrNoMandate):
+		writeError(w, http.StatusForbidden, "this firm does not act for that owner")
+		return
 	case errors.Is(err, identitystore.ErrPhone):
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
 		return
@@ -184,7 +182,16 @@ func (h *Handler) OnboardOwner(w http.ResponseWriter, r *http.Request) {
 					"tenancy.unit_code must be one of the units being onboarded")
 				return
 			}
-			draft, err := onboardingDraft(propertyID, unitID, req)
+			// The tenant acquires their identity here, weeks before they sign
+			// in — the number on the agreement is what will claim it (ADR-0029).
+			tenantParty, err := h.residents.PartyFor(r.Context(), t.Tenant.Phone)
+			if err != nil {
+				h.log.Error("pre-registering the onboarded tenant", "error", err)
+				writeError(w, http.StatusUnprocessableEntity,
+					"the property was registered, but the tenant was refused: "+err.Error())
+				return
+			}
+			draft, err := onboardingDraft(onboarded.OrgID, tenantParty, propertyID, unitID, req)
 			if err != nil {
 				writeError(w, http.StatusUnprocessableEntity, err.Error())
 				return
@@ -198,7 +205,9 @@ func (h *Handler) OnboardOwner(w http.ResponseWriter, r *http.Request) {
 			}
 			out.LeaseID = created.ID
 			out.LeaseState = string(created.Lease.State)
-			if err := h.leases.Activate(ownerCtx, created.ID, leasedomain.ActorOwner); err != nil {
+			if err := h.leases.Offer(ownerCtx, created.ID, leasedomain.ActorOwner); err != nil {
+				out.LeaseNote = "created as a draft — " + err.Error()
+			} else if err := h.leases.Activate(ownerCtx, created.ID, leasedomain.ActorOwner); err != nil {
 				out.LeaseNote = "created as a draft — " + err.Error()
 			} else {
 				out.LeaseState = string(leasedomain.StateActive)
@@ -209,9 +218,31 @@ func (h *Handler) OnboardOwner(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, out)
 }
 
+// resolveOwner is whose books the property is about to land in: an owner the
+// firm already acts for, named by organisation, or a new one reserved against
+// the number that will claim their first Own sign-in.
+func (h *Handler) resolveOwner(r *http.Request, firmOrgID string, req onboardOwnerRequest) (identityservice.OwnerOnboarded, error) {
+	if req.Owner.OrgID != "" {
+		held, err := h.owners.Portfolio(r.Context(), firmOrgID, req.Owner.OrgID)
+		if err != nil {
+			return identityservice.OwnerOnboarded{}, err
+		}
+		return identityservice.OwnerOnboarded{OrgID: held.OwnerOrgID, GrantID: held.GrantID}, nil
+	}
+	orgName := req.OrganisationName
+	if orgName == "" {
+		orgName = req.Owner.Name
+	}
+	return h.owners.PreOnboard(r.Context(), identityservice.OwnerOnboarding{
+		FirmOrgID: firmOrgID,
+		OwnerName: req.Owner.Name, Phone: req.Owner.Phone, Email: req.Owner.Email,
+		OrgName: orgName,
+	})
+}
+
 // onboardingDraft builds the lease draft from the wizard's flat fields, the
 // same conversions the lease surface makes.
-func onboardingDraft(propertyID, unitID string, req onboardOwnerRequest) (leasedomain.Draft, error) {
+func onboardingDraft(ownerOrgID, tenantPartyID, propertyID, unitID string, req onboardOwnerRequest) (leasedomain.Draft, error) {
 	t := req.Tenancy
 	start, err := effective.ParseDate(t.StartOn)
 	if err != nil {
@@ -234,6 +265,7 @@ func onboardingDraft(propertyID, unitID string, req onboardOwnerRequest) (leased
 		noticeDays = 30
 	}
 	d := leasedomain.Draft{
+		TenantID: ownerOrgID,
 		Property: propertyID, Unit: unitID,
 		Term: term, NoticeDays: noticeDays,
 		Terms: leasedomain.Terms{
@@ -242,7 +274,7 @@ func onboardingDraft(propertyID, unitID string, req onboardOwnerRequest) (leased
 			DepositHeldBy: leasedomain.DepositHolder("owner"),
 		},
 		Parties: []leasedomain.Party{{
-			Role: leasedomain.PartyRole("tenant"),
+			PartyID: tenantPartyID, Role: leasedomain.PartyRole("tenant"),
 			Name: t.Tenant.Name, Phone: t.Tenant.Phone, Email: t.Tenant.Email,
 		}},
 	}

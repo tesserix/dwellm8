@@ -33,11 +33,12 @@ func (h *Handler) PortfolioRoutes(r *authz.Registrar) {
 }
 
 type portfolioResponse struct {
-	GrantID     string   `json:"grant_id"`
-	OwnerOrgID  string   `json:"owner_org_id"`
-	OwnerName   string   `json:"owner_name"`
-	Permissions []string `json:"permissions"`
-	Since       string   `json:"since"`
+	GrantID       string   `json:"grant_id"`
+	OwnerOrgID    string   `json:"owner_org_id"`
+	OwnerName     string   `json:"owner_name"`
+	Permissions   []string `json:"permissions"`
+	Since         string   `json:"since"`
+	PropertyCount int      `json:"property_count"`
 }
 
 // Portfolios lists the owners this firm manages — every live mandate, named.
@@ -63,6 +64,7 @@ func (h *Handler) Portfolios(w http.ResponseWriter, r *http.Request) {
 		out = append(out, portfolioResponse{
 			GrantID: p.GrantID, OwnerOrgID: p.OwnerOrgID, OwnerName: p.OwnerName,
 			Permissions: p.Permissions, Since: p.Since.Format(time.RFC3339),
+			PropertyCount: p.PropertyCount,
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"portfolios": out})

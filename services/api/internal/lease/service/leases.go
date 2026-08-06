@@ -73,6 +73,12 @@ func (s *Leases) Create(ctx context.Context, d domain.Draft) (Created, error) {
 // exclusion and ADR-0024's deferred tax-path trigger. The store maps both into
 // errors a caller can tell apart, and this passes them through unchanged rather
 // than flattening them into "could not activate".
+// Offer sends a draft out for signature — the step between writing a lease and
+// starting the tenancy it describes.
+func (s *Leases) Offer(ctx context.Context, id string, by domain.Actor) error {
+	return s.store.Offer(ctx, id, by)
+}
+
 func (s *Leases) Activate(ctx context.Context, id string, by domain.Actor) error {
 	if err := s.store.Activate(ctx, id, by); err != nil {
 		return err

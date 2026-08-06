@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -6,7 +6,7 @@ import {
   Screen, StatusPill, SwitchRow, Toast,
   apiFromEnv, color, font, inr, radius, space,
 } from '@dwellm8/mobile-shared';
-import type { OwnerOnboarded } from '@dwellm8/mobile-shared';
+import type { OpsPortfolio, OwnerOnboarded } from '@dwellm8/mobile-shared';
 
 /**
  * Onboard an owner (#240) — one guided flow, five small questions.
@@ -17,10 +17,15 @@ import type { OwnerOnboarded } from '@dwellm8/mobile-shared';
  * Live. No set-up on anybody else's side — that is the trick of it.
  */
 
+// The property vocabulary the domain accepts — anything else is refused at
+// registration, so the wizard offers these and nothing else.
 const kinds = [
-  { code: 'apartment', label: 'Apartment building' },
-  { code: 'independent', label: 'Independent house' },
+  { code: 'building', label: 'Apartment building' },
+  { code: 'standalone', label: 'Independent house' },
+  { code: 'society', label: 'Society or gated community' },
   { code: 'commercial', label: 'Commercial' },
+  { code: 'coliving', label: 'Co-living or hostel' },
+  { code: 'plot', label: 'Plot' },
 ];
 
 const STEPS = ['The owner', 'The place', 'The units', 'Moving in', 'The once-over'] as const;
@@ -39,18 +44,24 @@ export default function Onboard() {
   const [toast, setToast] = useState<string | null>(null);
   const [done, setDone] = useState<OwnerOnboarded | null>(null);
 
-  // The owner
+  // The owner — one the firm already acts for, or somebody new
+  const [portfolios, setPortfolios] = useState<OpsPortfolio[]>([]);
+  const [existing, setExisting] = useState<OpsPortfolio | null>(null);
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   // The place
   const [propName, setPropName] = useState('');
   const [propCode, setPropCode] = useState('');
-  const [kind, setKind] = useState('apartment');
+  const [kind, setKind] = useState('building');
+  const [addressLine1, setAddressLine1] = useState('');
   const [locality, setLocality] = useState('');
   const [city, setCity] = useState('');
+  const [stateCode, setStateCode] = useState('');
+  const [pin, setPin] = useState('');
   // The units
   const [units, setUnits] = useState('');
+  const [carpetArea, setCarpetArea] = useState('');
   // Moving in (optional)
   const [withTenant, setWithTenant] = useState(false);
   const [tenantName, setTenantName] = useState('');
@@ -66,15 +77,25 @@ export default function Onboard() {
 
   const unitList = units.split(',').map((c) => c.trim()).filter(Boolean);
 
+  useEffect(() => {
+    const api = apiFromEnv();
+    if (!api) return;
+    api.opsPortfolios().then(setPortfolios).catch(() => setPortfolios([]));
+  }, []);
+
   const say = (m: string) => {
     setToast(m);
     setTimeout(() => setToast(null), 3200);
   };
 
+  const ownerLabel = existing ? existing.owner_name : ownerName;
+
   const stepReady = [
-    ownerName.trim().length > 1 && phone.trim().length >= 10,
-    propName.trim().length > 1 && city.trim().length > 1,
-    unitList.length > 0,
+    existing !== null || (ownerName.trim().length > 1 && phone.trim().length >= 10),
+    propName.trim().length > 1 && addressLine1.trim().length > 1
+      && locality.trim().length > 1 && city.trim().length > 1
+      && /^[A-Z]{2}$/.test(stateCode.trim().toUpperCase()) && /^[1-9][0-9]{5}$/.test(pin.trim()),
+    unitList.length > 0 && Number(carpetArea) > 0,
     !withTenant || (tenantName.trim().length > 1 && tenantPhone.trim().length >= 10
       && unitList.includes(tenantUnit.trim()) && Number(rent) > 0),
     true,
@@ -86,13 +107,17 @@ export default function Onboard() {
     setBusy(true);
     try {
       const out = await api.opsOnboardOwner({
-        owner: { name: ownerName.trim(), phone: phone.trim(), email: email.trim() || undefined },
+        owner: existing
+          ? { org_id: existing.owner_org_id }
+          : { name: ownerName.trim(), phone: phone.trim(), email: email.trim() || undefined },
         property: {
           code: propCode.trim() || propName.trim().split(/\s+/).map((w) => w[0]).join('').toUpperCase(),
           name: propName.trim(), kind,
+          address_line1: addressLine1.trim(),
           locality: locality.trim(), city: city.trim(),
+          state_code: stateCode.trim().toUpperCase(), pin: pin.trim(),
         },
-        units: unitList.map((code) => ({ code, kind: 'flat' })),
+        units: unitList.map((code) => ({ code, kind: 'flat', carpet_area_sqft: Number(carpetArea) })),
         tenancy: withTenant ? {
           unit_code: tenantUnit.trim(),
           tenant: { name: tenantName.trim(), phone: tenantPhone.trim() },
@@ -120,7 +145,11 @@ export default function Onboard() {
           <View style={{ alignItems: 'center', marginTop: space(4) }}><HouseArt size={150} /></View>
           <Card>
             <StatusPill text={done.created_organisation ? 'A brand-new portfolio' : 'Joined their portfolio'} tone="green" dot />
-            <Text style={s.h1}>{ownerName} is on Dwellm8</Text>
+            <Text style={s.h1}>
+              {done.created_organisation
+                ? `${ownerLabel} is on Dwellm8`
+                : `${propName} is in ${ownerLabel}'s books`}
+            </Text>
             <View style={{ marginTop: space(3) }}>
               <KeyValue k="Property" v={`${propName}, ${city}`} />
               <KeyValue k="Units" v={String(done.unit_ids?.length ?? 0)} />
@@ -138,8 +167,9 @@ export default function Onboard() {
             </View>
             {done.lease_note ? <Text style={s.note}>{done.lease_note}</Text> : null}
             <Text style={s.note}>
-              The moment {ownerName.split(' ')[0]} signs into Dwellm8 Own with {phone}, all of this
-              is already theirs
+              {done.created_organisation
+                ? `The moment ${ownerLabel.split(' ')[0]} signs into Dwellm8 Own with ${phone}, all of this is already theirs`
+                : `${ownerLabel.split(' ')[0]} sees it in Dwellm8 Own already — same books, same mandate`}
               {withTenant && done.lease_state === 'active'
                 ? ` — and ${tenantName.split(' ')[0]} sees the tenancy in Dwellm8 Live the same way`
                 : withTenant
@@ -169,14 +199,35 @@ export default function Onboard() {
 
         {step === 0 ? (
           <Card>
-            <Text style={s.q}>Who are we welcoming?</Text>
+            <Text style={s.q}>Whose place is it?</Text>
             <Text style={s.sub}>
-              Their mobile number is the whole key — the first time they open Dwellm8 Own with it,
-              everything you create here is already theirs.
+              An owner you already act for keeps everything in the one set of books. Somebody new
+              gets their own, and their mobile number is the whole key — the first time they open
+              Dwellm8 Own with it, all of this is already theirs.
             </Text>
-            <Field label="Owner's name" value={ownerName} onChange={setOwnerName} placeholder="Meera Sharma" />
-            <Field label="Mobile number" value={phone} onChange={setPhone} placeholder="+91 98860 21745" keyboardType="phone-pad" />
-            <Field label="Email — optional, they can add it later" value={email} onChange={setEmail} placeholder="meera@example.in" />
+            {portfolios.map((p) => (
+              <ChoiceRow
+                key={p.owner_org_id}
+                label={p.owner_name}
+                hint={`${p.property_count} ${p.property_count === 1 ? 'property' : 'properties'} under your mandate`}
+                selected={existing?.owner_org_id === p.owner_org_id}
+                onPress={() => setExisting(existing?.owner_org_id === p.owner_org_id ? null : p)}
+              />
+            ))}
+            <ChoiceRow
+              label="Somebody new"
+              hint="We'll reserve their identity against their number"
+              selected={existing === null}
+              onPress={() => setExisting(null)}
+              last
+            />
+            {existing === null ? (
+              <>
+                <Field label="Owner's name" value={ownerName} onChange={setOwnerName} placeholder="Meera Sharma" />
+                <Field label="Mobile number" value={phone} onChange={setPhone} placeholder="+919886021745" keyboardType="phone-pad" />
+                <Field label="Email — optional, they can add it later" value={email} onChange={setEmail} placeholder="meera@example.in" />
+              </>
+            ) : null}
           </Card>
         ) : null}
 
@@ -189,8 +240,11 @@ export default function Onboard() {
             {kinds.map((k, i) => (
               <ChoiceRow key={k.code} label={k.label} selected={kind === k.code} onPress={() => setKind(k.code)} last={i === kinds.length - 1} />
             ))}
+            <Field label="Address" value={addressLine1} onChange={setAddressLine1} placeholder="12 Palm Avenue" />
             <Field label="Locality" value={locality} onChange={setLocality} placeholder="Whitefield" />
             <Field label="City" value={city} onChange={setCity} placeholder="Bengaluru" />
+            <Field label="State code — two letters" value={stateCode} onChange={setStateCode} placeholder="KA" autoCapitalize="characters" />
+            <Field label="PIN code" value={pin} onChange={setPin} placeholder="560066" keyboardType="numeric" />
           </Card>
         ) : null}
 
@@ -202,6 +256,7 @@ export default function Onboard() {
               listing and a ledger hang off every one.
             </Text>
             <Field label="Unit codes" value={units} onChange={setUnits} placeholder="101, 102, 201, 202" />
+            <Field label="Carpet area, sq ft" value={carpetArea} onChange={setCarpetArea} placeholder="980" keyboardType="numeric" />
             {unitList.length ? (
               <View style={s.chipRow}>
                 {unitList.map((u) => (
@@ -241,9 +296,9 @@ export default function Onboard() {
           <Card>
             <Text style={s.q}>The once-over</Text>
             <Text style={s.sub}>One look before it becomes the record.</Text>
-            <KeyValue k="Owner" v={`${ownerName} · ${phone}`} />
-            <KeyValue k="Property" v={`${propName}, ${locality ? `${locality}, ` : ''}${city}`} />
-            <KeyValue k="Units" v={unitList.join(', ')} />
+            <KeyValue k="Owner" v={existing ? `${existing.owner_name} · already yours` : `${ownerName} · ${phone}`} />
+            <KeyValue k="Property" v={`${propName}, ${locality}, ${city} ${pin}`} />
+            <KeyValue k="Units" v={`${unitList.join(', ')} · ${carpetArea} sq ft each`} />
             {withTenant ? (
               <>
                 <KeyValue k="First tenancy" v={`${tenantName} in ${tenantUnit}`} />

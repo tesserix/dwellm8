@@ -182,6 +182,7 @@ export type OpsPortfolio = {
   owner_name: string;
   permissions: string[];
   since: string;
+  property_count: number;
 };
 
 /** One gate pass on the org worklist (GET /v1/ops/passes). */
@@ -1001,7 +1002,9 @@ export class DwellmApi {
    * against their phone, their organisation, the firm's mandate, and the
    * first property with its units. Idempotent per phone. */
   opsOnboardOwner(req: {
-    owner: { name: string; phone: string; email?: string };
+    /** org_id names an owner the firm already acts for — a second property
+     * joins their books rather than minting a second set. */
+    owner: { org_id?: string; name?: string; phone?: string; email?: string };
     organisation_name?: string;
     property?: {
       code: string; name: string; kind: string;
@@ -1020,7 +1023,10 @@ export class DwellmApi {
     };
   }): Promise<OwnerOnboarded> {
     return this.request('POST', '/v1/ops/onboardings', {
-      owner: { name: req.owner.name, phone: req.owner.phone, email: req.owner.email ?? '' },
+      owner: {
+        org_id: req.owner.org_id ?? '', name: req.owner.name ?? '',
+        phone: req.owner.phone ?? '', email: req.owner.email ?? '',
+      },
       organisation_name: req.organisation_name ?? '',
       property: {
         code: req.property?.code ?? '', name: req.property?.name ?? '',

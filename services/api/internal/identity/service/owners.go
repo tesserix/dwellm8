@@ -32,6 +32,12 @@ func (o *Owners) Portfolios(ctx context.Context, firmOrgID string) ([]ManagedPor
 	return o.principals.PortfoliosFor(ctx, firmOrgID)
 }
 
+// Portfolio is the firm's mandate over one owner. store.ErrNoMandate when the
+// firm does not act for them.
+func (o *Owners) Portfolio(ctx context.Context, firmOrgID, ownerOrgID string) (ManagedPortfolio, error) {
+	return o.principals.PortfolioFor(ctx, firmOrgID, ownerOrgID)
+}
+
 // PreOnboard reserves the owner's identity, organisation and the firm's
 // mandate. Idempotent — a second property joins the existing organisation.
 func (o *Owners) PreOnboard(ctx context.Context, req OwnerOnboarding) (OwnerOnboarded, error) {
