@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "web": "expo start --web",
     "build:web": "expo export -p web --output-dir dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
   },
   "dependencies": {
     "@dwellm8/mobile-shared": "*",
@@ -33,7 +34,23 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "jest-expo": "^57.0.3",
+    "react-test-renderer": "19.2.8"
   },
-  "private": true
+  "private": true,
+  "jest": {
+    "preset": "jest-expo",
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.ts"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/",
+      "/.expo/"
+    ]
+  }
 }

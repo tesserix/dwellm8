@@ -430,3 +430,37 @@ describe('DwellmApi — address lookup', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('apiFromEnv — which token the client actually sends', () => {
+  afterEach(() => setTokenSource(null));
+
+  it('uses the session-wide refreshing source when no getToken is passed (#283)', async () => {
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.example.test';
+    const fetchMock = mockFetch({});
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    let issued = 'tok_stale';
+    setTokenSource(async () => issued);
+    const api = apiFromEnv()!;
+
+    await api.opsToday();
+    issued = 'tok_fresh';
+    await api.opsToday();
+
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer tok_stale');
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer tok_fresh');
+  });
+
+  it('an explicit getToken pins the client to it, refresh or no refresh (#283)', async () => {
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.example.test';
+    const fetchMock = mockFetch({});
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    setTokenSource(async () => 'tok_fresh');
+    // This is the trap: a screen that captures the token it was rendered with
+    // keeps sending it after it has expired.
+    await apiFromEnv(async () => 'tok_captured')!.opsToday();
+
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer tok_captured');
+  });
+});

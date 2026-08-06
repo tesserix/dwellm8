@@ -18,7 +18,7 @@ export default function Firm() {
     setError('');
     setBusy(true);
     try {
-      const api = apiFromEnv(async () => session?.idToken ?? null);
+      const api = apiFromEnv();
       if (!api) throw new Error('This build has no API configured');
       await api.onboard(name.trim());
       await refreshFirm();

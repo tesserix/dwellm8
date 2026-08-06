@@ -17,10 +17,9 @@ export default function Verify() {
   const [wait, setWait] = useState(0);
   const sent = useRef(false);
 
-  const api = useCallback(
-    () => apiFromEnv(async () => session?.idToken ?? null),
-    [session],
-  );
+  // No token argument: the session's refreshing source is the only one, so a
+  // screen open past the hour does not keep sending the token it opened with.
+  const api = useCallback(() => apiFromEnv(), []);
 
   const send = useCallback(async () => {
     setError('');

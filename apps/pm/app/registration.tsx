@@ -48,10 +48,9 @@ export default function Registration() {
   const [reraFrom, setReraFrom] = useState('');
   const [reraTo, setReraTo] = useState('');
 
-  const api = useCallback(
-    () => apiFromEnv(async () => session?.idToken ?? null),
-    [session],
-  );
+  // No token argument: the session's refreshing source is the only one, so a
+  // screen open past the hour does not keep sending the token it opened with.
+  const api = useCallback(() => apiFromEnv(), []);
 
   const findAddress = useCallback(async (q: string) => {
     const client = api();

@@ -7,15 +7,14 @@
  *
  * Only the roster's real facts are wired — rent roll, what is outstanding
  * against it, and how many tenancies are in arrears (GET /v1/ops/today,
- * /v1/ops/arrears). Everything the mock's `today` export calls a payout, an
- * open job, an inspection or an occupancy percentage has no schema behind it
- * yet (no maintenance-ticket, payout-run or vacancy tracking exists as of
- * this surface — internal/surface/ops's own package comment says so), so
- * those figures keep rendering the demonstration data rather than a number
- * this system cannot actually stand behind.
+ * /v1/ops/arrears). Payout runs, maintenance tickets, inspections and
+ * occupancy have no schema behind them yet (internal/surface/ops's own package
+ * comment says so), so in live mode they read zero rather than borrowing the
+ * demonstration set's figures — #284, where a real manager was shown 88%
+ * collected against a rent roll that was not theirs.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFromEnv, type DwellmApi, type OpsToday } from '@dwellm8/mobile-shared';
 import * as demo from './mock';
 
@@ -25,6 +24,8 @@ export type OpsTodayData = {
   mode: Mode;
   loading: boolean;
   error?: string;
+  /** Ask again after a failure — an outage should not need a relaunch. */
+  reload: () => void;
   /** Real when live: rent roll, what's outstanding, tenancies in arrears. */
   billedPaise: number;
   outstandingPaise: number;
@@ -44,6 +45,7 @@ export type OpsTodayData = {
 const demoData: OpsTodayData = {
   mode: 'demo',
   loading: false,
+  reload: () => {},
   billedPaise: demo.today.targetPaise,
   outstandingPaise: demo.today.arrearsPaise,
   arrearsCount: demo.today.arrearsCount,
@@ -58,14 +60,24 @@ const demoData: OpsTodayData = {
   vacantUnits: demo.today.vacantUnits,
 };
 
+// Live mode never borrows a figure from the demonstration set: a manager who
+// acts on ₹21,07,000 that is not theirs is worse off than one shown nothing
+// (#284). The fields with no schema behind them read zero until there is one.
+const liveNothingYet: OpsTodayData = {
+  ...demoData,
+  mode: 'live',
+  billedPaise: 0, outstandingPaise: 0, arrearsCount: 0, activeTenancies: 0,
+  payoutsPending: 0, payoutsPaise: 0, openTickets: 0, breachingSla: 0,
+  visitsDone: 0, inspectionsToday: 0, occupancyPct: 0, vacantUnits: 0,
+};
+
 async function loadLive(api: DwellmApi): Promise<OpsTodayData> {
   const [t, tickets] = await Promise.all([
     api.opsToday(),
     api.opsTickets(false).catch(() => []),
   ] as const) as [OpsToday, Awaited<ReturnType<DwellmApi['opsTickets']>>];
   return {
-    ...demoData,
-    mode: 'live',
+    ...liveNothingYet,
     loading: false,
     billedPaise: t.rent_roll_amount_minor,
     outstandingPaise: t.outstanding_amount_minor,
@@ -78,22 +90,25 @@ async function loadLive(api: DwellmApi): Promise<OpsTodayData> {
 /** useOpsTodayData is what the Today screen's headline card reads. */
 export function useOpsTodayData(): OpsTodayData {
   const api = useMemo(() => apiFromEnv(), []);
+  const [attempt, setAttempt] = useState(0);
+  const reload = useCallback(() => setAttempt((n) => n + 1), []);
   const [state, setState] = useState<OpsTodayData>(
-    api ? { ...demoData, mode: 'live', loading: true } : demoData,
+    api ? { ...liveNothingYet, loading: true } : demoData,
   );
 
   useEffect(() => {
     if (!api) return;
     let alive = true;
+    setState((prev) => ({ ...prev, loading: true, error: undefined }));
     loadLive(api)
       .then((d) => { if (alive) setState(d); })
       .catch((err: Error) => {
-        if (alive) setState((prev) => ({ ...prev, loading: false, error: err.message }));
+        if (alive) setState({ ...liveNothingYet, loading: false, error: err.message });
       });
     return () => { alive = false; };
-  }, [api]);
+  }, [api, attempt]);
 
-  return state;
+  return useMemo(() => ({ ...state, reload }), [state, reload]);
 }
 
 /** Whose firm this is and who is signed into it. Demonstration names are a

@@ -94,7 +94,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const refreshFirm = useCallback(async () => {
     if (!session) { setHasFirm(null); return; }
-    const api = apiFromEnv(async () => session.idToken);
+    const api = apiFromEnv();
     if (!api) { setHasFirm(true); return; }
     try {
       setHasFirm(!!(await api.me()));
@@ -111,7 +111,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const refreshVerification = useCallback(async () => {
     if (!session) { setVerified(null); return; }
-    const api = apiFromEnv(async () => session.idToken);
+    const api = apiFromEnv();
     if (!api) { setVerified(true); return; }
     try {
       const ok = (await api.emailVerification()).verified;
@@ -139,7 +139,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const refreshRegistration = useCallback(async () => {
     if (!session || !hasFirm) { setRegistered(null); return; }
-    const api = apiFromEnv(async () => session.idToken);
+    const api = apiFromEnv();
     if (!api) { setRegistered(true); return; }
     try {
       // Draft means nothing has been filed yet. A firm that has filed and still
