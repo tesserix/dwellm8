@@ -109,3 +109,36 @@ func TestResendIsRateLimited(t *testing.T) {
 		t.Fatal("the first send is always allowed")
 	}
 }
+
+func TestIssuingIsCappedOverTheHourNotJustTheMinute(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 8, 6, 12, 0, 0, 0, time.UTC)
+	oldest := now.Add(-30 * time.Minute)
+
+	if _, err := NextIssue(MaxPerHour-1, oldest, now); err != nil {
+		t.Fatalf("under the ceiling is allowed: %v", err)
+	}
+
+	wait, err := NextIssue(MaxPerHour, oldest, now)
+	if err != ErrTooManyCodes {
+		t.Fatalf("got %v, want ErrTooManyCodes", err)
+	}
+	// The window rolls: the ceiling lifts when the oldest code ages out of it.
+	if want := 30 * time.Minute; wait != want {
+		t.Fatalf("wait is %v, want %v", wait, want)
+	}
+
+	// An hour later that code is outside the window, so nothing is owed.
+	if _, err := NextIssue(MaxPerHour, oldest, oldest.Add(IssueWindow)); err != nil {
+		t.Fatalf("the window rolls: %v", err)
+	}
+}
+
+func TestTheHourlyCeilingIsSmallEnoughToMatter(t *testing.T) {
+	t.Parallel()
+	// The point of the ceiling: without it the minute cooldown alone permits
+	// sixty codes an hour, which is sixty emails and sixty codes to guess at.
+	if perHourFromCooldown := int(time.Hour / ResendAfter); MaxPerHour >= perHourFromCooldown {
+		t.Fatalf("the ceiling of %d does not bind under a %v cooldown", MaxPerHour, ResendAfter)
+	}
+}

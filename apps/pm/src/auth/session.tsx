@@ -17,6 +17,15 @@ const key = 'dwellm8.pm.session';
 // A token about to expire is a token that will expire mid-request.
 const skew = 60_000;
 
+// Remembered per sign-in, because verification is a fact about the address and
+// never comes undone: a manager who proved it on this device must not be sent
+// back to the code screen by a cold start on a site with no signal.
+const verifiedKey = (uid: string) => `dwellm8.pm.verified.${uid}`;
+
+async function rememberedVerified(uid: string): Promise<true | null> {
+  return (await SecureStore.getItemAsync(verifiedKey(uid))) === '1' ? true : null;
+}
+
 type SessionState = {
   session: Session | null;
   identity: Identity | null;
@@ -105,13 +114,26 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const api = apiFromEnv(async () => session.idToken);
     if (!api) { setVerified(true); return; }
     try {
-      setVerified((await api.emailVerification()).verified);
+      const ok = (await api.emailVerification()).verified;
+      setVerified(ok);
+      if (ok) await SecureStore.setItemAsync(verifiedKey(session.uid), '1');
     } catch {
-      setVerified(null);
+      setVerified(await rememberedVerified(session.uid));
     }
   }, [session]);
 
   useEffect(() => { void refreshVerification(); }, [refreshVerification]);
+
+  // What this device already knows, while the answer above is in flight — so
+  // the gate does not flash the code screen at somebody who passed it weeks ago.
+  useEffect(() => {
+    if (!session) return;
+    let live = true;
+    void rememberedVerified(session.uid).then((ok) => {
+      if (live && ok) setVerified((v) => (v === null ? true : v));
+    });
+    return () => { live = false; };
+  }, [session]);
 
   const [registered, setRegistered] = useState<boolean | null>(null);
 

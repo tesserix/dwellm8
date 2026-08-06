@@ -22,6 +22,10 @@ const (
 	// Six digits is a million: five guesses is the whole of the security.
 	MaxAttempts = 5
 	ResendAfter = 60 * time.Second
+	// The minute cooldown alone permits sixty codes an hour — sixty emails to
+	// somebody's inbox and sixty codes to guess at. This is the real ceiling.
+	MaxPerHour  = 5
+	IssueWindow = time.Hour
 )
 
 var (
@@ -29,6 +33,7 @@ var (
 	ErrExpired         = errors.New("that code has expired")
 	ErrAlreadyUsed     = errors.New("that code has already been used")
 	ErrTooManyAttempts = errors.New("too many attempts — ask for a new code")
+	ErrTooManyCodes    = errors.New("too many codes have been sent — try again later")
 )
 
 // Pending is the code in flight, as the row holds it.
@@ -74,6 +79,20 @@ func Check(p Pending, surface, uid, code string, at time.Time) error {
 		return ErrWrongCode
 	}
 	return nil
+}
+
+// NextIssue caps how many codes one sign-in may draw in a rolling hour, and
+// says how long is owed when the cap binds — a window that rolls off the oldest
+// code rather than a fixed hour nobody can see the edge of.
+func NextIssue(recent int, oldest, at time.Time) (time.Duration, error) {
+	if recent < MaxPerHour {
+		return 0, nil
+	}
+	wait := oldest.Add(IssueWindow).Sub(at)
+	if wait <= 0 {
+		return 0, nil
+	}
+	return wait, ErrTooManyCodes
 }
 
 // MayResend keeps a resend button from being a way to mail-bomb somebody.

@@ -105,3 +105,44 @@ func TestIssuingAgainReplacesTheCodeInFlight(t *testing.T) {
 		t.Fatalf("the newest code is the one that works: %v", err)
 	}
 }
+
+func TestCodesIssuedInTheWindowAreCounted(t *testing.T) {
+	s, _ := principals(t)
+	ctx := context.Background()
+	p := auth.Principal{UID: uid(), Surface: auth.SurfaceOps, Email: "counted@example.test", SignInProvider: "password"}
+
+	n, oldest, err := s.EmailCodesIssued(ctx, p, verification.IssueWindow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 || !oldest.IsZero() {
+		t.Fatalf("nothing sent yet reads as %d at %v", n, oldest)
+	}
+
+	for range 3 {
+		if _, err := s.IssueEmailCode(ctx, p, "counted@example.test"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n, oldest, err = s.EmailCodesIssued(ctx, p, verification.IssueWindow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 3 {
+		t.Fatalf("counted %d codes, want 3", n)
+	}
+	// The oldest is what the window rolls off, so it has to be the earliest of
+	// the three rather than the latest.
+	if time.Since(oldest) > verification.IssueWindow || oldest.IsZero() {
+		t.Fatalf("oldest is %v", oldest)
+	}
+
+	// A window that has already passed counts nothing — the cap must lift.
+	n, _, err = s.EmailCodesIssued(ctx, p, time.Nanosecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("a passed window counted %d", n)
+	}
+}

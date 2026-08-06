@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
-import { Button, Card, Field, apiFromEnv, color, font, space } from '@dwellm8/mobile-shared';
+import { ApiError, Button, Card, Field, apiFromEnv, color, font, space } from '@dwellm8/mobile-shared';
 import { useSession } from '../src/auth/session';
 
 /**
@@ -33,11 +33,16 @@ export default function Verify() {
       setNote(`Code sent to ${out.email ?? session?.email ?? 'your inbox'}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not send the code';
-      // The server answers a resend inside the cooldown with the seconds left,
-      // so the screen counts down rather than repeating the refusal.
-      const secs = /(\d+)/.exec(msg);
-      if (/just sent/i.test(msg) && secs) setWait(Number(secs[1]));
-      else setError(msg);
+      // A refused send says when to come back — the minute between codes, or
+      // the hour's ceiling — so the screen counts down instead of repeating a
+      // refusal somebody can do nothing about.
+      const wait = e instanceof ApiError ? e.retryAfterSeconds : undefined;
+      if (wait) {
+        setWait(wait);
+        setNote(msg);
+      } else {
+        setError(msg);
+      }
     } finally {
       setBusy(false);
     }
@@ -104,7 +109,7 @@ export default function Verify() {
           />
           <Pressable onPress={send} disabled={busy || wait > 0} hitSlop={10} style={{ marginTop: space(4) }}>
             <Text style={[s.switch, wait > 0 && { color: color.inkSoft }]}>
-              {wait > 0 ? `Resend in ${wait}s` : 'Send another code'}
+              {wait > 0 ? `Resend in ${countdown(wait)}` : 'Send another code'}
             </Text>
           </Pressable>
           <Pressable onPress={signOut} hitSlop={10} style={{ marginTop: space(3) }}>
@@ -115,6 +120,10 @@ export default function Verify() {
     </KeyboardAvoidingView>
   );
 }
+
+// The hour's ceiling is half an hour of waiting at worst, and "1800s" is not
+// a number anybody reads as a length of time.
+const countdown = (secs: number) => (secs > 90 ? `${Math.ceil(secs / 60)} min` : `${secs}s`);
 
 const s = StyleSheet.create({
   hero: { alignItems: 'center', marginBottom: space(8) },

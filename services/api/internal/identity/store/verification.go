@@ -79,6 +79,29 @@ func (s *Principals) PendingEmailCode(ctx context.Context, p auth.Principal) (ve
 	return out, err
 }
 
+// EmailCodesIssued counts what this sign-in has drawn inside the window and
+// when the oldest of them was sent, which is what the hourly cap is decided on.
+func (s *Principals) EmailCodesIssued(ctx context.Context, p auth.Principal, window time.Duration) (int, time.Time, error) {
+	var n int
+	var oldest *time.Time
+	err := tenancy.Platform(ctx, s.platform, "counting codes issued",
+		func(ctx context.Context, tx pgx.Tx) error {
+			return tx.QueryRow(ctx, `
+				SELECT count(*), min(sent_at)
+				  FROM identity_email_codes
+				 WHERE surface = $1 AND gip_uid = $2
+				   AND sent_at > now() - $3::interval`,
+				string(p.Surface), p.UID, window.String()).Scan(&n, &oldest)
+		})
+	if err != nil {
+		return 0, time.Time{}, fmt.Errorf("identity: counting codes issued: %w", err)
+	}
+	if oldest == nil {
+		return n, time.Time{}, nil
+	}
+	return n, *oldest, nil
+}
+
 // ConsumeEmailCode checks a code and, if it is right, marks the email verified.
 //
 // The refusal is carried out of the transaction rather than returned from it,

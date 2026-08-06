@@ -642,9 +642,13 @@ export type ApiConfig = {
  * to be shown to a person rather than parsed. */
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /** Seconds until the same call is worth making again, when the server said
+   * so — a screen counting down should not have to read English to do it. */
+  retryAfterSeconds?: number;
+  constructor(status: number, message: string, retryAfterSeconds?: number) {
     super(message);
     this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -693,13 +697,18 @@ export class DwellmApi {
     const text = await res.text();
     if (!res.ok) {
       let message = `request failed (${res.status})`;
+      const header = Number(res.headers?.get?.('Retry-After'));
+      let retryAfter = Number.isFinite(header) && header > 0 ? header : undefined;
       try {
-        const parsed = JSON.parse(text) as { error?: string };
+        const parsed = JSON.parse(text) as { error?: string; resend_after_seconds?: number };
         if (parsed.error) message = parsed.error;
+        if (retryAfter === undefined && parsed.resend_after_seconds) {
+          retryAfter = parsed.resend_after_seconds;
+        }
       } catch {
         /* the body was not JSON; the status alone will have to explain */
       }
-      throw new ApiError(res.status, message);
+      throw new ApiError(res.status, message, retryAfter);
     }
     return (text ? JSON.parse(text) : {}) as T;
   }

@@ -95,6 +95,24 @@ func (h *Verification) Send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The hourly ceiling, before the minute cooldown: somebody who has already
+	// had five codes is not helped by being told to wait sixty seconds.
+	issued, oldest, err := h.principals.EmailCodesIssued(r.Context(), p, verification.IssueWindow)
+	if err != nil {
+		h.log.Error("counting codes issued", "surface", p.Surface, "error", err)
+		writeError(w, http.StatusInternalServerError, "could not send the code")
+		return
+	}
+	if wait, err := verification.NextIssue(issued, oldest, time.Now()); err != nil {
+		secs := int(wait.Seconds()) + 1
+		w.Header().Set("Retry-After", fmt.Sprint(secs))
+		writeJSON(w, http.StatusTooManyRequests, map[string]any{
+			"error":                err.Error(),
+			"resend_after_seconds": secs,
+		})
+		return
+	}
+
 	pending, err := h.principals.PendingEmailCode(r.Context(), p)
 	switch {
 	case err == nil:

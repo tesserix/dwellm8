@@ -64,6 +64,30 @@ describe('DwellmApi — ops surface', () => {
     );
   });
 
+  it('a refusal that says when to come back carries the wait, not just the words', async () => {
+    // A screen that has to regex-scrape "try again in 43 seconds" out of a
+    // sentence breaks the day somebody rewords the sentence.
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: { get: (h: string) => (h.toLowerCase() === 'retry-after' ? '1800' : null) },
+      text: async () => JSON.stringify({ error: 'too many codes have been sent — try again later' }),
+    }) as unknown as typeof fetch;
+
+    const api = new DwellmApi({ baseUrl });
+    await expect(api.sendEmailCode()).rejects.toMatchObject({
+      status: 429,
+      retryAfterSeconds: 1800,
+      message: 'too many codes have been sent — try again later',
+    });
+  });
+
+  it('falls back to the body when there is no Retry-After header', async () => {
+    global.fetch = mockFetch({ error: 'a code was just sent', resend_after_seconds: 42 }, 429) as unknown as typeof fetch;
+    const api = new DwellmApi({ baseUrl });
+    await expect(api.sendEmailCode()).rejects.toMatchObject({ retryAfterSeconds: 42 });
+  });
+
   it('attaches a bearer token when getToken resolves one', async () => {
     const fetchMock = mockFetch({ entries: [] });
     global.fetch = fetchMock as unknown as typeof fetch;
