@@ -1,6 +1,6 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import Today from './index';
+import Today from '../../app/(tabs)/index';
 
 // In live mode the screen shows the manager's own figures or none at all.
 // Payouts, jobs and occupancy have no endpoint yet, so they read zero rather
@@ -16,15 +16,15 @@ const mockRoster = {
   visitsDone: 0, inspectionsToday: 0, occupancyPct: 0, vacantUnits: 0,
 };
 
-jest.mock('../../src/data/source', () => ({
+jest.mock('../data/source', () => ({
   useOpsTodayData: () => mockRoster,
   useOpsWho: () => ({ firmName: 'Rout Estates', firstName: 'Samyak' }),
   useOpsWorklist: () => ({ mode: 'live', loading: false, tasks: [] }),
 }));
 
 const mockApprovals = { loading: false, data: [] as any[] };
-jest.mock('../../src/data/worklists', () => ({
-  ...jest.requireActual('../../src/data/worklists'),
+jest.mock('../data/worklists', () => ({
+  ...jest.requireActual('../data/worklists'),
   useOpsApprovals: () => mockApprovals,
 }));
 

@@ -83,3 +83,17 @@ jobs:
             exit 1
           fi
           echo "the facilitation notice has one home"
+
+      # expo-router bundles every file under app/ through require.context, so a
+      # test left there ships @testing-library into the app and the simulator
+      # fails to compile on a module only jest has (#307).
+      - name: No test files inside an expo-router app/ tree
+        run: |
+          set -uo pipefail
+          offenders=$(find apps/*/app -name '*.test.*' 2>/dev/null || true)
+          if [ -n "$offenders" ]; then
+            echo "::error::expo-router bundles these into the app; move them under src/:"
+            echo "$offenders"
+            exit 1
+          fi
+          echo "no tests are routed"
