@@ -104,3 +104,9 @@ func (s *Leases) ActiveOnUnit(ctx context.Context, unitID string, on effective.D
 	}
 	return id, err
 }
+
+// NextOnUnit reports the tenancy a unit has been let to but not yet handed
+// over, so a free-looking flat is not offered to a second tenant (#304).
+func (s *Leases) NextOnUnit(ctx context.Context, unitID string, after effective.Date) (string, effective.Date, error) {
+	return s.store.NextOnUnit(ctx, unitID, after)
+}

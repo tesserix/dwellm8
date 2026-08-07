@@ -97,7 +97,14 @@ func (h *Handler) RecordCollection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenantParty, _, err := h.leases.PartiesOf(ctx, leaseID, today)
+	// The deposit and the first month change hands at signing, so ask who the
+	// parties are as at the term's first day while that is still ahead — the
+	// payer is the same person either way (#303).
+	on := today
+	if start := t.Term.From(); today.Before(start) {
+		on = start
+	}
+	tenantParty, _, err := h.leases.PartiesOf(ctx, leaseID, on)
 	if err != nil || tenantParty == "" {
 		h.log.Error("no tenant on a tenancy being collected from", "lease", leaseID, "error", err)
 		writeError(w, http.StatusUnprocessableEntity, "this tenancy has nobody to credit the payment to")

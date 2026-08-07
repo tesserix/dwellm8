@@ -34,6 +34,11 @@ import (
 // apart.
 
 func serve(t *testing.T) *http.ServeMux {
+	mux, _ := serveWithPool(t)
+	return mux
+}
+
+func serveWithPool(t *testing.T) (*http.ServeMux, tenancy.PlatformPool) {
 	t.Helper()
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	platDSN := os.Getenv("TEST_PLATFORM_DATABASE_URL")
@@ -66,7 +71,48 @@ func serve(t *testing.T) *http.ServeMux {
 		moneyservice.NewStatements(moneystore.NewLedger(pool), payments, nil),
 		residents, nil, log, nil,
 	).Routes(authz.NewRegistrar(mux, &authz.Guard{}))
-	return mux
+	return mux, tenancy.NewPlatformPool(plat)
+}
+
+// seedFutureTenancy puts a unit of its own off the market from a date still
+// ahead: the agreement is signed, the term has not begun. Fresh ids per run,
+// because this suite commits and the fixture's own units are asserted on
+// elsewhere.
+func seedFutureTenancy(t *testing.T, plat tenancy.PlatformPool, from, to string) string {
+	t.Helper()
+	tok := token(t)
+	unitID, lease, party := uuidFrom(tok, "5"), uuidFrom(tok, "6"), uuidFrom(tok, "7")
+	code := "L" + tok[:5]
+	err := tenancy.Platform(context.Background(), plat, "seeding a tenancy that has not started",
+		func(ctx context.Context, tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO units (id, tenant_id, property_id, unit_kind, code, floor, carpet_area_sqft)
+				VALUES ($1, $2, $3, 'flat', $4, 1, 610.00)`,
+				unitID, isolationtest.OrgOwner.String(), isolationtest.PropertyGranted,
+				code); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO leases (id, tenant_id, property_id, unit_id, state, valid_from, valid_to)
+				VALUES ($1, $2, $3, $4, 'active', $5::date, $6::date)`,
+				lease, isolationtest.OrgOwner.String(), isolationtest.PropertyGranted,
+				unitID, from, to); err != nil {
+				return err
+			}
+			if err := isolationtest.SeedLeaseTaxFacts(ctx, tx, isolationtest.OrgOwner.String(),
+				lease, from); err != nil {
+				return err
+			}
+			_, err := tx.Exec(ctx, `
+				INSERT INTO lease_parties (tenant_id, lease_id, party_id, role, valid_from)
+				VALUES ($1, $2, $3, 'tenant', $4::date)`,
+				isolationtest.OrgOwner.String(), lease, party, from)
+			return err
+		})
+	if err != nil {
+		t.Fatalf("seeding a tenancy that has not started: %v", err)
+	}
+	return code
 }
 
 // seedOwnership records who owns the resident fixture's property. The
@@ -216,6 +262,43 @@ func TestOpsPropertyRecordCarriesItsUnitsAndTheirTenancies(t *testing.T) {
 	if empty.LeaseID != "" || empty.Tenant != "" {
 		t.Errorf("103 has no tenancy in the fixture, got %+v", empty)
 	}
+}
+
+// Between signature and move-in a flat is neither free nor occupied, and it is
+// exactly then that a manager must not re-let it: the seeded unit is empty
+// today and spoken for from next year (#304).
+func TestOpsAUnitLetFromAFutureDateSaysSo(t *testing.T) {
+	mux, plat := serveWithPool(t)
+	code := seedFutureTenancy(t, plat, "2027-03-01", "2028-02-29")
+
+	w := call(t, mux, isolationtest.OrgOwner, http.MethodGet,
+		"/v1/ops/properties/"+isolationtest.PropertyGranted)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET the property: %d %s", w.Code, w.Body.String())
+	}
+	var out struct {
+		Units []struct {
+			Code      string `json:"code"`
+			Occupancy string `json:"occupancy"`
+			LetFrom   string `json:"let_from"`
+			LeaseID   string `json:"lease_id"`
+		} `json:"units"`
+	}
+	decode(t, w, &out)
+
+	for _, u := range out.Units {
+		if u.Code != code {
+			continue
+		}
+		if u.LetFrom != "2027-03-01" {
+			t.Errorf("%s is let from 2027-03-01, got let_from %q", code, u.LetFrom)
+		}
+		if u.LeaseID == "" {
+			t.Errorf("%s names the tenancy that has taken it", code)
+		}
+		return
+	}
+	t.Fatalf("unit %s is missing from %+v", code, out.Units)
 }
 
 // Another organisation's building is not a 403 telling them it exists.

@@ -309,6 +309,30 @@ func (s *Leases) ActiveOnUnit(ctx context.Context, unitID string, on effective.D
 	return id, err
 }
 
+// NextOnUnit returns the earliest tenancy on a unit that starts after a date,
+// and the day it starts. Between signature and move-in a flat is spoken for
+// without being occupied, and must not be re-let (#304).
+func (s *Leases) NextOnUnit(ctx context.Context, unitID string, after effective.Date) (string, effective.Date, error) {
+	var id string
+	var from time.Time
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `
+			SELECT id::text, lower(validity)
+			  FROM leases
+			 WHERE unit_id = $1 AND state IN ('active', 'in_notice')
+			   AND lower(validity) > $2::date
+			 ORDER BY lower(validity)
+			 LIMIT 1`, unitID, after.Time()).Scan(&id, &from)
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", effective.Date{}, nil
+	}
+	if err != nil {
+		return "", effective.Date{}, err
+	}
+	return id, effective.DateOf(from, time.UTC), nil
+}
+
 // conflicting finds the tenancy that blocked an activation, so the refusal can
 // name it rather than describe it.
 func (s *Leases) conflicting(ctx context.Context, id string) (string, error) {

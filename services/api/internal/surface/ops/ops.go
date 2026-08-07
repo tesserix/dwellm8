@@ -127,6 +127,9 @@ type unitResponse struct {
 	RentMinor int64  `json:"rent_amount_minor,omitempty"`
 	LeaseEnds string `json:"lease_ends,omitempty"`
 	DueMinor  int64  `json:"due_amount_minor,omitempty"`
+	// LetFrom is set on a unit nobody lives in yet whose tenancy is signed and
+	// starts later. Vacant with a date on it is not a unit to re-let (#304).
+	LetFrom string `json:"let_from,omitempty"`
 }
 
 // Property is the record a manager opens on site: the building, its lettable
@@ -178,6 +181,21 @@ func (h *Handler) Property(w http.ResponseWriter, r *http.Request) {
 				}
 				if due, err := h.statements.Position(ctx, leaseID, tenantParty); err == nil {
 					item.DueMinor = int64(due.Due)
+				}
+			}
+		} else if next, from, err := h.leases.NextOnUnit(ctx, u.ID, today); err != nil {
+			h.log.Warn("reading the next tenancy on a unit", "unit", u.ID, "error", err)
+		} else if next != "" {
+			item.LeaseID, item.LetFrom = next, from.String()
+			if t, err := h.leases.Tenancy(ctx, next, from); err == nil {
+				item.RentMinor = t.RentMinor
+				if !t.Term.To().Zero() {
+					item.LeaseEnds = t.Term.To().String()
+				}
+			}
+			if tenantParty, _, err := h.leases.PartiesOf(ctx, next, from); err == nil && tenantParty != "" {
+				if profile, err := h.residents.Profile(ctx, tenantParty); err == nil {
+					item.Tenant = profile.DisplayName
 				}
 			}
 		}

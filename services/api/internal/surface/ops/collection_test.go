@@ -89,6 +89,10 @@ type tenancyUnderTest struct {
 }
 
 func seedTenancy(t *testing.T, plat tenancy.PlatformPool) tenancyUnderTest {
+	return seedTenancyFrom(t, plat, "2026-01-01", "2026-12-31")
+}
+
+func seedTenancyFrom(t *testing.T, plat tenancy.PlatformPool, from, to string) tenancyUnderTest {
 	t.Helper()
 	tok := token(t)
 	unit, lease, party := uuidFrom(tok, "1"), uuidFrom(tok, "2"), uuidFrom(tok, "3")
@@ -103,24 +107,25 @@ func seedTenancy(t *testing.T, plat tenancy.PlatformPool) tenancyUnderTest {
 			}
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO leases (id, tenant_id, property_id, unit_id, state, valid_from, valid_to)
-				VALUES ($1, $2, $3, $4, 'active', date '2026-01-01', date '2026-12-31')`,
-				lease, isolationtest.OrgOwner.String(), isolationtest.PropertyGranted, unit); err != nil {
+				VALUES ($1, $2, $3, $4, 'active', $5::date, $6::date)`,
+				lease, isolationtest.OrgOwner.String(), isolationtest.PropertyGranted, unit,
+				from, to); err != nil {
 				return err
 			}
 			if err := isolationtest.SeedLeaseTaxFacts(ctx, tx, isolationtest.OrgOwner.String(),
-				lease, "2026-01-01"); err != nil {
+				lease, from); err != nil {
 				return err
 			}
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO lease_parties (tenant_id, lease_id, party_id, role, valid_from)
-				VALUES ($1, $2, $3, 'tenant', date '2026-01-01')`,
-				isolationtest.OrgOwner.String(), lease, party); err != nil {
+				VALUES ($1, $2, $3, 'tenant', $4::date)`,
+				isolationtest.OrgOwner.String(), lease, party, from); err != nil {
 				return err
 			}
 			_, err := tx.Exec(ctx, `
 				INSERT INTO rent_schedule (tenant_id, lease_id, amount_minor, due_day, valid_from)
-				VALUES ($1, $2, 2500000, 5, date '2026-01-01')`,
-				isolationtest.OrgOwner.String(), lease)
+				VALUES ($1, $2, 2500000, 5, $3::date)`,
+				isolationtest.OrgOwner.String(), lease, from)
 			return err
 		})
 	if err != nil {
@@ -175,6 +180,28 @@ func TestRecordingRentTakenInCashClearsWhatIsOwed(t *testing.T) {
 	}
 	if got.DueMinor != 0 {
 		t.Errorf("due_amount_minor = %d, want 0 — owing less than nothing is owing nothing", got.DueMinor)
+	}
+}
+
+// The deposit and the first month are handed over at signing, before the term
+// starts. There is a tenant on the tenancy — just not one live today (#303).
+func TestRecordingTheDepositBeforeTheTermStarts(t *testing.T) {
+	mux, plat := serveCollections(t)
+	tt := seedTenancyFrom(t, plat, "2027-03-01", "2028-02-29")
+
+	w := post(t, mux, isolationtest.OrgOwner, tt.path(), map[string]any{
+		"amount_minor":    15000000,
+		"method":          "offline_cash",
+		"reference":       "deposit, on signing",
+		"idempotency_key": tt.token,
+	})
+	if w.Code != http.StatusCreated {
+		t.Fatalf("recording the deposit: %d %s", w.Code, w.Body.String())
+	}
+	var got collected
+	decode(t, w, &got)
+	if got.AdvanceMinor != 15000000 {
+		t.Errorf("advance_amount_minor = %d, want the whole deposit 15000000", got.AdvanceMinor)
 	}
 }
 
