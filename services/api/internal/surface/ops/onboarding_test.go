@@ -74,6 +74,7 @@ func serveOnboardingWithPool(t *testing.T) (*http.ServeMux, tenancy.PlatformPool
 	registrar := authz.NewRegistrar(mux, &authz.Guard{})
 	h.OnboardingRoutes(registrar)
 	h.PortfolioRoutes(registrar)
+	h.OwnershipRoutes(registrar)
 	return mux, platPool
 }
 

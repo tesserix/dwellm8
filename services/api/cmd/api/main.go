@@ -650,6 +650,7 @@ func run() error {
 	opsHandler.WorklistRoutes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.OnboardingRoutes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.PortfolioRoutes(authz.NewRegistrar(opsMux, guard))
+	opsHandler.OwnershipRoutes(authz.NewRegistrar(opsMux, guard))
 	// Where the manager's own rent settles, #269. Provider-agnostic: the
 	// registry decides whether that is Cashfree or anyone else.
 	opsHandler.MerchantRoutes(authz.NewRegistrar(opsMux, guard))
