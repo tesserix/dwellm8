@@ -283,19 +283,24 @@ export function EmptyState({ title, body, art, action, onAct }:
 }
 
 /** A screen that could not load, with the way out of it (#343). */
-export function ErrorState({ error, title = 'That did not load', onRetry }:
-  { error: string; title?: string; onRetry?: () => void }) {
-  return (
-    <Card style={{ alignItems: 'center', paddingVertical: space(6) }}>
-      <Text style={s.emptyTitle}>{title}</Text>
+export function ErrorState({ error, title = 'That did not load', onRetry, inline = false }:
+  { error: string; title?: string; onRetry?: () => void; inline?: boolean }) {
+  const body = (
+    <>
+      {/* Inline it already sits in a card that says what the screen is (#349). */}
+      {inline ? null : <Text style={s.emptyTitle}>{title}</Text>}
       <Text style={s.emptyBody}>{error}</Text>
       {onRetry ? (
         <Pressable accessibilityRole="button" onPress={onRetry} style={s.retry}>
           <Text style={s.retryText}>Try again</Text>
         </Pressable>
       ) : null}
-    </Card>
+    </>
   );
+  if (inline) {
+    return <View style={{ alignItems: 'center', paddingVertical: space(6) }}>{body}</View>;
+  }
+  return <Card style={{ alignItems: 'center', paddingVertical: space(6) }}>{body}</Card>;
 }
 
 export function Banner({ children, onClose }: { children: React.ReactNode; onClose?: () => void }) {

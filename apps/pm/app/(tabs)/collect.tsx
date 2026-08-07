@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   AppHeader, AvatarButton, Card, Screen, Segmented, SearchBar, ListRow, Avatar,
   StatusPill, Metric,
-  apiFromEnv, color, font, inr, space,
+  apiFromEnv, color, font, inr, space, ErrorState,
 } from '@dwellm8/mobile-shared';
 import type { OpsArrear } from '@dwellm8/mobile-shared';
 
@@ -91,7 +91,7 @@ export default function Collect() {
           {loading ? (
             <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View>
           ) : null}
-          {error ? <Text style={s.empty}>{error}</Text> : null}
+          {error ? <ErrorState error={error} inline /> : null}
           {list.map((a, i) => (
             <ListRow
               key={a.lease_id}

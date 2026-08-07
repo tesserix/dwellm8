@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   AppHeader, AvatarButton, Card, Screen, ChipRow, ListRow, StatusPill, Metric,
   SearchBar, WrenchIcon,
-  color, font, inr, space,
+  color, font, inr, space, ErrorState,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { TICKET_STATUS_LABEL, fmtDate, useOpsTickets } from '../../src/data/worklists';
@@ -72,7 +72,7 @@ export default function Jobs() {
           {loading ? (
             <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View>
           ) : null}
-          {error ? <Text style={s.empty}>{error}</Text> : null}
+          {error ? <ErrorState error={error} inline /> : null}
           {list.map((t, i) => (
             <ListRow
               key={t.ticket_id}

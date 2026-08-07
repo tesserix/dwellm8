@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-nati
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Button, Card, Field, Screen, SectionTitle, StatusPill, ListRow,
-  color, font, space, useBack,
+  color, font, space, useBack, ErrorState,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import {
@@ -91,7 +91,7 @@ export default function ViewingTimes() {
           {loading ? (
             <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View>
           ) : null}
-          {error ? <Text style={s.empty}>{error}</Text> : null}
+          {error ? <ErrorState error={error} inline /> : null}
           {schedules.map((sc, i) => (
             <View key={sc.id}>
               <ListRow

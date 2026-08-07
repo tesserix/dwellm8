@@ -161,6 +161,15 @@ describe('DwellmApi — ops surface', () => {
     }
   });
 
+  it('says a session has expired in a sentence, whatever the server called it (#349)', async () => {
+    // The server answers 401 with "sign in again", which a screen rendered
+    // where its data should have been. Expiry is the client's own business.
+    global.fetch = mockFetch({ error: 'sign in again' }, 401) as unknown as typeof fetch;
+    await expect(new DwellmApi({ baseUrl }).opsToday()).rejects.toMatchObject({
+      status: 401, message: 'Your session has expired. Sign in again.',
+    });
+  });
+
   it('a refusal that names a field carries it, so the form can say it at the field (#287)', async () => {
     global.fetch = mockFetch(
       { error: 'that GSTIN is not a GSTIN', field: 'gstin' }, 422) as unknown as typeof fetch;

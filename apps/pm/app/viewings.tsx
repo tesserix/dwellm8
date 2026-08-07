@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ListRow, StatusPill, EmptyState, CalendarIcon,
-  color, font, space, useBack,
+  color, font, space, useBack, ErrorState,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { useOpsListings } from '../src/data/viewings';
@@ -28,7 +28,7 @@ export default function Viewings() {
           {loading ? (
             <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View>
           ) : null}
-          {error ? <Text style={s.empty}>{error}</Text> : null}
+          {error ? <ErrorState error={error} inline /> : null}
           {listings.map((l, i) => (
             <ListRow
               key={l.id}

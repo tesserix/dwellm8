@@ -116,6 +116,12 @@ describe('EmptyState', () => {
 });
 
 describe('ErrorState', () => {
+  it('renders without a card of its own when it sits inside one (#349)', async () => {
+    await render(<ErrorState error="Your session has expired. Sign in again." inline />);
+    expect(screen.getByText('Your session has expired. Sign in again.')).toBeTruthy();
+    expect(screen.queryByText('That did not load')).toBeNull();
+  });
+
   it('says what went wrong and offers a retry (#343)', async () => {
     const retry = jest.fn();
     await render(<ErrorState error="This is not available on this server yet." onRetry={retry} />);

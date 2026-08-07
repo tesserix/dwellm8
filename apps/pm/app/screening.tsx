@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ChipRow, ListRow, Avatar, StatusPill, Metric,
-  color, font, space, useBack,
+  color, font, space, useBack, ErrorState,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { fmtDate } from '../src/data/worklists';
@@ -41,7 +41,7 @@ export default function Screening() {
 
         <Card padded={false} style={{ paddingHorizontal: space(4) }}>
           {loading ? <View style={s.wait}><ActivityIndicator /></View> : null}
-          {error ? <Text style={s.empty}>{error}</Text> : null}
+          {error ? <ErrorState error={error} inline /> : null}
           {list.map((a, i) => (
             <ListRow
               key={a.id}

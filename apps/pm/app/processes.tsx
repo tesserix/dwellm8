@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ListRow, StatusPill, Metric, ClipboardIcon,
-  color, count, font, space, useBack,
+  color, count, font, space, useBack, ErrorState,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { useOpsChecklists } from '../src/data/worklists';
@@ -36,7 +36,7 @@ export default function Processes() {
 
         <Card padded={false} style={{ paddingHorizontal: space(4) }}>
           {loading ? <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View> : null}
-          {error ? <Text style={s.empty}>{error}</Text> : null}
+          {error ? <ErrorState error={error} inline /> : null}
           {rows.map((c, i) => (
             <ListRow
               key={c.id}

@@ -4,7 +4,7 @@ import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import {
   AppHeader, AvatarButton, Button, Card, Screen, SearchBar, ListRow, Metric,
   BuildingIcon, PlusIcon,
-  color, font, space,
+  color, font, space, ErrorState,
 } from '@dwellm8/mobile-shared';
 import { usePortfolio } from '../../src/data/portfolio';
 
@@ -67,7 +67,7 @@ export default function Portfolio() {
           {loading ? (
             <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View>
           ) : null}
-          {error ? <Text style={s.empty}>{error}</Text> : null}
+          {error ? <ErrorState error={error} inline /> : null}
           {list.map((p, i) => (
             <ListRow
               key={p.id}

@@ -1055,7 +1055,9 @@ export class DwellmApi {
       try {
         const parsed = JSON.parse(text) as
           { error?: string; resend_after_seconds?: number; field?: string };
-        if (parsed.error) message = parsed.error;
+        // An expired session is the client's business to explain: the server
+        // says "sign in again", which screens rendered as their content (#349).
+        if (parsed.error && res.status !== 401) message = parsed.error;
         if (parsed.field) field = parsed.field;
         if (retryAfter === undefined && parsed.resend_after_seconds) {
           retryAfter = parsed.resend_after_seconds;

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   ActionBar, BackHeader, Button, Card, ChoiceRow, Field, KeyValue, Screen, StatusPill, Toast,
-  color, font, space, useBack,
+  color, font, space, useBack, ErrorState,
 } from '@dwellm8/mobile-shared';
 import type { ConnectMerchant, MerchantAccount, Tone } from '@dwellm8/mobile-shared';
 import { connectMerchant, refreshMerchant, useMerchants } from '../src/data/merchant';
@@ -92,7 +92,7 @@ export default function Settlement() {
         {toast ? <Toast text={toast} /> : null}
 
         {loading ? <View style={s.wait}><ActivityIndicator /></View> : null}
-        {error ? <Text style={s.empty}>{error}</Text> : null}
+        {error ? <ErrorState error={error} inline /> : null}
 
         {accounts.map((a) => (
           <Card key={a.provider}>

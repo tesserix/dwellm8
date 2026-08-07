@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   AppHeader, AvatarButton, Button, Card, Screen, ListRow, StatusPill, Metric, CalendarIcon,
-  color, font, space,
+  color, font, space, ErrorState,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { fmtDate, fmtTime, useOpsInspections } from '../../src/data/worklists';
@@ -35,7 +35,7 @@ export default function Inspect() {
 
         <Card padded={false} style={{ paddingHorizontal: space(4) }}>
           {loading ? <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View> : null}
-          {error ? <Text style={s.empty}>{error}</Text> : null}
+          {error ? <ErrorState error={error} inline /> : null}
           {rows.map((v, i) => (
             <ListRow
               key={v.id ?? String(i)}

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Button, Card, EmptyState, Field, KeyValue, ListRow, Metric, Screen, StatusPill, Toast,
-  color, font, inr, space, useBack,
+  color, font, inr, space, useBack, ErrorState,
 } from '@dwellm8/mobile-shared';
 import type { Settlement, Tone } from '@dwellm8/mobile-shared';
 import { releaseSettlement, useSettlements } from '../src/data/settlements';
@@ -58,7 +58,7 @@ export default function Payouts() {
         {toast ? <Toast text={toast} /> : null}
 
         {loading ? <View style={s.wait}><ActivityIndicator /></View> : null}
-        {error ? <Text style={s.empty}>{error}</Text> : null}
+        {error ? <ErrorState error={error} inline /> : null}
 
         {settlements.length ? (
           <View style={s.metrics}>
