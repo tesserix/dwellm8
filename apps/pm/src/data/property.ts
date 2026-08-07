@@ -14,7 +14,7 @@ export type PropertyRecord = {
   units: OpsUnit[];
   occupied: number;
   vacant: number;
-  /** Empty today, let from a date ahead — not free to offer to anybody else. */
+  /** Empty today, let from a date ahead — not free to offer, and not counted as vacant. */
   spokenFor: number;
   rentRollPaise: number;
 };
@@ -48,7 +48,9 @@ export function usePropertyRecord(id: string | undefined): PropertyRecord {
           property,
           units,
           occupied: let_.length,
-          vacant: units.length - let_.length,
+          // The three partition the units: a flat let from a date ahead is not
+          // also empty, and counted twice it gets offered to somebody (#311).
+          vacant: units.length - let_.length - ahead.length,
           spokenFor: ahead.length,
           rentRollPaise: let_.reduce((a, u) => a + (u.rent_amount_minor ?? 0), 0),
         });

@@ -63,7 +63,8 @@ describe('usePropertyRecord', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.occupied).toBe(1);
-    expect(result.current.vacant).toBe(1);
+    // Nothing here is free to offer: one is lived in, the other is let from March.
+    expect(result.current.vacant).toBe(0);
     expect(result.current.spokenFor).toBe(1);
     expect(result.current.rentRollPaise).toBe(2500000);
   });
@@ -83,5 +84,25 @@ describe('usePropertyRecord', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(mockOpsProperty).not.toHaveBeenCalled();
     expect(result.current.error).toBe('No property was named.');
+  });
+
+  // Three counts over three units must add to three: read as "3 empty · 1 taken"
+  // a manager offers a flat that is already let (#311).
+  it('partitions the units between let, empty and spoken for', async () => {
+    mockOpsProperty.mockResolvedValue({
+      ...record,
+      units: [
+        record.units[0],
+        { id: 'u2', code: '102', kind: 'flat', floor: 1, occupancy: 'vacant' },
+        { id: 'u3', code: '201', kind: 'flat', floor: 2, occupancy: 'vacant',
+          lease_id: 'l3', rent_amount_minor: 2800000, let_from: '2026-08-10' },
+      ],
+    });
+    const { result } = await renderHook(() => usePropertyRecord('p1'));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const { occupied, vacant, spokenFor, units } = result.current;
+    expect([occupied, vacant, spokenFor]).toEqual([1, 1, 1]);
+    expect(occupied + vacant + spokenFor).toBe(units.length);
   });
 });
