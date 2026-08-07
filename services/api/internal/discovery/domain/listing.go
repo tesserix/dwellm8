@@ -59,6 +59,12 @@ const (
 	EventInspectionRescheduled Event = "discovery.inspection.rescheduled"
 	EventInspectionCancelled   Event = "discovery.inspection.cancelled"
 	EventInspectionCompleted   Event = "discovery.inspection.completed"
+
+	// The request loop (#331): a time asked for, and the answer to it.
+	EventInspectionRequested Event = "discovery.inspection.requested"
+	EventInspectionCountered Event = "discovery.inspection.countered"
+	EventInspectionConfirmed Event = "discovery.inspection.confirmed"
+	EventInspectionDeclined  Event = "discovery.inspection.declined"
 )
 
 var (

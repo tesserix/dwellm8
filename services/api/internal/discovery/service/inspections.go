@@ -126,6 +126,80 @@ func (s *Inspections) RecordOutcome(ctx context.Context, enquiryID string, o sto
 	return nil
 }
 
+// ErrNoMeetingPlace refuses a confirmation that says when but not where (#331).
+var ErrNoMeetingPlace = errors.New(
+	"inspection: confirm a private viewing with a meeting point, an online one with a link")
+
+// RequestViewing records a private or online viewing request for the token's
+// verified prospect. Same verification rule as a booking, no new path around it.
+func (s *Inspections) RequestViewing(ctx context.Context, token, listingID, kind, message string,
+	at []time.Time) (store.Request, error) {
+	p, err := s.resolve(ctx, token)
+	if err != nil {
+		return store.Request{}, err
+	}
+	if !p.Verified {
+		return store.Request{}, store.ErrNotVerified
+	}
+	r, err := s.store.RequestViewing(ctx, listingID, p.ID, kind, message, at)
+	if err != nil {
+		return store.Request{}, err
+	}
+	s.log.Info("viewing requested", "enquiry", r.Enquiry.ID, "listing", listingID, "kind", kind)
+	return r, nil
+}
+
+// ProspectRequests is the token holder's own requests and their answers.
+func (s *Inspections) ProspectRequests(ctx context.Context, token string) ([]store.Request, error) {
+	p, err := s.resolve(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	return s.store.ProspectRequests(ctx, p.ID)
+}
+
+// AcceptCounter takes the time the owner offered back.
+func (s *Inspections) AcceptCounter(ctx context.Context, token, enquiryID, proposalID string) (store.Booked, error) {
+	p, err := s.resolve(ctx, token)
+	if err != nil {
+		return store.Booked{}, err
+	}
+	return s.store.AcceptCounter(ctx, p.ID, enquiryID, proposalID)
+}
+
+// OwnerRequests is the manager's queue of requests still to answer.
+func (s *Inspections) OwnerRequests(ctx context.Context) ([]store.Request, error) {
+	return s.store.OwnerRequests(ctx)
+}
+
+// AcceptRequest confirms one of the proposed times.
+func (s *Inspections) AcceptRequest(ctx context.Context, enquiryID, proposalID string,
+	c store.Confirmation, actor events.Actor) (store.Booked, error) {
+	if c.MeetingPoint == "" && c.MeetingLink == "" {
+		return store.Booked{}, ErrNoMeetingPlace
+	}
+	b, err := s.store.AcceptRequest(ctx, enquiryID, proposalID, c, actor)
+	if err != nil {
+		return store.Booked{}, err
+	}
+	s.log.Info("viewing request accepted", "enquiry", enquiryID, "at", b.StartsAt)
+	return b, nil
+}
+
+// CounterRequest offers a time of the owner's own, once.
+func (s *Inspections) CounterRequest(ctx context.Context, enquiryID string, at time.Time,
+	c store.Confirmation, actor events.Actor) (store.Proposal, error) {
+	if c.MeetingPoint == "" && c.MeetingLink == "" {
+		return store.Proposal{}, ErrNoMeetingPlace
+	}
+	return s.store.CounterRequest(ctx, enquiryID, at, c, actor)
+}
+
+// DeclineRequest closes the request with a reason the prospect is told.
+func (s *Inspections) DeclineRequest(ctx context.Context, enquiryID string, actor events.Actor) error {
+	return s.store.DeclineRequest(ctx, enquiryID, actor)
+}
+
 // ListingFeedback is the owner's aggregate: the pattern, never the prospect.
 func (s *Inspections) ListingFeedback(ctx context.Context, listingID string) (store.Feedback, error) {
 	return s.store.ListingFeedback(ctx, listingID)

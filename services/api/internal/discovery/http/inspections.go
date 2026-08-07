@@ -40,6 +40,16 @@ func (h *Inspections) OwnerRoutes(r *authz.Registrar) {
 		Relation: "can_respond", Object: authz.PathObject("listing_enquiry", "id")}, h.Outcome)
 	r.Handle("POST /v1/enquiries/{id}/cancel", authz.Check{
 		Relation: "can_respond", Object: authz.PathObject("listing_enquiry", "id")}, h.OwnerCancel)
+
+	// The request loop (#331).
+	r.Handle("GET /v1/viewing-requests", authz.Check{
+		Relation: "can_view", Object: authz.Organisation()}, h.OwnerRequests)
+	r.Handle("POST /v1/enquiries/{id}/accept", authz.Check{
+		Relation: "can_respond", Object: authz.PathObject("listing_enquiry", "id")}, h.AcceptRequest)
+	r.Handle("POST /v1/enquiries/{id}/counter", authz.Check{
+		Relation: "can_respond", Object: authz.PathObject("listing_enquiry", "id")}, h.CounterRequest)
+	r.Handle("POST /v1/enquiries/{id}/decline", authz.Check{
+		Relation: "can_respond", Object: authz.PathObject("listing_enquiry", "id")}, h.DeclineRequest)
 }
 
 // PublicRoutes mounts the prospect side, Open for the funnel's reason.
@@ -48,6 +58,9 @@ func (h *Inspections) PublicRoutes(r *authz.Registrar) {
 	r.Open("POST /v1/public/inspections", openReason, h.Book)
 	r.Open("POST /v1/public/inspections/{id}/reschedule", openReason, h.Reschedule)
 	r.Open("POST /v1/public/inspections/{id}/cancel", openReason, h.ProspectCancel)
+	r.Open("POST /v1/public/viewing-requests", openReason, h.RequestViewing)
+	r.Open("GET /v1/public/viewing-requests", openReason, h.ProspectRequests)
+	r.Open("POST /v1/public/viewing-requests/{id}/accept", openReason, h.AcceptCounter)
 }
 
 // slotResponse shows a time and how many places remain — never who booked.

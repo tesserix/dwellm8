@@ -111,6 +111,32 @@ func TestNobodyBooksAViewingOnAListingThatIsNotLive(t *testing.T) {
 	}
 }
 
+// A cancellation nobody can be told about is a cancellation the prospect finds
+// out about by turning up (#332).
+func TestAnOwnersCancellationNamesTheProspect(t *testing.T) {
+	_, plat := pools(t)
+	f := newInspectionFixture(t)
+	slot := f.slot(t, 24*time.Hour, 1)
+	p := f.verifiedProspect(t)
+
+	b, _, err := f.inspections.Book(context.Background(), f.listing, p.ID, slot)
+	if err != nil {
+		t.Fatalf("booking: %v", err)
+	}
+	if err := f.inspections.CancelByOwner(owner(), b.Enquiry.ID); err != nil {
+		t.Fatalf("cancelling: %v", err)
+	}
+
+	var prospect string
+	query(t, plat, &prospect, `
+		SELECT coalesce(payload->>'prospect_id', '') FROM outbox
+		 WHERE type = 'discovery.inspection.cancelled'
+		   AND subject_id = $1`, b.Enquiry.ID)
+	if prospect != p.ID {
+		t.Fatalf("cancellation names %q; want the prospect holding the viewing", prospect)
+	}
+}
+
 func slotState(t *testing.T, plat tenancy.PlatformPool, id string) string {
 	t.Helper()
 	var state string

@@ -18,18 +18,29 @@ type ProspectTokens interface {
 	ForProspect(ctx context.Context, prospectID string) ([]string, error)
 }
 
-// Notices tells prospects when a viewing they hold is called off.
+// Notices tells prospects when a viewing they hold is called off, and how a
+// viewing they asked for was answered (#331).
 type Notices struct {
 	Tokens ProspectTokens
 	Sender PushSender
 	Log    *slog.Logger
 }
 
-// why maps the reason on the fact to the sentence the prospect reads. A
+// why maps the reason on a cancellation to the sentence the prospect reads. A
 // prospect's own cancellation is absent on purpose: they did it.
 var why = map[string]string{
 	"listing_let":        "The home has been let, so this viewing is off. There are other places to see.",
 	"cancelled_by_owner": "The viewing you booked has been called off. Pick another time, or ask for one.",
+}
+
+// answers are the ends of the request loop, each saying which end it was.
+var answers = map[string]struct{ title, body string }{
+	"discovery.inspection.confirmed": {"Your viewing is confirmed",
+		"The time you asked for is confirmed. Open the app for where to go."},
+	"discovery.inspection.countered": {"Another time is offered",
+		"The times you asked for do not suit, and another time is offered instead."},
+	"discovery.inspection.declined": {"Your viewing request was declined",
+		"Your request was declined. There are other places to see."},
 }
 
 // Handle is the consumer entry for the discovery stream.
@@ -45,11 +56,16 @@ func (n Notices) Handle(ctx context.Context, body []byte) error {
 	if err := json.Unmarshal(body, &env); err != nil {
 		return fmt.Errorf("notices: undecodable event: %w", err)
 	}
-	if env.Type != "discovery.inspection.cancelled" || env.Data.ProspectID == "" {
+	if env.Data.ProspectID == "" {
 		return nil
 	}
-	line, tellThem := why[env.Data.By]
-	if !tellThem {
+	title, line := "Your viewing is off", ""
+	if a, isAnswer := answers[env.Type]; isAnswer {
+		title, line = a.title, a.body
+	} else if env.Type == "discovery.inspection.cancelled" {
+		line = why[env.Data.By]
+	}
+	if line == "" {
 		return nil
 	}
 
@@ -64,7 +80,7 @@ func (n Notices) Handle(ctx context.Context, body []byte) error {
 	msgs := make([]push.Message, 0, len(tokens))
 	for _, t := range tokens {
 		msgs = append(msgs, push.Message{
-			To: t, Title: "Your viewing is off", Body: line,
+			To: t, Title: title, Body: line,
 			Data: map[string]any{"url": "/viewings"},
 		})
 	}
@@ -74,7 +90,7 @@ func (n Notices) Handle(ctx context.Context, body []byte) error {
 		n.Log.Error("notices: push send failed", "prospect", env.Data.ProspectID, "error", err)
 		return nil
 	}
-	n.Log.Info("viewing cancellation told", "prospect", env.Data.ProspectID,
+	n.Log.Info("viewing notice sent", "type", env.Type, "prospect", env.Data.ProspectID,
 		"listing", env.Data.ListingID, "devices", len(msgs))
 	return nil
 }

@@ -417,6 +417,8 @@ export type BookedInspection = {
   state: string;
   starts_at: string;
   meeting_point?: string;
+  /** An online viewing's room, in place of a meeting point (#331). */
+  meeting_link?: string;
 };
 
 /** One of the prospect's own enquiries (GET /v1/public/enquiries). */
@@ -427,6 +429,33 @@ export type ProspectEnquiry = {
   kind: string;
   state: string;
   message?: string;
+  scheduled_for?: string;
+  created_at: string;
+};
+
+/** A time one side put forward for a private or online viewing (#331). */
+export type ViewingTime = {
+  id: string;
+  proposed_by: 'prospect' | 'owner';
+  starts_at: string;
+  state: 'open' | 'accepted' | 'declined' | 'superseded';
+};
+
+/**
+ * A viewing asked for rather than booked. The meeting point and the link are
+ * present only once the request is confirmed.
+ */
+export type ViewingRequest = {
+  id: string;
+  listing_id: string;
+  kind: 'inspection' | 'online_inspection';
+  state: string;
+  headline?: string;
+  message?: string;
+  outcome?: string;
+  times: ViewingTime[];
+  meeting_point?: string;
+  meeting_link?: string;
   scheduled_for?: string;
   created_at: string;
 };
@@ -1336,6 +1365,33 @@ export class DwellmApi {
     return this.request('POST', '/v1/public/inspections',
       { listing_id: listingId, slot_id: slotId },
       { 'X-Dwellm8-Prospect': token });
+  }
+
+  /**
+   * Ask for a viewing at your own times — the answer to a listing with no
+   * published slots, and to one whose slots you cannot make (#331).
+   */
+  requestViewing(token: string, q: {
+    listingId: string;
+    kind: 'inspection' | 'online_inspection';
+    times: string[];
+    message?: string;
+  }): Promise<ViewingRequest> {
+    return this.request('POST', '/v1/public/viewing-requests',
+      { listing_id: q.listingId, kind: q.kind, times: q.times, message: q.message },
+      { 'X-Dwellm8-Prospect': token });
+  }
+
+  async myViewingRequests(token: string): Promise<ViewingRequest[]> {
+    const out = await this.request<{ requests: ViewingRequest[] }>(
+      'GET', '/v1/public/viewing-requests', undefined, { 'X-Dwellm8-Prospect': token });
+    return out.requests ?? [];
+  }
+
+  /** Take the time the manager offered back — the end of the one round trip. */
+  acceptViewingTime(token: string, requestId: string, timeId: string): Promise<BookedInspection> {
+    return this.request('POST', `/v1/public/viewing-requests/${requestId}/accept`,
+      { proposal_id: timeId }, { 'X-Dwellm8-Prospect': token });
   }
 
   cancelInspection(token: string, enquiryId: string): Promise<void> {

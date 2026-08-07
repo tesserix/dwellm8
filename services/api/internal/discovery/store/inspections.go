@@ -165,6 +165,9 @@ type Booked struct {
 	Enquiry      Enquiry
 	StartsAt     time.Time
 	MeetingPoint string
+	// MeetingLink is where an online viewing happens (#331); it replaces the
+	// meeting point rather than joining it.
+	MeetingLink string
 }
 
 // Book takes a place on a slot for a verified prospect.
@@ -362,14 +365,15 @@ func (s *Inspections) CancelByOwner(ctx context.Context, enquiryID string) error
 // slot, publish the fact. prospectID narrows the prospect's own cancellation;
 // empty means the owner side, where tenancy has already scoped the row.
 func cancel(ctx context.Context, tx pgx.Tx, enquiryID, prospectID, outcome string) error {
-	var tenant, slot string
+	var tenant, listing, prospect, slot string
 	err := tx.QueryRow(ctx, `
 		UPDATE enquiries
 		   SET state = 'closed', outcome = $2, outcome_at = now(), updated_at = now()
-		 WHERE id = $1 AND kind = 'inspection' AND state = 'scheduled'
+		 WHERE id = $1 AND kind IN ('inspection', 'online_inspection') AND state = 'scheduled'
 		   AND ($3 = '' OR prospect_id = $3::uuid)
-		 RETURNING tenant_id::text, coalesce(slot_id::text, '')`,
-		enquiryID, outcome, prospectID).Scan(&tenant, &slot)
+		 RETURNING tenant_id::text, listing_id::text, prospect_id::text,
+		           coalesce(slot_id::text, '')`,
+		enquiryID, outcome, prospectID).Scan(&tenant, &listing, &prospect, &slot)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotReschedulable
 	}
@@ -387,8 +391,10 @@ func cancel(ctx context.Context, tx pgx.Tx, enquiryID, prospectID, outcome strin
 		events.Subject{Kind: "enquiry", ID: enquiryID},
 		events.Actor{Kind: events.ActorSystem},
 		struct {
-			By string `json:"by"`
-		}{outcome})
+			By         string `json:"by"`
+			ListingID  string `json:"listing_id"`
+			ProspectID string `json:"prospect_id"`
+		}{outcome, listing, prospect})
 	if err != nil {
 		return err
 	}
@@ -415,7 +421,8 @@ func (s *Inspections) RecordOutcome(ctx context.Context, enquiryID string, o Out
 			UPDATE enquiries
 			   SET state = 'completed', outcome = $2, objections = $3,
 			       outcome_note = $4, outcome_at = now(), updated_at = now()
-			 WHERE id = $1 AND kind = 'inspection' AND state IN ('scheduled', 'owner_responded')`,
+			 WHERE id = $1 AND kind IN ('inspection', 'online_inspection')
+			   AND state IN ('scheduled', 'owner_responded')`,
 			enquiryID, o.Outcome, nullStrings(o.Objections), nullText(o.Note))
 		if err != nil {
 			return err
@@ -485,7 +492,7 @@ func (s *Inspections) DayView(ctx context.Context, on time.Time) ([]Booked, erro
 	var out []Booked
 	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, selectEnquiry+`
-			 WHERE e.kind = 'inspection' AND e.state = 'scheduled'
+			 WHERE e.kind IN ('inspection', 'online_inspection') AND e.state = 'scheduled'
 			   AND e.scheduled_for >= $1 AND e.scheduled_for < $1 + interval '1 day'
 			 ORDER BY e.scheduled_for`, on)
 		if err != nil {

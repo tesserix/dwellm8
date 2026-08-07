@@ -156,10 +156,33 @@ export default function ListingScreen() {
           </Card>
         ) : (
           <Card>
-            <Text style={s.h}>No open inspection yet</Text>
-            <Text style={s.body}>Ask the lister for a time and we will hold the slot for you.</Text>
+            <Text style={s.h}>Viewings by appointment</Text>
+            <Text style={s.body}>
+              No times are published for this home. Ask for one you can make, or for a video
+              walkthrough if you are not in the city.
+            </Text>
           </Card>
         )}
+
+        {/* Neither request depends on a published slot — this is the answer to
+            a by-appointment-only listing (#331). */}
+        <Card>
+          <Text style={s.h}>None of those suit?</Text>
+          <Button
+            label="Ask for a private viewing"
+            tone="secondary"
+            onPress={() => router.push(
+              `/request-viewing?id=${l.id}&headline=${encodeURIComponent(l.title)}`)}
+            style={{ marginTop: space(3) }}
+          />
+          <Button
+            label="Request a video walkthrough"
+            tone="secondary"
+            onPress={() => router.push(
+              `/request-viewing?id=${l.id}&kind=online_inspection&headline=${encodeURIComponent(l.title)}`)}
+            style={{ marginTop: space(2) }}
+          />
+        </Card>
 
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

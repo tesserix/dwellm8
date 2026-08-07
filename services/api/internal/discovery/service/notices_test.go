@@ -94,6 +94,36 @@ func TestNothingIsSentWhereNobodyNeedsTelling(t *testing.T) {
 	}
 }
 
+// A request answered in silence is a request the prospect keeps waiting on
+// (#331): every answer reaches them, and each says which answer it was.
+func TestEveryAnswerToARequestReachesTheProspect(t *testing.T) {
+	for _, tc := range []struct {
+		event string
+		says  string
+	}{
+		{"discovery.inspection.confirmed", "confirmed"},
+		{"discovery.inspection.countered", "another time"},
+		{"discovery.inspection.declined", "declined"},
+	} {
+		t.Run(tc.event, func(t *testing.T) {
+			n, _, send := notices(t)
+			body := []byte(`{"type":"` + tc.event + `","tenant_id":"t1",
+				"subject":{"kind":"enquiry","id":"e1"},
+				"data":{"prospect_id":"p1","listing_id":"l1","kind":"inspection"}}`)
+
+			if err := n.Handle(context.Background(), body); err != nil {
+				t.Fatalf("handling: %v", err)
+			}
+			if len(send.sent) != 2 {
+				t.Fatalf("sent %d notifications; want one per device", len(send.sent))
+			}
+			if !contains(send.sent[0].Body, tc.says) {
+				t.Errorf("body = %q; want it to say %q", send.sent[0].Body, tc.says)
+			}
+		})
+	}
+}
+
 func TestOtherFactsPassThrough(t *testing.T) {
 	n, _, send := notices(t)
 	if err := n.Handle(context.Background(),
