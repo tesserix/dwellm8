@@ -1,10 +1,7 @@
 package domain
 
 import (
-	"fmt"
 	"regexp"
-	"sort"
-	"strings"
 )
 
 // The owner–manager agreement (#340), India. The clauses are the platform's
@@ -45,69 +42,15 @@ var placeholder = regexp.MustCompile(`\{\{([a-z0-9_]+)\}\}`)
 // platform template declares the same set (#341), so a firm's revision that
 // drops one is refused before it can print a blank clause.
 func AgreementFields() []string {
-	seen := map[string]bool{}
-	for _, s := range append(clauseSources(), signatureSources()...) {
-		for _, m := range placeholder.FindAllStringSubmatch(s, -1) {
-			seen[m[1]] = true
-		}
-	}
-	out := make([]string, 0, len(seen))
-	for f := range seen {
-		out = append(out, f)
-	}
-	sort.Strings(out)
-	return out
+	fields, _ := InstrumentFields("management_agreement")
+	return fields
 }
 
 // BuildAgreement fills the instrument. A field left unfilled is refused rather
 // than printed: a clause reading "{{management_fee_pct}}" is a figure somebody
 // signs believing it is there.
 func BuildAgreement(fields map[string]string) (Agreement, error) {
-	var missing []string
-	for _, f := range AgreementFields() {
-		if strings.TrimSpace(fields[f]) == "" {
-			missing = append(missing, f)
-		}
-	}
-	if len(missing) > 0 {
-		return Agreement{}, fmt.Errorf("the agreement cannot print without %s", strings.Join(missing, ", "))
-	}
-
-	fill := func(s string) string {
-		return placeholder.ReplaceAllStringFunc(s, func(m string) string {
-			return strings.TrimSpace(fields[placeholder.FindStringSubmatch(m)[1]])
-		})
-	}
-
-	a := Agreement{Title: "PROPERTY MANAGEMENT AGREEMENT"}
-	for _, r := range recitals {
-		a.Recitals = append(a.Recitals, fill(r))
-	}
-	for _, c := range clauses {
-		a.Clauses = append(a.Clauses, Clause{Number: c.Number, Heading: c.Heading, Text: fill(c.Text)})
-	}
-	for _, s := range signatures {
-		block := Signature{Role: s.Role, Name: fill(s.Name)}
-		block.Lines = append(block.Lines, s.Lines...)
-		a.Signatures = append(a.Signatures, block)
-	}
-	return a, nil
-}
-
-func clauseSources() []string {
-	out := append([]string{}, recitals...)
-	for _, c := range clauses {
-		out = append(out, c.Text)
-	}
-	return out
-}
-
-func signatureSources() []string {
-	out := make([]string, 0, len(signatures))
-	for _, s := range signatures {
-		out = append(out, s.Name)
-	}
-	return out
+	return BuildInstrument("management_agreement", fields)
 }
 
 var recitals = []string{

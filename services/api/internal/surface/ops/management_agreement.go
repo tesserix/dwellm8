@@ -155,7 +155,10 @@ func propertyAddress(p propertyservice.Property) string {
 }
 
 func printable(a propertydomain.Agreement) pdfdoc.Document {
-	d := pdfdoc.Document{Title: a.Title, Preamble: a.Recitals, Footer: "Dwellm8 management agreement"}
+	// The footer names the document it is on: five instruments print through
+	// here, and the wrong name at the foot of a signed page is the wrong page.
+	d := pdfdoc.Document{Title: a.Title, Preamble: a.Recitals,
+		Footer: "Dwellm8 " + strings.ToLower(a.Title)}
 	for _, c := range a.Clauses {
 		d.Sections = append(d.Sections, pdfdoc.Section{Number: c.Number, Heading: c.Heading, Body: c.Text})
 	}

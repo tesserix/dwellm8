@@ -201,6 +201,18 @@ export type OpsDocumentTemplate = {
   download_url?: string;
 };
 
+/** An instrument printed blank, for a manager to read before issuing it and
+ * for the owner or tenant to sign on paper (#350). */
+export type OpsTemplatePreview = {
+  kind: OpsDocumentTemplate['kind'];
+  name: string;
+  filename: string;
+  content_type: string;
+  pdf_base64: string;
+  download_url?: string;
+  expires_in_seconds: number;
+};
+
 /** What the owner–manager agreement needs before it will print (#340).
  * `supplied` is what the server fills from the register, so the app never asks
  * for it. */
@@ -1194,6 +1206,12 @@ export class DwellmApi {
   /** One template, with a short-lived URL to download the .docx behind it. */
   opsDocumentTemplate(id: string): Promise<OpsDocumentTemplate> {
     return this.request('GET', `/v1/ops/document-templates/${encodeURIComponent(id)}`);
+  }
+
+  /** The instrument rendered as a blank PDF, with a short-lived link to the
+   * same file — the one shared with an owner or a tenant to sign (#350). */
+  opsTemplatePreview(id: string): Promise<OpsTemplatePreview> {
+    return this.request('GET', `/v1/ops/document-templates/${encodeURIComponent(id)}/preview`);
   }
 
   /** Where the firm's edited copy is PUT before it is published. */

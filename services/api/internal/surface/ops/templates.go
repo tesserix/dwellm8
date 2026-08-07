@@ -26,6 +26,8 @@ func (h *Handler) TemplateRoutes(r *authz.Registrar) {
 		Relation: "can_view", Object: authz.Organisation()}, h.DocumentTemplates)
 	r.Handle("GET /v1/ops/document-templates/{id}", authz.Check{
 		Relation: "can_view", Object: authz.Organisation()}, h.Template)
+	r.Handle("GET /v1/ops/document-templates/{id}/preview", authz.Check{
+		Relation: "can_view", Object: authz.Organisation()}, h.TemplatePreview)
 	r.Handle("POST /v1/ops/document-templates/upload-url", authz.Check{
 		Relation: "can_manage", Object: authz.Organisation()}, h.TemplateUploadURL)
 	r.Handle("POST /v1/ops/document-templates", authz.Check{
@@ -107,7 +109,9 @@ func (h *Handler) Template(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := templateOut(t)
-	if h.blob != nil {
+	// Only for an object that is actually there: a signed link to a missing
+	// key opens as an XML error page, which is what a manager saw (#350).
+	if h.blob != nil && h.blob.Exists(r.Context(), auth.SurfaceOps, t.ObjectPath) {
 		url, err := h.blob.DownloadURL(r.Context(), auth.SurfaceOps, t.ObjectPath)
 		if err != nil {
 			h.log.Error("minting a template download url", "template", t.ID, "error", err)

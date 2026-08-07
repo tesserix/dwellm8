@@ -39,6 +39,10 @@ const (
 	downloadTTL = 10 * time.Minute
 )
 
+// DownloadTTL is downloadTTL, so a caller sharing a link can say how long it
+// lives rather than guess (#350).
+const DownloadTTL = downloadTTL
+
 // Store mints signed URLs against per-app GCS buckets.
 type Store struct {
 	client       *storage.Client
@@ -104,6 +108,14 @@ func (s *Store) Put(ctx context.Context, surface auth.Surface, orgID, filename, 
 		return "", fmt.Errorf("blob: closing %s: %w", objectPath, err)
 	}
 	return objectPath, nil
+}
+
+// Exists says whether the object is really there. Signing is arithmetic and
+// succeeds for an object that was never uploaded, which is how the template
+// library handed out links to a NoSuchKey page (#350).
+func (s *Store) Exists(ctx context.Context, surface auth.Surface, objectPath string) bool {
+	_, err := s.client.Bucket(s.Bucket(surface)).Object(objectPath).Attrs(ctx)
+	return err == nil
 }
 
 // DownloadURL mints a short-lived V4 GET URL for an existing object.

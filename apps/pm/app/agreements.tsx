@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, ErrorState, Screen, ListRow, SectionTitle, StatusPill,
@@ -22,26 +22,13 @@ const titles: Record<string, string> = {
 export default function AgreementsScreen() {
   const router = useRouter();
   const goBack = useBack('/(tabs)');
-  const { loading, error, templates, download, reload } = useDocumentTemplates();
-
-  async function open(id: string, name: string) {
-    try {
-      const url = await download(id);
-      if (!url) {
-        Alert.alert(name, 'This template has no file behind it yet.');
-        return;
-      }
-      await Linking.openURL(url);
-    } catch (err) {
-      Alert.alert(name, (err as Error).message);
-    }
-  }
+  const { loading, error, templates, reload } = useDocumentTemplates();
 
   return (
     <>
       <BackHeader
         title="Agreements"
-        subtitle="Download, sign on paper, upload the signed copy"
+        subtitle="Read it, send it to be signed, file the signed copy"
         onBack={goBack}
       />
       <Screen>
@@ -64,7 +51,7 @@ export default function AgreementsScreen() {
                       tone={t.is_default ? 'blue' : 'green'}
                     />
                   }
-                  onPress={() => open(t.id, t.name)}
+                  onPress={() => router.push(`/template/${t.id}`)}
                   last={i === templates.length - 1}
                 />
               ))}
