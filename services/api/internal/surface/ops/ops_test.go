@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -82,6 +83,7 @@ func serveWithPool(t *testing.T) (*http.ServeMux, tenancy.PlatformPool) {
 	h.TemplateRoutes(authz.NewRegistrar(mux, &authz.Guard{}))
 	h.PropertyDocumentRoutes(authz.NewRegistrar(mux, &authz.Guard{}))
 	h.ManagementAgreementRoutes(authz.NewRegistrar(mux, &authz.Guard{}))
+	h.BedRoutes(authz.NewRegistrar(mux, &authz.Guard{}))
 	return mux, tenancy.NewPlatformPool(plat)
 }
 
@@ -153,6 +155,16 @@ func seedOwnership(t *testing.T, plat tenancy.PlatformPool) {
 func call(t *testing.T, mux *http.ServeMux, org tenancy.ID, method, path string) *httptest.ResponseRecorder {
 	t.Helper()
 	r := httptest.NewRequest(method, path, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, r.WithContext(tenancy.With(r.Context(), org)))
+	return w
+}
+
+// callWith is call with a JSON body, for the routes that take one.
+func callWith(t *testing.T, mux *http.ServeMux, org tenancy.ID, method, path, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	r := httptest.NewRequest(method, path, strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, r.WithContext(tenancy.With(r.Context(), org)))
 	return w

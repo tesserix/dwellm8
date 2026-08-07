@@ -714,6 +714,9 @@ func run() error {
 	opsHandler.TemplateRoutes(authz.NewRegistrar(opsMux, guard))
 	// The owner–manager agreement, printed for signature on paper, #340.
 	opsHandler.ManagementAgreementRoutes(authz.NewRegistrar(opsMux, guard))
+
+	// The bed board of a hostel or a PG, #299.
+	opsHandler.BedRoutes(authz.NewRegistrar(opsMux, guard))
 	// Where the manager's own rent settles, #269. Provider-agnostic: the
 	// registry decides whether that is Cashfree or anyone else.
 	opsHandler.MerchantRoutes(authz.NewRegistrar(opsMux, guard))

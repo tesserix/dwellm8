@@ -168,6 +168,20 @@ export type OpsOwnershipEvidence = {
   advisory: string[];
 };
 
+/** A bed in a room — what is let in a hostel or a PG (#299). */
+export type OpsBedState = 'vacant' | 'reserved' | 'occupied' | 'notice';
+export type OpsBed = {
+  id: string;
+  label: string;
+  room: string;
+  floor: number;
+  /** How many beds the room holds. */
+  sharing: number;
+  rent_amount_minor: number;
+  state: OpsBedState;
+  lease_id?: string;
+};
+
 /** An instrument the firm issues (GET /v1/ops/document-templates, #341). The
  * .docx is downloaded, signed on paper and uploaded back — no e-signing. */
 export type OpsDocumentTemplate = {
@@ -1111,6 +1125,24 @@ export class DwellmApi {
       listing: out.listing,
       ancillaries: out.ancillaries ?? [],
     };
+  }
+
+  /** The bed board of a hostel or a PG (#299). */
+  async opsBeds(propertyId: string): Promise<OpsBed[]> {
+    const out = await this.request<{ beds: OpsBed[] }>(
+      'GET', `/v1/ops/properties/${encodeURIComponent(propertyId)}/beds`);
+    return out.beds ?? [];
+  }
+
+  opsAddBed(unitId: string, label: string, rentAmountMinor: number): Promise<{ bed: OpsBed }> {
+    return this.request('POST', `/v1/ops/units/${encodeURIComponent(unitId)}/beds`,
+      { label, rent_amount_minor: rentAmountMinor });
+  }
+
+  /** Moving a bed between states. An occupied bed names the tenancy behind it. */
+  opsAllocateBed(bedId: string, state: OpsBedState, leaseId?: string): Promise<unknown> {
+    return this.request('POST', `/v1/ops/beds/${encodeURIComponent(bedId)}/allocation`,
+      { state, lease_id: leaseId ?? '' });
   }
 
   /** The paperwork behind a property, and what it proves about the right to

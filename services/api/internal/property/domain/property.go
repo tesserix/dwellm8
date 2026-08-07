@@ -39,3 +39,17 @@ type Unit struct {
 	ElectricityNo      string
 	WaterNo            string
 }
+
+// Bed is what is let in a hostel or a PG (#299): a bed in a room, priced on
+// its own. Sharing is how many beds the room holds.
+type Bed struct {
+	ID        string
+	Label     string
+	UnitID    string
+	Room      string
+	Floor     int
+	Sharing   int
+	RentMinor int64
+	State     string
+	LeaseID   string
+}

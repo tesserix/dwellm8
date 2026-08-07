@@ -28,6 +28,9 @@ var ErrNoProperty = errors.New("property: no such property")
 // ErrNoUnit is no such unit, on the same terms.
 var ErrNoUnit = errors.New("property: no such unit")
 
+// ErrNoBed is no such bed, on the same terms.
+var ErrNoBed = errors.New("property: no such bed")
+
 const propertyColumns = `
 	p.id::text, p.code::text, p.name, p.kind,
 	p.address_line1, coalesce(p.address_line2, ''), p.locality, p.city, p.state_code, p.pin,

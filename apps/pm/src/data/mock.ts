@@ -1,6 +1,6 @@
 /**
  * Demonstration data for the four PM screens that have no endpoint yet —
- * inspection (#298), beds (#299), society (#300) and compliance (#301) — plus
+ * inspection (#298), society (#300) and compliance (#301) — plus
  * the Today figures `source.ts` falls back to with no EXPO_PUBLIC_API_URL.
  *
  * One fictional Bengaluru managing agency, Anchor Property Care. Every amount
@@ -99,37 +99,6 @@ export const inspectionRooms = [
   { id: 'r5', name: 'Bedrooms', items: ['Walls and ceiling', 'Wardrobes', 'Fan and lights', 'Windows'] },
   { id: 'r6', name: 'Balcony and utility', items: ['Railings', 'Drainage', 'Washing machine point'] },
   { id: 'r7', name: 'Meters and safety', items: ['Electricity meter', 'Water meter', 'Smoke alarm', 'Fire extinguisher'] },
-];
-
-/* ------------------------------------------------------------------- beds */
-
-export type Bed = {
-  id: string;
-  label: string;
-  room: string;
-  floor: number;
-  sharing: 2 | 3 | 4;
-  resident?: string;
-  status: 'Occupied' | 'Vacant' | 'Reserved' | 'Notice';
-  rentPaise: number;
-  dueState?: 'Paid' | 'Due' | 'Late';
-};
-
-export const beds: Bed[] = [
-  { id: 'b-09a', label: '09A', room: '09', floor: 1, sharing: 2, resident: 'Arjun Rao', status: 'Occupied', rentPaise: 1_20_00_00, dueState: 'Late' },
-  { id: 'b-09b', label: '09B', room: '09', floor: 1, sharing: 2, resident: 'Nikhil Bose', status: 'Occupied', rentPaise: 1_20_00_00, dueState: 'Paid' },
-  { id: 'b-10a', label: '10A', room: '10', floor: 1, sharing: 3, resident: 'Sameer Khan', status: 'Occupied', rentPaise: 1_00_00_00, dueState: 'Paid' },
-  { id: 'b-10b', label: '10B', room: '10', floor: 1, sharing: 3, status: 'Vacant', rentPaise: 1_00_00_00 },
-  { id: 'b-10c', label: '10C', room: '10', floor: 1, sharing: 3, resident: 'Yash Patel', status: 'Occupied', rentPaise: 1_00_00_00, dueState: 'Due' },
-  { id: 'b-14a', label: '14A', room: '14', floor: 2, sharing: 2, resident: 'Rohan Das', status: 'Occupied', rentPaise: 1_40_00_00, dueState: 'Paid' },
-  { id: 'b-14b', label: '14B', room: '14', floor: 2, sharing: 2, resident: 'Imran Qureshi', status: 'Notice', rentPaise: 1_40_00_00, dueState: 'Paid' },
-  { id: 'b-15a', label: '15A', room: '15', floor: 2, sharing: 2, status: 'Reserved', rentPaise: 1_40_00_00 },
-  { id: 'b-15b', label: '15B', room: '15', floor: 2, sharing: 2, status: 'Vacant', rentPaise: 1_40_00_00 },
-];
-
-export const bedWaitlist = [
-  { id: 'wl1', name: 'Pranav Joshi', preference: 'Twin sharing, 2nd floor', from: '01 Aug 2026', phone: '+91 90080 12345' },
-  { id: 'wl2', name: 'Aditya Sharma', preference: 'Any bed, AC room', from: '05 Aug 2026', phone: '+91 90080 98765' },
 ];
 
 /* -------------------------------------------------------------- society */

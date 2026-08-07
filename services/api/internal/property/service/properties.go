@@ -75,3 +75,24 @@ func (p *Properties) RecordOwnership(ctx context.Context, propertyID, ownerParty
 func (p *Properties) AddUnit(ctx context.Context, propertyID string, d domain.UnitDraft) (string, error) {
 	return p.store.CreateUnit(ctx, propertyID, d)
 }
+
+// Bed is what is let in a hostel or a PG.
+type Bed = domain.Bed
+
+// ErrNoBed is no such bed, re-exported for the same reason as ErrNoUnit.
+var ErrNoBed = store.ErrNoBed
+
+// Beds returns a property's bed board.
+func (p *Properties) Beds(ctx context.Context, propertyID string) ([]Bed, error) {
+	return p.store.Beds(ctx, propertyID)
+}
+
+// AddBed puts a bed in a room.
+func (p *Properties) AddBed(ctx context.Context, unitID, label string, rentMinor int64) (Bed, error) {
+	return p.store.AddBed(ctx, unitID, label, rentMinor)
+}
+
+// AllocateBed moves a bed between states, holding it against a lease.
+func (p *Properties) AllocateBed(ctx context.Context, bedID, state, leaseID string) error {
+	return p.store.AllocateBed(ctx, bedID, state, leaseID)
+}
