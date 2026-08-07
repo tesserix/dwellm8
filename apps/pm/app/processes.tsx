@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ListRow, StatusPill, Metric, ClipboardIcon,
-  color, font, space,
+  color, count, font, space,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { useOpsChecklists } from '../src/data/worklists';
@@ -42,7 +42,7 @@ export default function Processes() {
               left={<ClipboardIcon size={22} c={(c.days_overdue ?? 0) > 0 ? color.negative : color.accent} />}
               title={processLabel(c.process)}
               subtitle={`${c.settled}/${c.tasks} steps settled · ${c.blocking_outstanding} blocking outstanding`}
-              meta={`${c.next_due_on ? `next due ${c.next_due_on}` : 'nothing due'}${(c.days_overdue ?? 0) > 0 ? ` · ${c.days_overdue} days overdue` : ''}`}
+              meta={`${c.next_due_on ? `next due ${c.next_due_on}` : 'nothing due'}${(c.days_overdue ?? 0) > 0 ? ` · ${count(c.days_overdue ?? 0, 'day')} overdue` : ''}`}
               right={<StatusPill text={c.state} tone={stateTone[c.state] ?? 'neutral'} />}
               onPress={() => router.push(`/checklist?id=${c.id}`)}
               last={i === rows.length - 1}

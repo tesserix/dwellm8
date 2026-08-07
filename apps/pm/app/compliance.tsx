@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ListRow, StatusPill, Metric, Button, KeyValue,
   Toast, ChipRow, ShieldIcon, AlertIcon,
-  color, font, inr, inrShort, space,
+  color, count, font, inr, inrShort, space,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { compliance } from '../src/data/mock';
@@ -81,7 +81,7 @@ export default function Compliance() {
                   left={<View style={s.icon}><ShieldIcon size={20} c={c.state === 'Expired' ? color.negative : color.accent} /></View>}
                   title={c.item}
                   subtitle={c.property}
-                  meta={c.daysLeft < 0 ? `Expired ${Math.abs(c.daysLeft)} days ago` : `Expires ${c.expires} · ${c.daysLeft} days`}
+                  meta={c.daysLeft < 0 ? `Expired ${count(Math.abs(c.daysLeft), 'day')} ago` : `Expires ${c.expires} · ${count(c.daysLeft, 'day')}`}
                   right={<StatusPill text={c.state} tone={stateTone[c.state]} />}
                   onPress={() => setOpen(isOpen ? null : c.id)}
                   last={i === list.length - 1}

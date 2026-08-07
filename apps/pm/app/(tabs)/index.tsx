@@ -6,7 +6,7 @@ import {
   ProgressBar, StatusPill, Metric, ListRow, Avatar,
   AlertIcon, BedIcon, BuildingIcon, CalendarIcon, ChartIcon, ChatIcon, ClipboardIcon, DocIcon,
   KeyIcon, RupeeIcon, ShieldIcon, UsersIcon, WrenchIcon,
-  color, font, inr, inrShort, radius, space,
+  color, count, font, inr, inrShort, radius, space,
 } from '@dwellm8/mobile-shared';
 import { istDate } from '../../src/data/clock';
 import { useOpsTodayData, useOpsWho, useOpsWorklist, type OpsTask } from '../../src/data/source';
@@ -85,14 +85,14 @@ export default function Today() {
             // No rent in force yet, so every figure above is zero. Saying so is
             // what separates a firm with a move-in coming from an empty one (#308).
             <Text style={s.sub}>
-              {roster.startingTenancies} tenancy starting — no rent in force yet
+              {count(roster.startingTenancies, 'tenancy', 'tenancies')} starting — no rent in force yet
             </Text>
           ) : null}
 
           <View style={s.metrics}>
             <Metric
               value={inrShort(roster.outstandingPaise)}
-              label={`arrears · ${roster.arrearsCount} tenancies`}
+              label={`arrears · ${count(roster.arrearsCount, 'tenancy', 'tenancies')}`}
               tone="red"
               onPress={() => router.push('/(tabs)/collect')}
             />
@@ -142,7 +142,7 @@ export default function Today() {
                   title={r.kind === 'tenancy_ending'
                     ? `${r.unit}, ${r.property} — term ends`
                     : `${r.unit}, ${r.property} — ${inr(r.amount_minor ?? 0, { noPaise: true })}`}
-                  subtitle={r.kind === 'rent_overdue' ? 'overdue now' : `in ${r.days_away} days · ${r.on}`}
+                  subtitle={r.kind === 'rent_overdue' ? 'overdue now' : `in ${count(r.days_away, 'day')} · ${r.on}`}
                   onPress={() => router.push('/reminders')}
                   last={i === coming.length - 1}
                 />

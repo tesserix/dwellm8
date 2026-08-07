@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Segmented, SectionTitle, ListRow, StatusPill, Metric,
   AlertIcon, CalendarIcon, RupeeIcon,
-  color, font, inr, inrShort, space, type OpsReminder,
+  color, count, font, inr, inrShort, space, type OpsReminder,
 } from '@dwellm8/mobile-shared';
 import { useReminders } from '../src/data/reminders';
 
@@ -28,7 +28,7 @@ function when(r: OpsReminder): string {
   if (r.kind === 'rent_overdue') return 'overdue now';
   if (r.days_away <= 0) return 'today';
   if (r.days_away === 1) return 'tomorrow';
-  return `in ${r.days_away} days · ${r.on}`;
+  return `in ${count(r.days_away, 'day')} · ${r.on}`;
 }
 
 function headline(r: OpsReminder): string {

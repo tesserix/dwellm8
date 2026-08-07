@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Metric, StatusPill, Button, Avatar,
   Toast, KeyValue, EmptyState, ErrorState,
-  color, font, inr, radius, space,
+  color, count, font, inr, radius, space,
 } from '@dwellm8/mobile-shared';
 import type { OpsBed } from '@dwellm8/mobile-shared';
 import { useBeds } from '../src/data/beds';
@@ -82,7 +82,7 @@ export default function Beds() {
     <>
       <BackHeader
         title={property.name}
-        subtitle={`${board.beds.length} beds under management`}
+        subtitle={`${count(board.beds.length, 'bed')} under management`}
         onBack={() => router.back()}
       />
       <Screen>

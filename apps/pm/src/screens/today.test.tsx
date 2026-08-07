@@ -71,6 +71,13 @@ describe('Today, in live mode', () => {
     expect(getByText(/1 tenancy starting/i)).toBeTruthy();
   });
 
+  it('counts several starting tenancies in the plural (#346)', async () => {
+    mockRoster.activeTenancies = 0;
+    mockRoster.startingTenancies = 86;
+    const { getByText } = await render(<Today />);
+    expect(getByText(/86 tenancies starting/i)).toBeTruthy();
+  });
+
   // Nothing is queued offline, and saying two things are makes a manager who
   // just took rent record it twice (#309).
   it('claims nothing is waiting to sync', async () => {
