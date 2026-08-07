@@ -820,6 +820,13 @@ export class DwellmApi {
     return out.arrears ?? [];
   }
 
+  /** The whole live roster with each tenancy's position, including the ones
+   * that are square — which the arrears list, by definition, leaves out (#313). */
+  async opsTenancies(): Promise<OpsArrear[]> {
+    const out = await this.request<{ tenancies: OpsArrear[] }>('GET', '/v1/ops/tenancies');
+    return out.tenancies ?? [];
+  }
+
   /** One tenancy's rent and what it owes. The arrears list is only the
    * tenancies in arrears, so a settled one is read here, not looked up in it. */
   opsPosition(leaseId: string): Promise<OpsArrear> {

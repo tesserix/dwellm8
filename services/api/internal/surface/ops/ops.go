@@ -76,6 +76,8 @@ func (h *Handler) Routes(r *authz.Registrar) {
 		Relation: "can_view", Object: authz.Organisation()}, h.Property)
 	r.Handle("GET /v1/ops/arrears", authz.Check{
 		Relation: "can_view", Object: authz.Organisation()}, h.Arrears)
+	r.Handle("GET /v1/ops/tenancies", authz.Check{
+		Relation: "can_view", Object: authz.Organisation()}, h.Tenancies)
 	r.Handle("GET /v1/ops/tenancies/{lease}/position", authz.Check{
 		Relation: "can_view", Object: authz.Organisation()}, h.Position)
 	r.Handle("GET /v1/ops/today", authz.Check{
@@ -214,10 +216,9 @@ func (h *Handler) Property(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// arrearResponse is one live tenancy and what it owes today — the
-// collections worklist. Zero DueMinor tenancies are included: a manager
-// scanning for who is about to fall behind needs the full roster, not only
-// the ones already in arrears.
+// arrearResponse is one live tenancy and what it owes today. Arrears carries
+// only the tenancies that owe something; Tenancies carries the whole roster in
+// the same shape, including the ones that are square.
 type arrearResponse struct {
 	LeaseID   string `json:"lease_id"`
 	Property  string `json:"property"`
@@ -263,6 +264,45 @@ func (h *Handler) Arrears(w http.ResponseWriter, r *http.Request) {
 		out = append(out, item)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"arrears": out})
+}
+
+// Tenancies is the whole live roster with each tenancy's position, for the
+// manager scanning for who is about to fall behind rather than who already has.
+//
+// Arrears cannot serve this: it lists only what is owed, so a firm whose
+// tenancies are all square read as a firm managing nothing (#313).
+func (h *Handler) Tenancies(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	today := effective.DateOf(h.now(), ist)
+
+	live, err := h.leases.Live(ctx, rosterLimit)
+	if err != nil {
+		h.log.Error("reading the live roster", "error", err)
+		writeError(w, http.StatusInternalServerError, "could not read the roster")
+		return
+	}
+	owing, err := h.statements.Outstanding(ctx)
+	if err != nil {
+		h.log.Error("reading what the firm is owed", "error", err)
+		writeError(w, http.StatusInternalServerError, "could not read the roster")
+		return
+	}
+	due := make(map[string]int64, len(owing))
+	for _, d := range owing {
+		due[d.LeaseID] = int64(d.Due)
+	}
+
+	out := make([]arrearResponse, 0, len(live))
+	for _, l := range live {
+		item, err := h.arrear(ctx, l.ID, today)
+		if err != nil {
+			h.log.Warn("describing a tenancy on the roster", "lease", l.ID, "error", err)
+			continue
+		}
+		item.DueMinor = due[l.ID]
+		out = append(out, item)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"tenancies": out})
 }
 
 // Position is one tenancy's rent and what it owes, so a receipt or a collection

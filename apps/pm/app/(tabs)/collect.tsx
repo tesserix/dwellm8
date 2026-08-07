@@ -9,10 +9,10 @@ import {
 import type { OpsArrear } from '@dwellm8/mobile-shared';
 
 /**
- * Collections worklist — the live roster and what each tenancy owes today,
- * from ledger postings (GET /v1/ops/arrears). Mandate retries and
- * promise-to-pay tracking arrive with their own legs; nothing here stages
- * them.
+ * Collections worklist — what each tenancy owes today, from ledger postings.
+ * Two lists, two endpoints: /v1/ops/arrears is who owes, /v1/ops/tenancies is
+ * everyone including the tenancies that are square (#313). Mandate retries and
+ * promise-to-pay tracking arrive with their own legs; nothing here stages them.
  */
 
 export default function Collect() {
@@ -20,7 +20,8 @@ export default function Collect() {
   const api = useMemo(() => apiFromEnv(), []);
   const [tab, setTab] = useState('In arrears');
   const [q, setQ] = useState('');
-  const [rows, setRows] = useState<OpsArrear[]>([]);
+  const [arrears, setArrears] = useState<OpsArrear[]>([]);
+  const [roster, setRoster] = useState<OpsArrear[] | null>(null);
   const [loading, setLoading] = useState(!!api);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,10 +33,24 @@ export default function Collect() {
     }
     let alive = true;
     api.opsArrears()
-      .then((list) => { if (alive) { setRows(list); setLoading(false); } })
+      .then((list) => { if (alive) { setArrears(list); setLoading(false); } })
       .catch((err: Error) => { if (alive) { setError(err.message); setLoading(false); } });
     return () => { alive = false; };
   }, [api]);
+
+  // The roster costs a query per tenancy to describe, so it is fetched when the
+  // tab is actually opened rather than alongside the arrears every morning.
+  useEffect(() => {
+    if (!api || tab !== 'Whole roster' || roster) return;
+    let alive = true;
+    setLoading(true);
+    api.opsTenancies()
+      .then((list) => { if (alive) { setRoster(list); setLoading(false); } })
+      .catch((err: Error) => { if (alive) { setError(err.message); setLoading(false); } });
+    return () => { alive = false; };
+  }, [api, tab, roster]);
+
+  const rows = tab === 'In arrears' ? arrears : roster ?? [];
 
   const list = useMemo(() => {
     const needle = q.toLowerCase();
@@ -45,9 +60,8 @@ export default function Collect() {
         || a.property.toLowerCase().includes(needle)
         || (a.phone ?? '').includes(q),
     );
-    const view = tab === 'In arrears' ? filtered.filter((a) => a.due_amount_minor > 0) : filtered;
-    return view.slice().sort((a, b) => b.due_amount_minor - a.due_amount_minor);
-  }, [rows, tab, q]);
+    return filtered.slice().sort((a, b) => b.due_amount_minor - a.due_amount_minor);
+  }, [rows, q]);
 
   const outstanding = list.reduce((sum, a) => sum + Math.max(0, a.due_amount_minor), 0);
   const inArrears = rows.filter((a) => a.due_amount_minor > 0).length;
