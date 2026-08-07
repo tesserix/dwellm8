@@ -104,6 +104,15 @@ describe('EmptyState', () => {
     expect(screen.getByText('No tickets yet')).toBeTruthy();
     expect(screen.getByText('Everything is quiet.')).toBeTruthy();
   });
+
+  it('offers the way out of the emptiness when there is one (#348)', async () => {
+    const onAct = jest.fn();
+    await render(
+      <EmptyState title="No hostel or PG yet" body="Onboard one." action="Onboard a hostel" onAct={onAct} />,
+    );
+    await fireEvent.press(screen.getByText('Onboard a hostel'));
+    expect(onAct).toHaveBeenCalled();
+  });
 });
 
 describe('ErrorState', () => {

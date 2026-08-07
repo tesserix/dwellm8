@@ -265,12 +265,19 @@ export function BarChart({
 
 /* ---------------------------------------------------------------- states */
 
-export function EmptyState({ title, body, art }: { title: string; body: string; art?: React.ReactNode }) {
+export function EmptyState({ title, body, art, action, onAct }:
+  { title: string; body: string; art?: React.ReactNode; action?: string; onAct?: () => void }) {
   return (
     <Card style={{ alignItems: 'center', paddingVertical: space(7) }}>
       {art}
       <Text style={s.emptyTitle}>{title}</Text>
       <Text style={s.emptyBody}>{body}</Text>
+      {/* An empty screen with no way forward is a dead end, #348. */}
+      {action && onAct ? (
+        <Pressable accessibilityRole="button" onPress={onAct} style={s.retry}>
+          <Text style={s.retryText}>{action}</Text>
+        </Pressable>
+      ) : null}
     </Card>
   );
 }

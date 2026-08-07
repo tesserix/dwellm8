@@ -73,6 +73,8 @@ export default function Beds() {
           <EmptyState
             title="No hostel or PG yet"
             body="Beds are allocated in a co-living building. Onboard one and its rooms, and the board appears here."
+            action="Onboard a hostel"
+            onAct={() => router.push('/onboard')}
           />
         </Screen>
       </>
