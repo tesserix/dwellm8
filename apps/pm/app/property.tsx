@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, StatusPill, ListRow, Metric,
-  HouseArt, color, font, inr, space,
+  HouseArt, color, font, inr, space, type OpsUnit,
 } from '@dwellm8/mobile-shared';
 import { usePropertyRecord } from '../src/data/property';
 
@@ -11,7 +11,8 @@ import { usePropertyRecord } from '../src/data/property';
 export default function PropertyScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { loading, error, property, units, occupied, vacant, rentRollPaise } = usePropertyRecord(id);
+  const { loading, error, property, units, occupied, vacant, spokenFor, rentRollPaise } =
+    usePropertyRecord(id);
 
   return (
     <>
@@ -42,6 +43,7 @@ export default function PropertyScreen() {
             <View style={s.metrics}>
               <Metric value={String(occupied)} label="let" tone="green" />
               <Metric value={String(vacant)} label="empty" tone="amber" />
+              {spokenFor ? <Metric value={String(spokenFor)} label="taken" tone="amber" /> : null}
             </View>
 
             <Card padded={false} style={{ paddingHorizontal: space(4) }}>
@@ -51,10 +53,8 @@ export default function PropertyScreen() {
                   key={u.id}
                   title={u.code}
                   subtitle={u.tenant ?? 'Vacant'}
-                  meta={u.lease_id
-                    ? `${inr(u.rent_amount_minor ?? 0, { noPaise: true })} · to ${u.lease_ends ?? '—'}`
-                    : u.kind}
-                  right={<StatusPill text={u.lease_id ? 'Let' : 'Empty'} tone={u.lease_id ? 'green' : 'amber'} />}
+                  meta={metaFor(u)}
+                  right={<StatusPill text={pillFor(u)} tone={u.lease_id ? 'green' : 'amber'} />}
                   last={i === units.length - 1}
                 />
               ))}
@@ -67,6 +67,23 @@ export default function PropertyScreen() {
       </Screen>
     </>
   );
+}
+
+// A unit whose tenancy starts later is empty today and still not on offer, so
+// it reads as taken from a date rather than as free (#304).
+function pillFor(u: OpsUnit): string {
+  if (u.let_from) return 'From ' + u.let_from;
+  return u.lease_id ? 'Let' : 'Empty';
+}
+
+function metaFor(u: OpsUnit): string {
+  if (u.let_from) {
+    return `${inr(u.rent_amount_minor ?? 0, { noPaise: true })} · from ${u.let_from}`;
+  }
+  if (u.lease_id) {
+    return `${inr(u.rent_amount_minor ?? 0, { noPaise: true })} · to ${u.lease_ends ?? '—'}`;
+  }
+  return u.kind;
 }
 
 const s = StyleSheet.create({

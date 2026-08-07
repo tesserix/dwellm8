@@ -14,11 +14,13 @@ export type PropertyRecord = {
   units: OpsUnit[];
   occupied: number;
   vacant: number;
+  /** Empty today, let from a date ahead — not free to offer to anybody else. */
+  spokenFor: number;
   rentRollPaise: number;
 };
 
 const nothing: PropertyRecord = {
-  loading: false, units: [], occupied: 0, vacant: 0, rentRollPaise: 0,
+  loading: false, units: [], occupied: 0, vacant: 0, spokenFor: 0, rentRollPaise: 0,
 };
 
 export function usePropertyRecord(id: string | undefined): PropertyRecord {
@@ -39,13 +41,15 @@ export function usePropertyRecord(id: string | undefined): PropertyRecord {
     api.opsProperty(id)
       .then(({ property, units }) => {
         if (!alive) return;
-        const let_ = units.filter((u) => Boolean(u.lease_id));
+        const let_ = units.filter((u) => Boolean(u.lease_id) && !u.let_from);
+        const ahead = units.filter((u) => Boolean(u.let_from));
         setState({
           loading: false,
           property,
           units,
           occupied: let_.length,
           vacant: units.length - let_.length,
+          spokenFor: ahead.length,
           rentRollPaise: let_.reduce((a, u) => a + (u.rent_amount_minor ?? 0), 0),
         });
       })

@@ -48,6 +48,26 @@ describe('usePropertyRecord', () => {
     expect(result.current.rentRollPaise).toBe(2500000);
   });
 
+  // A flat handed over next month is neither income today nor free to offer.
+  it('keeps a unit let from a future date out of the let count and the rent roll', async () => {
+    mockOpsProperty.mockResolvedValue({
+      ...record,
+      units: [
+        record.units[0],
+        { id: 'u2', code: '102', kind: 'flat', floor: 1, occupancy: 'vacant',
+          lease_id: 'l2', tenant: 'Arun Menon', rent_amount_minor: 3000000,
+          let_from: '2027-03-01' },
+      ],
+    });
+    const { result } = await renderHook(() => usePropertyRecord('p1'));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.occupied).toBe(1);
+    expect(result.current.vacant).toBe(1);
+    expect(result.current.spokenFor).toBe(1);
+    expect(result.current.rentRollPaise).toBe(2500000);
+  });
+
   it('says why it is empty when the read fails, and shows no unit at all', async () => {
     mockOpsProperty.mockRejectedValue(new Error('sign in again'));
     const { result } = await renderHook(() => usePropertyRecord('p1'));

@@ -93,6 +93,8 @@ export type OpsUnit = {
   rent_amount_minor?: number;
   lease_ends?: string;
   due_amount_minor?: number;
+  /** Set when nobody lives here yet but the tenancy is signed and starts later. */
+  let_from?: string;
 };
 
 /** A property and its units (GET /v1/ops/properties/{id}). */
