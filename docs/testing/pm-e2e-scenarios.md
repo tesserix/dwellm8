@@ -46,7 +46,7 @@ The owner-operator: their own flats, their own Cashfree account, no delegation.
 | A13 | Onboard a tenant into a unit | Tenancy live on unit 101; rent, deposit and dates as entered | pass — first tenancy activates through the tax gate, so `active` not `pending_signature` |
 | A14 | Today screen after the first tenancy | Rent roll and arrears real, not the demonstration figures | rent roll live; a tenancy that has not started is counted apart from the active ones — #305. The date and four tiles still demo — #291, #251 |
 | A15 | Connect the firm's own Cashfree account | Merchant recorded against this organisation only | refusals tested locally only — the live call opens a real merchant account with Cashfree, so it is the user's to run |
-| A16 | Record an offline rent payment | Ledger entry and receipt; arrears fall by the amount | pass in the API — the deposit may now be receipted before the term starts, #303 |
+| A16 | Record an offline rent payment | Ledger entry and receipt; arrears fall by the amount | pass live — ₹50,000 deposit receipted against the KVH tenancy before its term starts (#303), the retry returned the same payment, and the feed carries `money.payment.received` |
 
 ## B — Firm managing for other owners
 
@@ -54,7 +54,7 @@ The nationwide firm: staff, roles, and property that belongs to somebody else.
 
 | # | Scenario | Expected | Status |
 |---|----------|----------|--------|
-| B1 | Create the firm account and verify it | Same gates as A1–A6, independent of A's state | |
+| B1 | Create the firm account and verify it | Same gates as A1–A6, independent of A's state | blocked: creating an account is the user's to do, so B2–B10 wait on it |
 | B2 | File firm registration (LLP) | Entity PAN and TAN asked for; RERA agent registration accepted | |
 | B3 | Add a property for "Somebody new" | Owner created; mandate granted; header shows whose book is open | |
 | B4 | Add a second property for the same owner | One owner row, `property_count` 2 — not a duplicate owner | |
@@ -69,7 +69,7 @@ The nationwide firm: staff, roles, and property that belongs to somebody else.
 
 | # | Scenario | Expected | Status |
 |---|----------|----------|--------|
-| C1 | Applicant supplies five years of addresses | Gaps flagged rather than accepted silently | |
+| C1 | Applicant supplies five years of addresses | Gaps flagged rather than accepted silently | blocked: no applicant-pack surface is mounted yet — #258–#266 |
 | C2 | Six months of bank statements, three of payslips | Stored to the private bucket, never to the public one | |
 | C3 | Work and personal references | Recorded against the application, contactable | |
 | C4 | ID proof | PAN masked at rest; no Aadhaar number stored anywhere | |
@@ -80,7 +80,7 @@ The nationwide firm: staff, roles, and property that belongs to somebody else.
 
 | # | Scenario | Expected | Status |
 |---|----------|----------|--------|
-| D1 | Rent billed on schedule | Invoice per tenancy per period, once | |
+| D1 | Rent billed on schedule | Invoice per tenancy per period, once | waiting on the 02:30 IST billing run after the term starts on 2026-08-10 |
 | D2 | Payment through the aggregator | Settled state polled as well as pushed; no double credit | |
 | D3 | TDS on rent over the s.194-I threshold | Deducted at the right rate; the certificate is issuable | |
 | D4 | Platform fee | Taken from the firm's share, never the owner's | |
