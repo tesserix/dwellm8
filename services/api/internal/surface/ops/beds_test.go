@@ -121,6 +121,24 @@ func TestABedCannotBeOccupiedWithoutNamingTheLease(t *testing.T) {
 	}
 }
 
+// Only a second bed of the same label is a conflict. Anything else the store
+// says is a fault, and reporting it as "already in this room" sent a warden
+// looking for a bed that was never created.
+func TestOnlyARepeatedLabelIsAConflict(t *testing.T) {
+	mux := serve(t)
+	label := bedLabel("103D")
+	body := fmt.Sprintf(`{"label":%q,"rent_amount_minor":900000}`, label)
+	path := "/v1/ops/units/" + isolationtest.UnitSibling + "/beds"
+
+	if w := callWith(t, mux, isolationtest.OrgOwner, http.MethodPost, path, body); w.Code != http.StatusCreated {
+		t.Fatalf("adding a bed: %d %s", w.Code, w.Body.String())
+	}
+	w := callWith(t, mux, isolationtest.OrgOwner, http.MethodPost, path, body)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("the same label twice is a conflict, got %d %s", w.Code, w.Body.String())
+	}
+}
+
 func TestCannotReadTheBedsOfAnotherFirmsProperty(t *testing.T) {
 	mux := serve(t)
 

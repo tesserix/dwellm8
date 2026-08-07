@@ -82,6 +82,9 @@ type Bed = domain.Bed
 // ErrNoBed is no such bed, re-exported for the same reason as ErrNoUnit.
 var ErrNoBed = store.ErrNoBed
 
+// ErrBedExists is a repeated bed label, re-exported on the same terms.
+var ErrBedExists = store.ErrBedExists
+
 // Beds returns a property's bed board.
 func (p *Properties) Beds(ctx context.Context, propertyID string) ([]Bed, error) {
 	return p.store.Beds(ctx, propertyID)

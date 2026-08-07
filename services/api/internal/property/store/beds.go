@@ -56,6 +56,9 @@ func (s *Properties) AddBed(ctx context.Context, unitID, label string, rentMinor
 			unitID, label, rentMinor).
 			Scan(&b.ID, &b.Label, &b.UnitID, &b.RentMinor, &b.State)
 	})
+	if isUnique(err, "beds_label_unique") {
+		return domain.Bed{}, fmt.Errorf("%w: %s", ErrBedExists, label)
+	}
 	if err != nil {
 		return domain.Bed{}, fmt.Errorf("property: adding bed %s to unit %s: %w", label, unitID, err)
 	}

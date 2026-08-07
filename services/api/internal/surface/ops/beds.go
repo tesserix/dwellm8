@@ -93,8 +93,12 @@ func (h *Handler) AddBed(w http.ResponseWriter, r *http.Request) {
 	}
 	bed, err := h.properties.AddBed(r.Context(), unitID, req.Label, req.RentMinor)
 	if err != nil {
+		if errors.Is(err, propertyservice.ErrBedExists) {
+			writeError(w, http.StatusConflict, "that bed is already in this room")
+			return
+		}
 		h.log.Error("adding a bed", "unit", unitID, "error", err)
-		writeError(w, http.StatusConflict, "that bed is already in this room")
+		writeError(w, http.StatusInternalServerError, "could not add the bed")
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"bed": asBed(bed)})
