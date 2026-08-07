@@ -16,6 +16,9 @@ func TestBedsIsolation(t *testing.T) {
 	p := pool(t)
 	plat := platformPool(t)
 	seedOrganisations(t, plat)
+	// leaseUnit hangs its unit off the harness property, which only exists once
+	// this has run — without it the suite passes only in an already-used database.
+	seedCollectionProperties(t, plat)
 
 	isolationtest.Run(t, p, isolationtest.Table{
 		Name: "beds",
