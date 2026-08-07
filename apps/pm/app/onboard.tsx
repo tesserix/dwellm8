@@ -347,6 +347,10 @@ export default function Onboard() {
               <>
                 <KeyValue k="First tenancy" v={`${tenantName} in ${tenantUnit}`} />
                 <KeyValue k="Rent" v={`${inr(Math.round(Number(rent || 0) * 100))} · due day ${dueDay}`} />
+                <KeyValue
+                  k="Deposit"
+                  v={Number(deposit) > 0 ? inr(Math.round(Number(deposit) * 100)) : 'None taken'}
+                />
                 <KeyValue k="Term" v={`${startOn} → ${endOn || 'open-ended'}`} />
                 <KeyValue k="TDS facts" v={`${ownerIndividual ? 'Individual' : 'Business'}, ${ownerResident ? 'Indian resident' : 'non-resident'}`} last />
               </>
