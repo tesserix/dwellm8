@@ -14,6 +14,7 @@ import {
   emptyIdentity, identityReady, missingRule37BC, prefillFromPAN, prefillFromPassport,
   taxProfileFrom, type IdentityDraft,
 } from '../src/data/identity';
+import { fileCopy, type Copy } from '../src/data/papers';
 
 /**
  * Onboard an owner (#240) — one guided flow, five small questions.
@@ -34,6 +35,11 @@ const kinds = [
   { code: 'coliving', label: 'Co-living or hostel' },
   { code: 'plot', label: 'Plot' },
 ];
+
+const copyNames: Partial<Record<Copy['kind'], string>> = {
+  pan_card: 'The PAN card',
+  passport: 'The passport',
+};
 
 const STEPS = ['The owner', 'Who they are', 'The place', 'The units', 'Moving in', 'The once-over'] as const;
 
@@ -87,6 +93,11 @@ export default function Onboard() {
   const [ident, setIdent] = useState<IdentityDraft>(emptyIdentity());
   const [onFile, setOnFile] = useState<TaxProfile | null>(null);
   const [scanning, setScanning] = useState<'pan' | 'passport' | null>(null);
+  // The copies photographed on the way through. They cannot be filed until the
+  // owner exists, so they wait here — nothing is written to the device.
+  const [copies, setCopies] = useState<Copy[]>([]);
+  const [attested, setAttested] = useState(true);
+  const keep = (c: Copy) => setCopies((held) => [...held.filter((h) => h.kind !== c.kind), c]);
 
   const unitList = units.split(',').map((c) => c.trim()).filter(Boolean);
 
@@ -143,10 +154,20 @@ export default function Onboard() {
     if (!api || scanning) return;
     setScanning(kind);
     try {
-      const image = await photographDocument();
-      setIdent(kind === 'pan'
-        ? prefillFromPAN(ident, await api.opsScanPAN(image))
-        : prefillFromPassport(ident, await api.opsScanPassport(image)));
+      const shot = await photographDocument();
+      if (kind === 'pan') {
+        const card = await api.opsScanPAN(shot.base64);
+        setIdent(prefillFromPAN(ident, card));
+        keep({ kind: 'pan_card', uri: shot.uri, contentType: shot.contentType,
+          selfAttested: attested, number: card.number, issuingCountry: 'IN' });
+      } else {
+        const passport = await api.opsScanPassport(shot.base64);
+        setIdent(prefillFromPassport(ident, passport));
+        // No issuing country: the MRZ carries ICAO's three-letter code and the
+        // field is ISO's two. Guessing between them puts a wrong country on file.
+        keep({ kind: 'passport', uri: shot.uri, contentType: shot.contentType,
+          selfAttested: attested, number: passport.number, expiresOn: passport.expires_on });
+      }
     } catch (err) {
       if (!(err instanceof CaptureRefused)) say((err as Error).message);
     } finally {
@@ -211,6 +232,15 @@ export default function Onboard() {
         await api.opsRecordTaxProfile(out.owner_party_id, taxProfileFrom(ident, startOn.trim() || todayIso()));
       } catch {
         say('Onboarded — but what they furnished for TDS did not save. Add it from their profile.');
+      }
+      // The copies behind it, for the same reason and with the same fallback:
+      // an owner on Dwellm8 with no passport on file is a chase, not an outage.
+      for (const copy of copies) {
+        try {
+          await fileCopy(api, out.owner_party_id, copy, todayIso());
+        } catch {
+          say('Onboarded — but a copy did not upload. Attach it from their profile.');
+        }
       }
       setDone(out);
     } catch (err) {
@@ -363,6 +393,12 @@ export default function Onboard() {
               hint="Not a company or a firm. The PAN's fourth letter says which"
               value={ident.individual}
               onChange={(v) => setIdent((d) => ({ ...d, individual: v }))}
+            />
+            <SwitchRow
+              label="The owner signed and dated the copy"
+              hint="Turn this off if you photographed the original in front of you"
+              value={attested}
+              onChange={setAttested}
               last
             />
 
@@ -388,6 +424,12 @@ export default function Onboard() {
               </Pressable>
             ) : null}
             {ident.warning ? <Text style={s.warn}>{ident.warning}</Text> : null}
+            {copies.length ? (
+              <Text style={s.note}>
+                {copies.map((c) => copyNames[c.kind] ?? c.kind).join(' and ')} will be filed
+                against them once they exist.
+              </Text>
+            ) : null}
 
             {!ident.resident ? (
               <>

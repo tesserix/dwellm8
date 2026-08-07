@@ -238,6 +238,52 @@ export type TaxProfileInput = {
   valid_from: string;
 };
 
+/**
+ * How a copy was attested (#318). An owner abroad signs and dates the face of
+ * it; a bank or a registrar may want a mission endorsement or an apostille.
+ */
+export type Attestation = 'none' | 'self' | 'notary' | 'indian_mission' | 'apostille';
+
+export type PartyDocumentKind =
+  | 'pan_card' | 'aadhaar_masked' | 'passport' | 'oci_card' | 'visa'
+  | 'residence_permit' | 'photograph' | 'signature'
+  | 'overseas_address_proof' | 'address_proof'
+  | 'tax_residency_certificate' | 'form_10f' | 'section_197_certificate'
+  | 'power_of_attorney' | 'ownership_proof' | 'bank_proof';
+
+/** What the owner produced, as it is held: the mask, never the number. */
+export type PartyDocument = {
+  kind: PartyDocumentKind;
+  filename: string;
+  content_type: string;
+  number_masked?: string;
+  issuing_country?: string;
+  issued_on?: string;
+  expires_on?: string;
+  attestation: Attestation;
+  attested_on?: string;
+  attested_by?: string;
+  state: string;
+  reason?: string;
+  uploaded_by: string;
+  created_at: string;
+};
+
+/** number travels whole exactly once, to the endpoint that masks it. */
+export type PartyDocumentInput = {
+  kind: PartyDocumentKind;
+  object_path: string;
+  filename: string;
+  content_type: string;
+  number?: string;
+  issuing_country?: string;
+  issued_on?: string;
+  expires_on?: string;
+  attestation?: Attestation;
+  attested_on?: string;
+  attested_by?: string;
+};
+
 /** What a photographed passport reads as (POST /v1/ops/identity/scan). */
 export type ScannedPassport = {
   surname: string;
@@ -968,6 +1014,26 @@ export class DwellmApi {
 
   opsRecordTaxProfile(party: string, p: TaxProfileInput): Promise<TaxProfile> {
     return this.request('PUT', `/v1/ops/parties/${party}/tax-profile`, p);
+  }
+
+  opsPartyDocuments(party: string): Promise<{ documents: PartyDocument[] }> {
+    return this.request('GET', `/v1/ops/parties/${party}/documents`);
+  }
+
+  /**
+   * Mint the place a copy is to be PUT. The path comes back with the URL
+   * because recording the copy afterwards is a second call, and the surface
+   * accepts no other path (#318).
+   */
+  opsPartyUploadURL(party: string, filename: string, contentType: string):
+  Promise<{ upload_url: string; object_path: string }> {
+    return this.request('POST', `/v1/ops/parties/${party}/documents/upload-url`,
+      { filename, content_type: contentType });
+  }
+
+  opsRecordPartyDocument(party: string, d: PartyDocumentInput):
+  Promise<{ documents: PartyDocument[] }> {
+    return this.request('POST', `/v1/ops/parties/${party}/documents`, d);
   }
 
   /**

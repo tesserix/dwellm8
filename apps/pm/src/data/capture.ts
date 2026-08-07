@@ -18,7 +18,10 @@ const options: ImagePicker.ImagePickerOptions = {
   exif: false,
 };
 
-export async function photographDocument(): Promise<string> {
+/** The photograph itself, and the file it was written to. */
+export type Photograph = { base64: string; uri: string; contentType: string };
+
+export async function photographDocument(): Promise<Photograph> {
   const permission = await ImagePicker.requestCameraPermissionsAsync();
   if (!permission.granted) {
     throw new CaptureRefused('Dwellm8 cannot open the camera — type the details in instead');
@@ -26,7 +29,7 @@ export async function photographDocument(): Promise<string> {
   return read(await ImagePicker.launchCameraAsync(options));
 }
 
-export async function pickDocument(): Promise<string> {
+export async function pickDocument(): Promise<Photograph> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
     throw new CaptureRefused('Dwellm8 cannot open your photos — type the details in instead');
@@ -34,9 +37,9 @@ export async function pickDocument(): Promise<string> {
   return read(await ImagePicker.launchImageLibraryAsync(options));
 }
 
-function read(result: ImagePicker.ImagePickerResult): string {
+function read(result: ImagePicker.ImagePickerResult): Photograph {
   if (result.canceled) throw new CaptureRefused('No photograph taken');
-  const base64 = result.assets[0]?.base64;
-  if (!base64) throw new Error('that photograph could not be read');
-  return base64;
+  const shot = result.assets[0];
+  if (!shot?.base64) throw new Error('that photograph could not be read');
+  return { base64: shot.base64, uri: shot.uri, contentType: shot.mimeType ?? 'image/jpeg' };
 }

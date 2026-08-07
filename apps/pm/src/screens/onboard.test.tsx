@@ -9,10 +9,19 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ back: jest.fn(), replace: 
 
 jest.mock('../data/firm', () => ({ useFirmContact: () => ({ name: '', phone: '' }) }));
 
+let mockApi: unknown = null;
 jest.mock('@dwellm8/mobile-shared', () => {
   const actual = jest.requireActual('@dwellm8/mobile-shared');
-  return { ...actual, apiFromEnv: () => null };
+  return { ...actual, apiFromEnv: () => mockApi };
 });
+
+const mockPhotograph = jest.fn();
+jest.mock('../data/capture', () => ({
+  ...jest.requireActual('../data/capture'),
+  photographDocument: () => mockPhotograph(),
+}));
+
+beforeEach(() => { mockApi = null; mockPhotograph.mockReset(); });
 
 const fill = (label: string | RegExp, text: string) =>
   fireEvent.changeText(screen.getByLabelText(label), text);
@@ -102,5 +111,46 @@ describe('Onboard — who they are', () => {
     await fill(/Country of residence/i, 'AE');
     await next();
     await waitFor(() => expect(screen.getByLabelText('Property name')).toBeTruthy());
+  });
+});
+
+// The copy behind the identity (#318). An owner abroad signs and dates a
+// photocopy; what the copy is worth depends on that, so the wizard asks rather
+// than assuming, and holds the photograph until the party exists to file against.
+describe('Onboard — the copies', () => {
+  const aPassportShot = { base64: 'aGk=', uri: 'file:///tmp/p.jpg', contentType: 'image/jpeg' };
+
+  const toTheIdentityStep = async () => {
+    await fill("Owner's name", 'Anjali Menon');
+    await fill('Mobile number', '+919999000001');
+    await next();
+  };
+
+  it('keeps the photographed passport, attested, for filing later', async () => {
+    mockApi = {
+      opsPortfolios: jest.fn().mockResolvedValue([]),
+      opsScanPassport: jest.fn().mockResolvedValue({
+        surname: 'MENON', given_names: 'ANJALI', number: 'L898902C3',
+        nationality: 'IND', date_of_birth: '1988-04-11', expires_on: '2029-05-01',
+      }),
+    };
+    mockPhotograph.mockResolvedValue(aPassportShot);
+
+    await render(<Onboard />);
+    await toTheIdentityStep();
+    await fireEvent(screen.getByLabelText('The owner lives in India'), 'valueChange', false);
+    await fireEvent.press(screen.getByLabelText('Photograph the passport'));
+
+    await waitFor(() => expect(screen.getByText(/The passport will be filed/)).toBeTruthy());
+  });
+
+  it('asks how the copy was attested rather than assuming it', async () => {
+    await render(<Onboard />);
+    await toTheIdentityStep();
+
+    const row = screen.getByLabelText('The owner signed and dated the copy');
+    expect(row.props.value).toBe(true);
+    await fireEvent(row, 'valueChange', false);
+    expect(screen.getByLabelText('The owner signed and dated the copy').props.value).toBe(false);
   });
 });
