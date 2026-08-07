@@ -8,9 +8,11 @@ import (
 	"strings"
 	"time"
 
+	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 	identitystore "github.com/tesserix/dwellm8/services/api/internal/identity/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/pii"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 )
 
 // TaxProfileRoutes mounts what the landlord has furnished for TDS purposes
@@ -61,8 +63,8 @@ var countryCode = regexp.MustCompile(`^[A-Z]{2}$`)
 // taxProfileFrom is the boundary. Identifiers come in whole and leave masked or
 // as a boolean, and every fact the schema has a CHECK on is refused here first —
 // a constraint violation reaches the manager with no field attached to it.
-func taxProfileFrom(req taxProfileRequest) (identitystore.TaxProfile, error) {
-	var none identitystore.TaxProfile
+func taxProfileFrom(req taxProfileRequest) (identityservice.TaxProfile, error) {
+	var none identityservice.TaxProfile
 
 	residency := strings.TrimSpace(req.Residency)
 	if residency != "resident" && residency != "non_resident" {
@@ -93,7 +95,7 @@ func taxProfileFrom(req taxProfileRequest) (identitystore.TaxProfile, error) {
 		furnished = true
 	}
 
-	return identitystore.TaxProfile{
+	return identityservice.TaxProfile{
 		Residency:        residency,
 		ResidenceCountry: country,
 		PANFurnished:     furnished,
@@ -143,6 +145,9 @@ func (h *Handler) RecordTaxProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
+	if !h.actsForParty(w, r, party) {
+		return
+	}
 	if err := h.owners.RecordTaxProfile(r.Context(), party, profile); err != nil {
 		// The profile is not logged: it came in holding a PAN.
 		h.log.Error("recording a tax profile", "party", party, "error", err)
@@ -158,7 +163,47 @@ func (h *Handler) TaxProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not here yet")
 		return
 	}
-	h.readBackTaxProfile(w, r, r.PathValue("id"))
+	party := r.PathValue("id")
+	if !h.actsForParty(w, r, party) {
+		return
+	}
+	h.readBackTaxProfile(w, r, party)
+}
+
+// actsForParty is the authorization this surface's authz.Check cannot express.
+// The check is against the caller's own organisation, but the party comes off
+// the path and its books are resolved under the platform pool, which no RLS
+// policy covers — so without this a manager entitled over their own firm could
+// read or rewrite any owner's profile in the system.
+//
+// A party the firm holds no mandate over is 404, not 403: whether somebody is
+// an owner here is itself something the caller is not entitled to learn.
+func (h *Handler) actsForParty(w http.ResponseWriter, r *http.Request, party string) bool {
+	firm, ok := tenancy.From(r.Context())
+	if !ok {
+		writeError(w, http.StatusForbidden, "no organisation in this session")
+		return false
+	}
+	owner, err := h.owners.OwnerOrgOf(r.Context(), party)
+	switch {
+	case errors.Is(err, identitystore.ErrNoOwnerOrg):
+		writeError(w, http.StatusNotFound, "no such owner")
+		return false
+	case err != nil:
+		h.log.Error("resolving a party's books", "party", party, "error", err)
+		writeError(w, http.StatusInternalServerError, "could not read the owner")
+		return false
+	}
+	if owner == firm.String() {
+		return true
+	}
+	if _, err := h.owners.Portfolio(r.Context(), firm.String(), owner); err != nil {
+		h.log.Warn("a tax profile was asked for outside the firm's mandate",
+			"firm", firm.String(), "party", party)
+		writeError(w, http.StatusNotFound, "no such owner")
+		return false
+	}
+	return true
 }
 
 func (h *Handler) readBackTaxProfile(w http.ResponseWriter, r *http.Request, party string) {

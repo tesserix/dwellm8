@@ -68,10 +68,15 @@ func (o *Owners) UpdateProfileByParty(ctx context.Context, partyID, displayName,
 	return o.principals.UpdateProfileByParty(ctx, partyID, displayName, email)
 }
 
+// TaxProfile is what a landlord has furnished for TDS purposes. Aliased rather
+// than copied: a surface may not name the store's types (ADR-0001 §3), and a
+// parallel struct here would be the same fields with a mapping to drift.
+type TaxProfile = store.TaxProfile
+
 // RecordTaxProfile writes what a landlord has furnished, into the books the
 // rent is credited to rather than the firm's — a mandate lets a manager record
 // this, it does not move whose income it is.
-func (o *Owners) RecordTaxProfile(ctx context.Context, partyID string, p store.TaxProfile) error {
+func (o *Owners) RecordTaxProfile(ctx context.Context, partyID string, p TaxProfile) error {
 	org, err := o.principals.OwnerOrgOf(ctx, partyID)
 	if err != nil {
 		return err
@@ -81,10 +86,16 @@ func (o *Owners) RecordTaxProfile(ctx context.Context, partyID string, p store.T
 
 // TaxProfile reads what was furnished as of a date, which is not always what is
 // furnished now.
-func (o *Owners) TaxProfile(ctx context.Context, partyID string, on time.Time) (store.TaxProfile, error) {
+func (o *Owners) TaxProfile(ctx context.Context, partyID string, on time.Time) (TaxProfile, error) {
 	org, err := o.principals.OwnerOrgOf(ctx, partyID)
 	if err != nil {
-		return store.TaxProfile{}, err
+		return TaxProfile{}, err
 	}
 	return o.principals.TaxProfile(ctx, tenancy.ID(org), partyID, on)
+}
+
+// OwnerOrgOf is the books a party owns, for a surface that has to authorize
+// against them before it acts.
+func (o *Owners) OwnerOrgOf(ctx context.Context, partyID string) (string, error) {
+	return o.principals.OwnerOrgOf(ctx, partyID)
 }

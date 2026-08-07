@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	identitystore "github.com/tesserix/dwellm8/services/api/internal/identity/store"
+	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 )
 
 // The owner's tax profile arrives with the identifiers whole, because the
@@ -174,7 +174,7 @@ func TestANonResidentWithEveryParticularCarriesThemAllThrough(t *testing.T) {
 	}
 }
 
-func everyField(p identitystore.TaxProfile) []string {
+func everyField(p identityservice.TaxProfile) []string {
 	return []string{p.Residency, p.ResidenceCountry, p.ForeignTINMasked, p.TRCNumber,
 		p.TRCValidFrom, p.TRCValidTo, p.ForeignAddress, p.ForeignEmail, p.ForeignPhone,
 		p.Source, p.ValidFrom}

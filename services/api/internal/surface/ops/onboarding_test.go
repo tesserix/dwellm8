@@ -75,6 +75,7 @@ func serveOnboardingWithPool(t *testing.T) (*http.ServeMux, tenancy.PlatformPool
 	h.OnboardingRoutes(registrar)
 	h.PortfolioRoutes(registrar)
 	h.OwnershipRoutes(registrar)
+	h.TaxProfileRoutes(registrar)
 	return mux, platPool
 }
 
