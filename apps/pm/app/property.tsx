@@ -55,6 +55,18 @@ export default function PropertyScreen() {
                   tone={ownership.proven ? 'green' : 'amber'}
                 />}
                 onPress={() => router.push(`/deeds?id=${property.id}`)}
+              />
+              {/* What the firm may and may not do here, in writing (#340). */}
+              <ListRow
+                title="Management agreement"
+                subtitle={ownership.held.includes('management_agreement')
+                  ? 'A signed copy is on file'
+                  : 'Print it, sign on paper, file the signed copy'}
+                right={<StatusPill
+                  text={ownership.held.includes('management_agreement') ? 'Signed' : 'To print'}
+                  tone={ownership.held.includes('management_agreement') ? 'green' : 'neutral'}
+                />}
+                onPress={() => router.push(`/agreement?id=${property.id}`)}
                 last
               />
             </Card>

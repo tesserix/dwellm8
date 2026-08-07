@@ -89,6 +89,23 @@ func (s *Store) UploadURL(ctx context.Context, surface auth.Surface, orgID, file
 	return uploadURL, objectPath, err
 }
 
+// Put writes an object this service generated itself — the management
+// agreement it prints (#340), not anything a client sent. The path is chosen
+// here for the same reason UploadURL chooses it.
+func (s *Store) Put(ctx context.Context, surface auth.Surface, orgID, filename, contentType string, data []byte) (string, error) {
+	objectPath := fmt.Sprintf("org/%s/documents/%s%s", orgID, uuid.NewString(), path.Ext(filename))
+	w := s.client.Bucket(s.Bucket(surface)).Object(objectPath).NewWriter(ctx)
+	w.ContentType = contentType
+	if _, err := w.Write(data); err != nil {
+		_ = w.Close()
+		return "", fmt.Errorf("blob: writing %s: %w", objectPath, err)
+	}
+	if err := w.Close(); err != nil {
+		return "", fmt.Errorf("blob: closing %s: %w", objectPath, err)
+	}
+	return objectPath, nil
+}
+
 // DownloadURL mints a short-lived V4 GET URL for an existing object.
 func (s *Store) DownloadURL(ctx context.Context, surface auth.Surface, objectPath string) (string, error) {
 	return s.sign(ctx, surface, objectPath, "GET", "", downloadTTL)

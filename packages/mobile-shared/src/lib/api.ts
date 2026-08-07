@@ -187,6 +187,25 @@ export type OpsDocumentTemplate = {
   download_url?: string;
 };
 
+/** What the owner–manager agreement needs before it will print (#340).
+ * `supplied` is what the server fills from the register, so the app never asks
+ * for it. */
+export type OpsAgreementFields = {
+  fields: string[];
+  supplied: string[];
+  sale_notice_months: number;
+};
+
+/** The printed agreement: base64 for the phone, and — where the bucket is
+ * configured — the copy filed against the property to open and share. */
+export type OpsPrintedAgreement = {
+  filename: string;
+  content_type: string;
+  pdf_base64: string;
+  document_id?: string;
+  download_url?: string;
+};
+
 /** One live tenancy and what it owes today (GET /v1/ops/arrears). */
 export type OpsArrear = {
   lease_id: string;
@@ -1149,6 +1168,21 @@ export class DwellmApi {
     merge_fields: string[];
   }): Promise<OpsDocumentTemplate> {
     return this.request('POST', '/v1/ops/document-templates', req);
+  }
+
+  /** What the firm must fill before the agreement will print, and what the
+   * server supplies from the register itself (#340). */
+  opsManagementAgreementFields(): Promise<OpsAgreementFields> {
+    return this.request('GET', '/v1/ops/management-agreement/fields');
+  }
+
+  /** Prints the owner–manager agreement for one property. There is no online
+   * signing yet: this is downloaded, signed on paper, and the executed copy
+   * comes back through opsRecordPropertyDocument as a management_agreement. */
+  opsPrintManagementAgreement(propertyId: string, fields: Record<string, string>)
+    : Promise<OpsPrintedAgreement> {
+    return this.request('POST',
+      `/v1/ops/properties/${encodeURIComponent(propertyId)}/management-agreement`, { fields });
   }
 
   async opsArrears(): Promise<OpsArrear[]> {

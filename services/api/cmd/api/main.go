@@ -712,6 +712,8 @@ func run() error {
 	opsHandler.PropertyDocumentRoutes(authz.NewRegistrar(opsMux, guard))
 	// The agreements the firm issues, and its own revisions of them, #341.
 	opsHandler.TemplateRoutes(authz.NewRegistrar(opsMux, guard))
+	// The owner–manager agreement, printed for signature on paper, #340.
+	opsHandler.ManagementAgreementRoutes(authz.NewRegistrar(opsMux, guard))
 	// Where the manager's own rent settles, #269. Provider-agnostic: the
 	// registry decides whether that is Cashfree or anyone else.
 	opsHandler.MerchantRoutes(authz.NewRegistrar(opsMux, guard))
