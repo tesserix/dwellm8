@@ -598,7 +598,9 @@ func run() error {
 	propertyhttp.New(propertyservice.New(propertystore.New(pool)), logger).
 		Routes(authz.NewRegistrar(protected, guard))
 	discoveryhttp.NewListings(listings, enquiries, logger).Routes(authz.NewRegistrar(protected, guard))
-	discoveryhttp.NewInspections(inspections, logger).OwnerRoutes(authz.NewRegistrar(protected, guard))
+	discoveryInspections := discoveryhttp.NewInspections(inspections, logger)
+	discoveryInspections.OwnerRoutes(authz.NewRegistrar(protected, guard))
+	discoveryInspections.ScheduleRoutes(authz.NewRegistrar(protected, guard))
 	maintenancehttp.NewChecklists(checklists, logger).Routes(authz.NewRegistrar(protected, guard))
 	automationsurface.New(automations, automationStore, logger).Routes(authz.NewRegistrar(protected, guard))
 
