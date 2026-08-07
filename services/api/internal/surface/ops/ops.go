@@ -274,11 +274,14 @@ func (h *Handler) Arrears(w http.ResponseWriter, r *http.Request) {
 
 // todayResponse is the collection roster's headline numbers.
 type todayResponse struct {
-	AsOf              string `json:"as_of"`
-	ActiveTenancies   int    `json:"active_tenancies"`
-	RentRollMinor     int64  `json:"rent_roll_amount_minor"`
-	OutstandingMinor  int64  `json:"outstanding_amount_minor"`
-	TenanciesInArrear int    `json:"tenancies_in_arrears"`
+	AsOf            string `json:"as_of"`
+	ActiveTenancies int    `json:"active_tenancies"`
+	// StartingTenancies is signed but not begun. Counted apart from the active
+	// ones, whose rent is in force and whose money the tile is about (#305).
+	StartingTenancies int   `json:"starting_tenancies"`
+	RentRollMinor     int64 `json:"rent_roll_amount_minor"`
+	OutstandingMinor  int64 `json:"outstanding_amount_minor"`
+	TenanciesInArrear int   `json:"tenancies_in_arrears"`
 }
 
 // Today sums the roster Arrears reads into the figures a manager's morning
@@ -298,12 +301,17 @@ func (h *Handler) Today(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out := todayResponse{AsOf: today.String(), ActiveTenancies: len(live)}
+	out := todayResponse{AsOf: today.String()}
 	for _, l := range live {
 		t, err := h.leases.Tenancy(ctx, l.ID, today)
 		if err != nil {
 			continue
 		}
+		if today.Before(t.Term.From()) {
+			out.StartingTenancies++
+			continue
+		}
+		out.ActiveTenancies++
 		out.RentRollMinor += t.RentMinor
 		tenantParty, _, err := h.leases.PartiesOf(ctx, l.ID, today)
 		if err != nil || tenantParty == "" {

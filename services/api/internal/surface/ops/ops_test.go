@@ -380,6 +380,44 @@ func TestOpsTodayAggregatesTheRoster(t *testing.T) {
 	}
 }
 
+// A tenancy signed for next year has no rent in force today, so counting it
+// as active puts a number on the tile the money beside it contradicts (#305).
+func TestOpsTodayCountsOnlyTenanciesThatHaveStarted(t *testing.T) {
+	mux, plat := serveWithPool(t)
+
+	before := today(t, mux)
+	seedFutureTenancy(t, plat, "2027-03-01", "2028-02-29")
+	after := today(t, mux)
+
+	if after.ActiveTenancies != before.ActiveTenancies {
+		t.Errorf("active_tenancies went %d -> %d on a tenancy that has not started",
+			before.ActiveTenancies, after.ActiveTenancies)
+	}
+	if after.StartingTenancies != before.StartingTenancies+1 {
+		t.Errorf("starting_tenancies = %d, want %d — the tile still has to say it exists",
+			after.StartingTenancies, before.StartingTenancies+1)
+	}
+}
+
+type todayTiles struct {
+	ActiveTenancies   int   `json:"active_tenancies"`
+	StartingTenancies int   `json:"starting_tenancies"`
+	RentRollMinor     int64 `json:"rent_roll_amount_minor"`
+	OutstandingMinor  int64 `json:"outstanding_amount_minor"`
+	TenanciesInArrear int   `json:"tenancies_in_arrears"`
+}
+
+func today(t *testing.T, mux *http.ServeMux) todayTiles {
+	t.Helper()
+	w := call(t, mux, isolationtest.OrgOwner, http.MethodGet, "/v1/ops/today")
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET today: %d %s", w.Code, w.Body.String())
+	}
+	var out todayTiles
+	decode(t, w, &out)
+	return out
+}
+
 // The organisation boundary that guards every other route: no tenant in
 // context, no answer.
 func TestOpsRefusesWithNoOrganisationInContext(t *testing.T) {
