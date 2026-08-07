@@ -130,3 +130,48 @@ func TestAPartyWithNoProfileIsSaidSoRatherThanGuessed(t *testing.T) {
 func isNoTaxProfile(err error) bool {
 	return err != nil && err.Error() == store.ErrNoTaxProfile.Error()
 }
+
+// The surcharge ladder a non-resident is deducted on turns on the payee's own
+// legal form, so it is stored with the rest of what they furnished (#318).
+func TestAForeignCompanyIsHeldAsOneRatherThanAsAnIndividual(t *testing.T) {
+	s, _ := principals(t)
+	ctx := context.Background()
+	firm := aFirm(t, s, "menon-nri-company")
+	party := uuid.NewString()
+
+	p := aTaxProfile()
+	p.PayeeForm = "company"
+	if err := s.SaveTaxProfile(ctx, firm, party, p); err != nil {
+		t.Fatalf("saving the profile: %v", err)
+	}
+
+	got, err := s.TaxProfile(ctx, firm, party, time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("reading it back: %v", err)
+	}
+	if got.PayeeForm != "company" {
+		t.Errorf("the payee form came back as %q, so a foreign company would be deducted "+
+			"on the individual ladder", got.PayeeForm)
+	}
+}
+
+// An unanswered form deducts more, not less: the individual ladder is the
+// steeper one, so it is the safe default for a row nobody filled in.
+func TestAPayeeWhoseFormWasNeverAskedIsTreatedAsAnIndividual(t *testing.T) {
+	s, _ := principals(t)
+	ctx := context.Background()
+	firm := aFirm(t, s, "menon-nri-unasked")
+	party := uuid.NewString()
+
+	if err := s.SaveTaxProfile(ctx, firm, party, aTaxProfile()); err != nil {
+		t.Fatalf("saving the profile: %v", err)
+	}
+
+	got, err := s.TaxProfile(ctx, firm, party, time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("reading it back: %v", err)
+	}
+	if got.PayeeForm != "individual" {
+		t.Errorf("an unanswered payee form came back as %q", got.PayeeForm)
+	}
+}

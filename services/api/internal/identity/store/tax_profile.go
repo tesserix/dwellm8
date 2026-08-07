@@ -48,6 +48,10 @@ type TaxProfile struct {
 	ResidenceCountry string
 	PANFurnished     bool
 
+	// PayeeForm picks the surcharge ladder a non-resident is deducted on. Empty
+	// means individual, which is the steeper of the two.
+	PayeeForm string
+
 	// The rule 37BC(2) particulars. The TIN is masked here and everywhere —
 	// ADR-0013 keeps identifiers masked or not at all.
 	ForeignTINMasked string
@@ -101,13 +105,16 @@ func (s *Principals) SaveTaxProfile(ctx context.Context, firm tenancy.ID, party 
 				INSERT INTO party_tax_profiles (
 					tenant_id, party_id, tax_residency, residence_country, pan_furnished,
 					foreign_tin_masked, trc_number, trc_valid_from, trc_valid_to,
-					foreign_address, foreign_email, foreign_phone, source, valid_from)
+					foreign_address, foreign_email, foreign_phone, source, valid_from,
+					payee_form)
 				VALUES ($1::uuid, $2::uuid, $3, $4, $5,
 				        nullif($6,''), nullif($7,''), nullif($8,'')::date, nullif($9,'')::date,
-				        nullif($10,''), nullif($11,''), nullif($12,''), $13, $14)`,
+				        nullif($10,''), nullif($11,''), nullif($12,''), $13, $14,
+				        coalesce(nullif($15,''), 'individual'))`,
 				string(firm), party, p.Residency, p.ResidenceCountry, p.PANFurnished,
 				p.ForeignTINMasked, p.TRCNumber, p.TRCValidFrom, p.TRCValidTo,
-				p.ForeignAddress, p.ForeignEmail, p.ForeignPhone, p.Source, from); err != nil {
+				p.ForeignAddress, p.ForeignEmail, p.ForeignPhone, p.Source, from,
+				p.PayeeForm); err != nil {
 				return fmt.Errorf("identity: writing the tax profile: %w", err)
 			}
 			return nil
@@ -126,7 +133,7 @@ func (s *Principals) TaxProfile(ctx context.Context, firm tenancy.ID, party stri
 				       coalesce(to_char(trc_valid_to,'YYYY-MM-DD'),''),
 				       coalesce(foreign_address,''), coalesce(foreign_email,''),
 				       coalesce(foreign_phone,''), source,
-				       to_char(valid_from,'YYYY-MM-DD'), rule_37bc_furnished
+				       to_char(valid_from,'YYYY-MM-DD'), rule_37bc_furnished, payee_form
 				  FROM party_tax_profiles
 				 WHERE tenant_id = $1::uuid AND party_id = $2::uuid
 				   AND retired_at IS NULL AND validity @> $3::date`,
@@ -134,7 +141,7 @@ func (s *Principals) TaxProfile(ctx context.Context, firm tenancy.ID, party stri
 				&out.Residency, &out.ResidenceCountry, &out.PANFurnished,
 				&out.ForeignTINMasked, &out.TRCNumber, &out.TRCValidFrom, &out.TRCValidTo,
 				&out.ForeignAddress, &out.ForeignEmail, &out.ForeignPhone, &out.Source,
-				&out.ValidFrom, &out.Rule37BCFurnished)
+				&out.ValidFrom, &out.Rule37BCFurnished, &out.PayeeForm)
 			if errors.Is(err, pgx.ErrNoRows) {
 				return ErrNoTaxProfile
 			}

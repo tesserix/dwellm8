@@ -7,6 +7,7 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/lease/domain"
 	"github.com/tesserix/dwellm8/services/api/internal/lease/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds"
 )
 
 // Tenancy is the lease as the person living in it sees it.
@@ -124,3 +125,31 @@ func (s *Leases) Roster(ctx context.Context, on effective.Date) (Roster, error) 
 func (s *Leases) PartiesOf(ctx context.Context, leaseID string, on effective.Date) (tenant, owner string, err error) {
 	return s.store.Parties(ctx, leaseID, on)
 }
+
+// TaxPath is the section that governs a payment on a date, with the facts it was
+// selected from. ErrNoTaxFacts where the tenancy has none in force then.
+//
+// The surface composing a deduction needs both: the section decides which rate
+// row and which threshold, and the facts are what the manager is shown when the
+// answer is questioned.
+func (s *Leases) TaxPath(ctx context.Context, leaseID string, on effective.Date) (tds.Path, tds.Facts, error) {
+	facts, err := s.store.TaxFacts(ctx, leaseID, on)
+	if err != nil {
+		return tds.Path{}, tds.Facts{}, err
+	}
+	path, err := tds.Select(facts)
+	if err != nil {
+		return tds.Path{}, facts, err
+	}
+	return path, facts, nil
+}
+
+// AnnualRentToOwner is the year's rent to one landlord across every tenancy of
+// theirs — the figure section 194-I's threshold is tested against, aggregated to
+// the payee rather than to the property.
+func (s *Leases) AnnualRentToOwner(ctx context.Context, ownerParty string, on effective.Date) (int64, error) {
+	return s.store.AnnualRentToOwner(ctx, ownerParty, on)
+}
+
+// ErrNoTaxFacts is re-exported so a surface matches one error.
+var ErrNoTaxFacts = store.ErrNoTaxFacts

@@ -34,6 +34,9 @@ type taxProfileRequest struct {
 	PAN        string `json:"pan"`
 	ForeignTIN string `json:"foreign_tin"`
 
+	// PayeeForm is individual or company; empty means individual.
+	PayeeForm string `json:"payee_form"`
+
 	TRCNumber      string `json:"trc_number"`
 	TRCValidFrom   string `json:"trc_valid_from"`
 	TRCValidTo     string `json:"trc_valid_to"`
@@ -50,6 +53,7 @@ type taxProfileResponse struct {
 	Residency         string `json:"residency"`
 	ResidenceCountry  string `json:"residence_country"`
 	PANFurnished      bool   `json:"pan_furnished"`
+	PayeeForm         string `json:"payee_form"`
 	ForeignTINMasked  string `json:"foreign_tin_masked"`
 	TRCNumber         string `json:"trc_number,omitempty"`
 	TRCValidTo        string `json:"trc_valid_to,omitempty"`
@@ -85,6 +89,14 @@ func taxProfileFrom(req taxProfileRequest) (identityservice.TaxProfile, error) {
 		return none, fmt.Errorf("valid_from must be a date, as YYYY-MM-DD")
 	}
 
+	form := strings.TrimSpace(req.PayeeForm)
+	if form == "" {
+		form = "individual"
+	}
+	if form != "individual" && form != "company" {
+		return none, fmt.Errorf("payee_form must be individual or company")
+	}
+
 	// The PAN is checked and then discarded: only whether one was furnished is
 	// recorded here, because that is what section 206AA turns on.
 	furnished := false
@@ -99,6 +111,7 @@ func taxProfileFrom(req taxProfileRequest) (identityservice.TaxProfile, error) {
 		Residency:        residency,
 		ResidenceCountry: country,
 		PANFurnished:     furnished,
+		PayeeForm:        form,
 		ForeignTINMasked: maskTIN(req.ForeignTIN),
 		TRCNumber:        strings.TrimSpace(req.TRCNumber),
 		TRCValidFrom:     strings.TrimSpace(req.TRCValidFrom),
@@ -236,8 +249,9 @@ func (h *Handler) readBackTaxProfile(w http.ResponseWriter, r *http.Request, par
 	}
 	writeJSON(w, http.StatusOK, taxProfileResponse{
 		PartyID: party, Residency: got.Residency, ResidenceCountry: got.ResidenceCountry,
-		PANFurnished: got.PANFurnished, ForeignTINMasked: got.ForeignTINMasked,
-		TRCNumber: got.TRCNumber, TRCValidTo: got.TRCValidTo,
+		PANFurnished: got.PANFurnished, PayeeForm: got.PayeeForm,
+		ForeignTINMasked: got.ForeignTINMasked,
+		TRCNumber:        got.TRCNumber, TRCValidTo: got.TRCValidTo,
 		Rule37BCFurnished: got.Rule37BCFurnished, Source: got.Source, ValidFrom: got.ValidFrom,
 	})
 }

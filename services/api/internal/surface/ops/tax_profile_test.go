@@ -147,3 +147,44 @@ func TestTheSwitcherNamesThePartyTheTaxProfileIsWrittenAgainst(t *testing.T) {
 		t.Fatalf("the party the switcher named was refused: %d %s", w.Code, w.Body.String())
 	}
 }
+
+// The PAN's fourth letter says whether the payee is a person or a company, and
+// for a non-resident the two sit on different surcharge ladders. The wizard asks
+// it; the profile has to carry it or the answer is thrown away (#318).
+func TestTheOwnersLegalFormReachesTheProfileThatPicksTheSurchargeLadder(t *testing.T) {
+	mux := serveOnboarding(t)
+	party, grant := onboardAnOwner(t, mux, "Gulf Holdings FZE")
+
+	w := putUnderGrant(t, mux, isolationtest.OrgFirm, grant,
+		"/v1/ops/parties/"+party+"/tax-profile", map[string]any{
+			"residency": "non_resident", "residence_country": "AE", "payee_form": "company",
+			"source": "owner_declaration", "valid_from": "2026-04-01",
+		})
+	if w.Code != http.StatusOK {
+		t.Fatalf("recording the profile: %d %s", w.Code, w.Body.String())
+	}
+
+	var got struct {
+		PayeeForm string `json:"payee_form"`
+	}
+	decode(t, w, &got)
+	if got.PayeeForm != "company" {
+		t.Errorf("the payee form read back as %q, so the flatter company ladder would not "+
+			"be the one applied", got.PayeeForm)
+	}
+}
+
+func TestAPayeeFormNobodyRecognisesIsRefused(t *testing.T) {
+	mux := serveOnboarding(t)
+	party, grant := onboardAnOwner(t, mux, "Sundar Pillai")
+
+	w := putUnderGrant(t, mux, isolationtest.OrgFirm, grant,
+		"/v1/ops/parties/"+party+"/tax-profile", map[string]any{
+			"residency": "resident", "residence_country": "IN", "payee_form": "trust",
+			"source": "owner_declaration", "valid_from": "2026-04-01",
+		})
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("a payee form the surcharge tables have no ladder for got %d %s",
+			w.Code, w.Body.String())
+	}
+}

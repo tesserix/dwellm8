@@ -57,6 +57,8 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/platform/mail"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/places"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/push"
+	statutorystore "github.com/tesserix/dwellm8/services/api/internal/platform/statutory/store"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds"
 	tdsstore "github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 	"github.com/tesserix/dwellm8/services/api/internal/routine"
@@ -653,6 +655,19 @@ func run() error {
 	} else if scanner != nil {
 		opsHandler.WithScanner(scanner)
 		opsHandler.ScanRoutes(authz.NewRegistrar(opsMux, guard))
+	}
+	// The decision matrix, over the registry read once at boot (ADR-0023: it is
+	// reference data, and a lookup per invoice would put a round trip in a loop).
+	// A deployment whose registry chapter has not been applied yet keeps serving
+	// everything else; the deduction route is simply absent rather than guessing.
+	if table, err := statutorystore.New(pool).Table(context.Background()); err != nil {
+		logger.Error("loading the statutory registry", "error", err)
+	} else if matrix, err := tds.New(table); err != nil {
+		logger.Error("building the TDS matrix", "error", err)
+	} else {
+		opsHandler.WithTDS(matrix, tdsstore.New(pool))
+		// What a payment on this tenancy is short by, and why, #318.
+		opsHandler.DeductionRoutes(authz.NewRegistrar(opsMux, guard))
 	}
 	opsHandler.Routes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.WorklistRoutes(authz.NewRegistrar(opsMux, guard))

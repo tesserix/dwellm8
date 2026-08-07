@@ -31,6 +31,8 @@ import (
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/blob"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds"
+	tdsstore "github.com/tesserix/dwellm8/services/api/internal/platform/statutory/tds/store"
 	propertyservice "github.com/tesserix/dwellm8/services/api/internal/property/service"
 )
 
@@ -55,6 +57,9 @@ type Handler struct {
 	merchants   *moneyservice.Merchants
 	settlements *moneyservice.Settlements
 	payments    *moneyservice.Payments
+
+	tds          *tds.Matrix
+	certificates *tdsstore.Certificates
 
 	registrations *identityservice.Registrations
 	scanner       *docscan.Scanner
