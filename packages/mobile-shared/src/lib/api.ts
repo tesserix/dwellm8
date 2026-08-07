@@ -962,6 +962,18 @@ export type ApiConfig = {
 
 /** ApiError carries the status and the server's own message, which is written
  * to be shown to a person rather than parsed. */
+// What the status means to somebody standing in a corridor, for the case where
+// the server sent no sentence of its own — "request failed (404)" is not one
+// a manager can act on (#343).
+function plainly(status: number): string {
+  if (status === 401) return 'Your session has expired. Sign in again.';
+  if (status === 403) return 'You do not have access to this.';
+  if (status === 404) return 'This is not available on this server yet.';
+  if (status === 429) return 'Too many requests just now. Try again shortly.';
+  if (status >= 500) return 'The server had a problem. Try again.';
+  return 'That did not go through. Try again.';
+}
+
 export class ApiError extends Error {
   status: number;
   /** Seconds until the same call is worth making again, when the server said
@@ -1022,7 +1034,7 @@ export class DwellmApi {
     });
     const text = await res.text();
     if (!res.ok) {
-      let message = `request failed (${res.status})`;
+      let message = plainly(res.status);
       const header = Number(res.headers?.get?.('Retry-After'));
       let retryAfter = Number.isFinite(header) && header > 0 ? header : undefined;
       let field: string | undefined;

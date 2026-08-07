@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Linking, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, ListRow, SectionTitle, StatusPill,
+  BackHeader, Card, ErrorState, Screen, ListRow, SectionTitle, StatusPill,
   color, font, space,
 } from '@dwellm8/mobile-shared';
 import { useDocumentTemplates } from '../src/data/templates';
@@ -21,7 +21,7 @@ const titles: Record<string, string> = {
  */
 export default function AgreementsScreen() {
   const router = useRouter();
-  const { loading, error, templates, download } = useDocumentTemplates();
+  const { loading, error, templates, download, reload } = useDocumentTemplates();
 
   async function open(id: string, name: string) {
     try {
@@ -45,7 +45,7 @@ export default function AgreementsScreen() {
       />
       <Screen>
         {loading ? <View style={s.waiting}><ActivityIndicator /></View> : null}
-        {error ? <Card><Text style={s.empty}>{error}</Text></Card> : null}
+        {error ? <ErrorState error={error} onRetry={reload} /> : null}
 
         {!loading && !error ? (
           <>

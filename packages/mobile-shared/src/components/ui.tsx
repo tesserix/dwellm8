@@ -275,6 +275,22 @@ export function EmptyState({ title, body, art }: { title: string; body: string; 
   );
 }
 
+/** A screen that could not load, with the way out of it (#343). */
+export function ErrorState({ error, title = 'That did not load', onRetry }:
+  { error: string; title?: string; onRetry?: () => void }) {
+  return (
+    <Card style={{ alignItems: 'center', paddingVertical: space(6) }}>
+      <Text style={s.emptyTitle}>{title}</Text>
+      <Text style={s.emptyBody}>{error}</Text>
+      {onRetry ? (
+        <Pressable accessibilityRole="button" onPress={onRetry} style={s.retry}>
+          <Text style={s.retryText}>Try again</Text>
+        </Pressable>
+      ) : null}
+    </Card>
+  );
+}
+
 export function Banner({ children, onClose }: { children: React.ReactNode; onClose?: () => void }) {
   return <View style={s.banner}>{children}</View>;
 }
@@ -381,6 +397,12 @@ const s = StyleSheet.create({
 
   emptyTitle: { ...font.h3, color: color.inkStrong, marginTop: space(3) },
   emptyBody: { ...font.body, color: color.inkSoft, textAlign: 'center', marginTop: 6, paddingHorizontal: space(4) },
+
+  retry: {
+    marginTop: space(4), paddingVertical: space(2), paddingHorizontal: space(5),
+    borderRadius: radius.md, borderWidth: 1, borderColor: color.accent,
+  },
+  retryText: { ...font.body, color: color.accent, fontWeight: '600' },
 
   banner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,

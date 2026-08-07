@@ -3,7 +3,7 @@ import { Text } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import {
   ActivityRow, AppHeader, AvatarButton, Badge, Banner, ChipRow, CollapsibleHeader,
-  EmptyState, LinkRow, MoneyRow, ProgressBar, Segmented,
+  EmptyState, ErrorState, LinkRow, MoneyRow, ProgressBar, Segmented,
 } from './ui';
 
 describe('AppHeader', () => {
@@ -103,6 +103,21 @@ describe('EmptyState', () => {
     await render(<EmptyState title="No tickets yet" body="Everything is quiet." />);
     expect(screen.getByText('No tickets yet')).toBeTruthy();
     expect(screen.getByText('Everything is quiet.')).toBeTruthy();
+  });
+});
+
+describe('ErrorState', () => {
+  it('says what went wrong and offers a retry (#343)', async () => {
+    const retry = jest.fn();
+    await render(<ErrorState error="This is not available on this server yet." onRetry={retry} />);
+    expect(screen.getByText('This is not available on this server yet.')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Try again'));
+    expect(retry).toHaveBeenCalled();
+  });
+
+  it('leaves the retry out when there is nothing to retry', async () => {
+    await render(<ErrorState error="The API is not configured on this build." />);
+    expect(screen.queryByText('Try again')).toBeNull();
   });
 });
 

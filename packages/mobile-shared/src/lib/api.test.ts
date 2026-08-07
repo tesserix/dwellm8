@@ -143,6 +143,24 @@ describe('DwellmApi — ops surface', () => {
     );
   });
 
+  it('says in plain English what a status means when the server explained nothing (#343)', async () => {
+    // A manager reading "request failed (404)" learns nothing they can act on.
+    const cases: Array<[number, string]> = [
+      [401, 'Your session has expired. Sign in again.'],
+      [403, 'You do not have access to this.'],
+      [404, 'This is not available on this server yet.'],
+      [429, 'Too many requests just now. Try again shortly.'],
+      [500, 'The server had a problem. Try again.'],
+    ];
+    for (const [status, expected] of cases) {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false, status, headers: { get: () => null }, text: async () => '',
+      }) as unknown as typeof fetch;
+      const api = new DwellmApi({ baseUrl });
+      await expect(api.opsToday()).rejects.toMatchObject({ status, message: expected });
+    }
+  });
+
   it('a refusal that names a field carries it, so the form can say it at the field (#287)', async () => {
     global.fetch = mockFetch(
       { error: 'that GSTIN is not a GSTIN', field: 'gstin' }, 422) as unknown as typeof fetch;

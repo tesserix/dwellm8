@@ -19,6 +19,8 @@ export type TemplateLibrary = {
   ownRevisions: string[];
   /** A short-lived link to the .docx, fetched at the moment of the tap. */
   download: (id: string) => Promise<string | undefined>;
+  /** Ask again — what failed once on a phone is usually the network (#343). */
+  reload: () => void;
 };
 
 export function useDocumentTemplates(opts: { kind?: string; history?: boolean } = {})
@@ -27,6 +29,7 @@ export function useDocumentTemplates(opts: { kind?: string; history?: boolean } 
   const { kind, history } = opts;
   const [state, setState] = useState<{ loading: boolean; error?: string; templates: OpsDocumentTemplate[] }>(
     { loading: Boolean(api), templates: [] });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!api) {
@@ -44,7 +47,7 @@ export function useDocumentTemplates(opts: { kind?: string; history?: boolean } 
         if (alive) setState({ loading: false, templates: [], error: err.message });
       });
     return () => { alive = false; };
-  }, [api, kind, history]);
+  }, [api, kind, history, attempt]);
 
   const download = useCallback(async (id: string) => {
     if (!api) return undefined;
@@ -56,5 +59,7 @@ export function useDocumentTemplates(opts: { kind?: string; history?: boolean } 
     () => state.templates.filter((t) => !t.is_default).map((t) => t.kind),
     [state.templates]);
 
-  return { ...state, ownRevisions, download };
+  const reload = useCallback(() => setAttempt((n) => n + 1), []);
+
+  return { ...state, ownRevisions, download, reload };
 }
