@@ -3,6 +3,7 @@ package ops
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 	identitystore "github.com/tesserix/dwellm8/services/api/internal/identity/store"
@@ -159,6 +160,23 @@ func (h *Handler) OnboardOwner(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		out.PropertyID = propertyID
+
+		// Who the rent is credited to. Without this the billing run refuses the
+		// tenancy for ever rather than attributing somebody's income to a party
+		// it guessed (#302), and it refuses it silently, every half hour.
+		startOn := ""
+		if req.Tenancy != nil {
+			startOn = req.Tenancy.StartOn
+		}
+		if err := h.properties.RecordOwnership(ownerCtx, propertyID, onboarded.PartyID,
+			ownershipFrom(h.now(), startOn)); err != nil {
+			h.log.Error("recording ownership of the onboarded property",
+				"property", propertyID, "error", err)
+			writeError(w, http.StatusUnprocessableEntity,
+				"the property was registered, but its ownership was refused: "+err.Error())
+			return
+		}
+
 		for _, u := range req.Units {
 			unitID, err := h.properties.AddUnit(ownerCtx, propertyID, propertydomain.UnitDraft{
 				Code: u.Code, Kind: u.Kind, Floor: u.Floor, CarpetAreaSqft: u.CarpetAreaSqft,
@@ -236,7 +254,14 @@ func (h *Handler) resolveOwner(r *http.Request, firmOrgID string, req onboardOwn
 		if err != nil {
 			return identityservice.OwnerOnboarded{}, err
 		}
-		return identityservice.OwnerOnboarded{OrgID: held.OwnerOrgID, GrantID: held.GrantID}, nil
+		// The owner already exists, so nothing is minted — but their party is
+		// still what the next property's rent is credited to (#302).
+		party, err := h.owners.OwnerParty(r.Context(), held.OwnerOrgID)
+		if err != nil {
+			return identityservice.OwnerOnboarded{}, err
+		}
+		return identityservice.OwnerOnboarded{
+			OrgID: held.OwnerOrgID, PartyID: party, GrantID: held.GrantID}, nil
 	}
 	orgName := req.OrganisationName
 	if orgName == "" {
@@ -319,4 +344,17 @@ func onboardingDraft(ownerOrgID, tenantPartyID, propertyID, unitID string, req o
 		return leasedomain.Draft{}, err
 	}
 	return d, nil
+}
+
+// ownershipFrom is the date the owner has held the property from, as far as
+// this product can tell. Onboarding day, unless the tenancy being onboarded
+// with it already started — a lease that began in March cannot be billed
+// against ownership that begins today (#302).
+func ownershipFrom(now time.Time, tenancyStart string) effective.Date {
+	today := effective.DateOf(now, time.UTC)
+	start, err := effective.ParseDate(tenancyStart)
+	if err != nil || !start.Before(today) {
+		return today
+	}
+	return start
 }

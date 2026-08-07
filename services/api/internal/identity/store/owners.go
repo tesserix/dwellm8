@@ -443,6 +443,34 @@ func (s *Principals) PortfolioFor(ctx context.Context, firmOrgID, ownerOrgID str
 	return p, err
 }
 
+// ErrNoOwnerParty is an owner organisation with nobody holding the owner role
+// in it — books with no landlord behind them.
+var ErrNoOwnerParty = errors.New("identity: that owner organisation has no owner")
+
+// OwnerParty is whose books these are: the member holding the owner role.
+// Rent is credited to this party, so the second property onboarded for an
+// owner has to resolve it rather than leave ownership unrecorded (#302).
+// Platform-mediated — a firm may not read the grantor's membership under its
+// own scope.
+func (s *Principals) OwnerParty(ctx context.Context, ownerOrgID string) (string, error) {
+	var party string
+	err := tenancy.Platform(ctx, s.platform, "reading an owner organisation's party",
+		func(ctx context.Context, tx pgx.Tx) error {
+			err := tx.QueryRow(ctx, `
+				SELECT m.party_id::text
+				  FROM organisation_members m
+				 WHERE m.tenant_id = $1::uuid AND m.role = 'owner'
+				   AND m.validity @> current_date
+				 ORDER BY m.created_at
+				 LIMIT 1`, ownerOrgID).Scan(&party)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNoOwnerParty
+			}
+			return err
+		})
+	return party, err
+}
+
 // Profile is the person as they present themselves: the verified anchors and
 // the name they chose.
 type Profile struct {

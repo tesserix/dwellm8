@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 
+	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
 	"github.com/tesserix/dwellm8/services/api/internal/property/domain"
 	"github.com/tesserix/dwellm8/services/api/internal/property/store"
 )
@@ -50,6 +51,11 @@ func (p *Properties) TenantOf(ctx context.Context, propertyID string) (string, e
 // listing, a lease and a ledger all point at what this writes.
 func (p *Properties) Register(ctx context.Context, d domain.PropertyDraft) (string, error) {
 	return p.store.Create(ctx, d)
+}
+
+// RecordOwnership names who the rent is credited to, whole, from a date (#302).
+func (p *Properties) RecordOwnership(ctx context.Context, propertyID, ownerPartyID string, from effective.Date) error {
+	return p.store.RecordOwnership(ctx, propertyID, ownerPartyID, from)
 }
 
 // AddUnit adds a lettable unit or its parking to a property.

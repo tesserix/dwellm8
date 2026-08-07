@@ -38,6 +38,12 @@ func (o *Owners) Portfolio(ctx context.Context, firmOrgID, ownerOrgID string) (M
 	return o.principals.PortfolioFor(ctx, firmOrgID, ownerOrgID)
 }
 
+// OwnerParty is whose books an owner organisation is — the party rent is
+// credited to (#302).
+func (o *Owners) OwnerParty(ctx context.Context, ownerOrgID string) (string, error) {
+	return o.principals.OwnerParty(ctx, ownerOrgID)
+}
+
 // PreOnboard reserves the owner's identity, organisation and the firm's
 // mandate. Idempotent — a second property joins the existing organisation.
 func (o *Owners) PreOnboard(ctx context.Context, req OwnerOnboarding) (OwnerOnboarded, error) {

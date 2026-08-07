@@ -20,6 +20,7 @@ import (
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	moneystore "github.com/tesserix/dwellm8/services/api/internal/money/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy/isolationtest"
 	propertyservice "github.com/tesserix/dwellm8/services/api/internal/property/service"
@@ -113,11 +114,12 @@ func TestAnOwnerAppearsOnceHoweverManyMandates(t *testing.T) {
 }
 
 type onboarded struct {
-	OwnerOrgID string   `json:"owner_org_id"`
-	GrantID    string   `json:"grant_id"`
-	CreatedOrg bool     `json:"created_organisation"`
-	PropertyID string   `json:"property_id"`
-	UnitIDs    []string `json:"unit_ids"`
+	OwnerOrgID   string   `json:"owner_org_id"`
+	OwnerPartyID string   `json:"owner_party_id"`
+	GrantID      string   `json:"grant_id"`
+	CreatedOrg   bool     `json:"created_organisation"`
+	PropertyID   string   `json:"property_id"`
+	UnitIDs      []string `json:"unit_ids"`
 }
 
 func post(t *testing.T, mux *http.ServeMux, org tenancy.ID, path string, body any) *httptest.ResponseRecorder {
@@ -195,6 +197,57 @@ func TestOnboardingActivatesTheFirstTenancy(t *testing.T) {
 	}
 }
 
+// A tenancy the billing run cannot attribute is a tenancy that is never
+// invoiced, and it fails silently every half hour rather than at onboarding.
+// Onboarding therefore records who owns the property, not just who was
+// onboarded (#302).
+func TestAnOnboardedTenancyCanBeBilled(t *testing.T) {
+	mux := serveOnboarding(t)
+
+	w := post(t, mux, isolationtest.OrgFirm, "/v1/ops/onboardings", map[string]any{
+		"owner":    map[string]any{"name": "Meera Sharma", "phone": uniquePhone(t)},
+		"property": fullProperty("BPG", "Brigade Palm Grove"),
+		"units":    []map[string]any{{"code": "101", "kind": "flat", "carpet_area_sqft": 980}},
+		"tenancy": map[string]any{
+			"unit_code": "101",
+			"tenant":    map[string]any{"name": "Arjun Rao", "phone": uniquePhone(t)},
+			"start_on":  "2026-08-06", "end_on": "2027-07-05",
+			"rent_amount_minor": 4200000, "deposit_amount_minor": 12600000, "due_day": 5,
+		},
+	})
+	if w.Code != http.StatusCreated {
+		t.Fatalf("onboarding with a tenancy: %d %s", w.Code, w.Body.String())
+	}
+	var out struct {
+		OwnerOrgID   string `json:"owner_org_id"`
+		OwnerPartyID string `json:"owner_party_id"`
+		LeaseID      string `json:"lease_id"`
+	}
+	decode(t, w, &out)
+
+	// The billing run's own question, asked the way the billing run asks it.
+	pool, err := pgxpool.New(context.Background(), os.Getenv("TEST_DATABASE_URL"))
+	if err != nil {
+		t.Fatalf("connecting: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	on, err := effective.ParseDate("2026-08-06")
+	if err != nil {
+		t.Fatalf("start date: %v", err)
+	}
+	ctx := tenancy.With(context.Background(), tenancy.ID(out.OwnerOrgID))
+	tenantParty, ownerParty, err := leasestore.New(pool).Parties(ctx, out.LeaseID, on)
+	if err != nil {
+		t.Fatalf("the onboarded tenancy cannot be billed: %v", err)
+	}
+	if tenantParty == "" {
+		t.Error("no tenant on the onboarded tenancy")
+	}
+	if ownerParty != out.OwnerPartyID {
+		t.Errorf("rent would be credited to %q, want the onboarded owner %q", ownerParty, out.OwnerPartyID)
+	}
+}
+
 // The second property for the same owner. The manager names the owner they
 // already act for rather than retyping them, and the property joins the books
 // that already exist under the mandate already held.
@@ -235,6 +288,12 @@ func TestSecondPropertyJoinsTheSameOwnersBooks(t *testing.T) {
 	}
 	if second.PropertyID == first.PropertyID {
 		t.Error("the second property should be a property of its own")
+	}
+	// The same owner, so the same party — and the rent on both properties is
+	// credited to them (#302).
+	if second.OwnerPartyID == "" || second.OwnerPartyID != first.OwnerPartyID {
+		t.Errorf("the second property is owned by %q, want the same owner %q",
+			second.OwnerPartyID, first.OwnerPartyID)
 	}
 
 	// And the switcher shows one owner holding both, not two owners holding one.
