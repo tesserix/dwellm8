@@ -106,6 +106,15 @@ func (s *Leases) Expiring(ctx context.Context, within int) ([]Expiring, error) {
 	return s.store.Expiring(ctx, within)
 }
 
+// Due is the next rent a tenancy owes. See store.Due.
+type Due = store.Due
+
+// Upcoming lists the next rent falling due on every live tenancy between two
+// dates, for the manager's reminder list (#337).
+func (s *Leases) Upcoming(ctx context.Context, from, through effective.Date, limit int) ([]Due, error) {
+	return s.store.Upcoming(ctx, from, through, limit)
+}
+
 // Live lists the tenancies that are running — active or in notice — which is what
 // an automation walks when it has something to say about every tenancy.
 func (s *Leases) Live(ctx context.Context, limit int) ([]domain.Lease, error) {

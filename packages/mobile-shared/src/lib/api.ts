@@ -113,6 +113,20 @@ export type OpsArrear = {
   as_of: string;
 };
 
+/** One dated thing to act on before it happens (GET /v1/ops/reminders). */
+export type OpsReminder = {
+  kind: 'rent_due' | 'rent_overdue' | 'tenancy_ending';
+  lease_id: string;
+  property_id?: string;
+  property: string;
+  unit: string;
+  locality?: string;
+  on: string;
+  days_away: number;
+  amount_minor?: number;
+  inside_notice_window?: boolean;
+};
+
 /** The collection roster's headline numbers (GET /v1/ops/today). */
 /** One maintenance ticket as the manager sees it (GET /v1/ops/tickets). */
 export type OpsTicket = {
@@ -1001,6 +1015,14 @@ export class DwellmApi {
       reference: req.reference ?? '',
       idempotency_key: req.idempotency_key,
     });
+  }
+
+  /** What is about to happen on the book: rent falling due, rent already
+   * overdue, and tenancies running out, soonest first (#337). */
+  async opsReminders(days?: number): Promise<OpsReminder[]> {
+    const q = days ? `?days=${days}` : '';
+    const out = await this.request<{ reminders: OpsReminder[] }>('GET', `/v1/ops/reminders${q}`);
+    return out.reminders ?? [];
   }
 
   opsToday(): Promise<OpsToday> {

@@ -11,6 +11,7 @@ import {
 import { istDate } from '../../src/data/clock';
 import { useOpsTodayData, useOpsWho, useOpsWorklist, type OpsTask } from '../../src/data/source';
 import { fmtDate, useOpsApprovals } from '../../src/data/worklists';
+import { useReminders } from '../../src/data/reminders';
 
 /**
  * Today — the manager's first screen of the day.
@@ -35,6 +36,7 @@ export default function Today() {
   const who = useOpsWho();
   const work = useOpsWorklist();
   const { data: approvals } = useOpsApprovals();
+  const coming = useReminders(30).properties.flatMap((p) => p.reminders).slice(0, 3);
   // Every figure comes from the roster, which serves the demonstration set in
   // demo mode and zeroes what has no endpoint yet in live mode (#284, #296).
   const billedPaise = roster.billedPaise;
@@ -123,6 +125,31 @@ export default function Today() {
             onPress={() => router.push('/(tabs)/portfolio')}
           />
         </View>
+
+        {/* The week ahead, three rows deep — the rest is on its own screen (#337). */}
+        {coming.length ? (
+          <>
+            <SectionTitle>What is coming</SectionTitle>
+            <Card padded={false} style={{ paddingHorizontal: space(4) }}>
+              {coming.map((r, i) => (
+                <ListRow
+                  key={`${r.kind}:${r.lease_id}`}
+                  left={<View style={s.taskIcon}>
+                    {r.kind === 'tenancy_ending'
+                      ? <CalendarIcon size={20} c="#B0731C" />
+                      : <RupeeIcon size={20} c={r.kind === 'rent_overdue' ? color.negative : color.accent} />}
+                  </View>}
+                  title={r.kind === 'tenancy_ending'
+                    ? `${r.unit}, ${r.property} — term ends`
+                    : `${r.unit}, ${r.property} — ${inr(r.amount_minor ?? 0, { noPaise: true })}`}
+                  subtitle={r.kind === 'rent_overdue' ? 'overdue now' : `in ${r.days_away} days · ${r.on}`}
+                  onPress={() => router.push('/reminders')}
+                  last={i === coming.length - 1}
+                />
+              ))}
+            </Card>
+          </>
+        ) : null}
 
         <CollapsibleHeader title="Your worklist" />
         <Card padded={false} style={{ paddingHorizontal: space(4) }}>

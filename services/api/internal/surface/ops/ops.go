@@ -89,6 +89,8 @@ func (h *Handler) Routes(r *authz.Registrar) {
 		Relation: "can_view", Object: authz.Organisation()}, h.Tenancies)
 	r.Handle("GET /v1/ops/tenancies/{lease}/position", authz.Check{
 		Relation: "can_view", Object: authz.Organisation()}, h.Position)
+	r.Handle("GET /v1/ops/reminders", authz.Check{
+		Relation: "can_view", Object: authz.Organisation()}, h.Reminders)
 	r.Handle("GET /v1/ops/today", authz.Check{
 		Relation: "can_view", Object: authz.Organisation()}, h.Today)
 	r.Handle("GET /v1/ops/activity", authz.Check{
