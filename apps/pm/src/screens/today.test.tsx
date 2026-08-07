@@ -12,6 +12,7 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 const mockRoster = {
   mode: 'live' as const, loading: false, reload: jest.fn(),
   billedPaise: 2500000, outstandingPaise: 0, arrearsCount: 0, activeTenancies: 1,
+  startingTenancies: 0,
   payoutsPending: 0, payoutsPaise: 0, openTickets: 0, breachingSla: 0,
   visitsDone: 0, inspectionsToday: 0, occupancyPct: 0, vacantUnits: 0,
 };
@@ -22,6 +23,9 @@ jest.mock('../data/source', () => ({
   useOpsWorklist: () => ({ mode: 'live', loading: false, tasks: [] }),
 }));
 
+// A firm whose only tenancy starts next week reads as a firm with nothing on:
+// every figure is zero, and the move-in it should be preparing for is the one
+// thing not on the screen (#308).
 const mockApprovals = { loading: false, data: [] as any[] };
 jest.mock('../data/worklists', () => ({
   ...jest.requireActual('../data/worklists'),
@@ -58,5 +62,19 @@ describe('Today, in live mode', () => {
   it('says nothing is waiting rather than borrowing the demonstration set', async () => {
     const { queryByText } = await render(<Today />);
     expect(queryByText(/Waiting on someone else/)).toBeNull();
+  });
+
+  it('says a tenancy is starting when none has begun yet (#308)', async () => {
+    mockRoster.activeTenancies = 0;
+    mockRoster.startingTenancies = 1;
+    const { getByText } = await render(<Today />);
+    expect(getByText(/1 tenancy starting/i)).toBeTruthy();
+  });
+
+  // Nothing is queued offline, and saying two things are makes a manager who
+  // just took rent record it twice (#309).
+  it('claims nothing is waiting to sync', async () => {
+    const { queryByText } = await render(<Today />);
+    expect(queryByText(/queued/i)).toBeNull();
   });
 });

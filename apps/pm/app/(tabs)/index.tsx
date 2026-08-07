@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   AppHeader, AvatarButton, Card, CollapsibleHeader, Screen, SectionTitle,
-  ProgressBar, StatusPill, Metric, ListRow, Avatar, SyncBadge,
+  ProgressBar, StatusPill, Metric, ListRow, Avatar,
   AlertIcon, BedIcon, BuildingIcon, CalendarIcon, ChartIcon, ChatIcon, ClipboardIcon, DocIcon,
   KeyIcon, RupeeIcon, ShieldIcon, UsersIcon, WrenchIcon,
   color, font, inr, inrShort, radius, space,
@@ -60,7 +60,6 @@ export default function Today() {
         }
       />
       <Screen>
-        <SyncBadge queued={2} />
 
         <View style={s.greetWrap}>
           <Text style={s.greet}>{who.firstName ? `Good morning, ${who.firstName}` : 'Good morning'}</Text>
@@ -79,6 +78,14 @@ export default function Today() {
             {inr(roster.outstandingPaise, { noPaise: true })} outstanding of{' '}
             {inr(billedPaise, { noPaise: true })} billed
           </Text>
+
+          {roster.startingTenancies ? (
+            // No rent in force yet, so every figure above is zero. Saying so is
+            // what separates a firm with a move-in coming from an empty one (#308).
+            <Text style={s.sub}>
+              {roster.startingTenancies} tenancy starting — no rent in force yet
+            </Text>
+          ) : null}
 
           <View style={s.metrics}>
             <Metric

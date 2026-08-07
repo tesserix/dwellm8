@@ -28,6 +28,15 @@ describe('useOpsTodayData', () => {
 
   const load = async () => renderHook(() => useOpsTodayData());
 
+  // A tenancy signed for next week is the one thing happening at a firm whose
+  // every other figure is zero, and dropping it made the two look alike (#308).
+  it('carries the tenancies that have not started yet', async () => {
+    mockOpsToday.mockResolvedValue({ ...live, starting_tenancies: 2 });
+    const { result } = await load();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.startingTenancies).toBe(2);
+  });
+
   it('shows nothing rather than demonstration money while the first load is in flight', async () => {
     mockOpsToday.mockReturnValue(new Promise(() => {}));
     const { result } = await load();

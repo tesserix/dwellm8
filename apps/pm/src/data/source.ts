@@ -31,6 +31,8 @@ export type OpsTodayData = {
   outstandingPaise: number;
   arrearsCount: number;
   activeTenancies: number;
+  /** Signed but not begun: no rent yet, and a move-in coming (#308). */
+  startingTenancies: number;
   /** Demonstration-only in both modes today — see the file comment. */
   payoutsPending: number;
   payoutsPaise: number;
@@ -50,6 +52,7 @@ const demoData: OpsTodayData = {
   outstandingPaise: demo.today.arrearsPaise,
   arrearsCount: demo.today.arrearsCount,
   activeTenancies: 0,
+  startingTenancies: 0,
   payoutsPending: demo.today.payoutsPending,
   payoutsPaise: demo.today.payoutsPaise,
   openTickets: demo.today.openTickets,
@@ -66,7 +69,7 @@ const demoData: OpsTodayData = {
 const liveNothingYet: OpsTodayData = {
   ...demoData,
   mode: 'live',
-  billedPaise: 0, outstandingPaise: 0, arrearsCount: 0, activeTenancies: 0,
+  billedPaise: 0, outstandingPaise: 0, arrearsCount: 0, activeTenancies: 0, startingTenancies: 0,
   payoutsPending: 0, payoutsPaise: 0, openTickets: 0, breachingSla: 0,
   visitsDone: 0, inspectionsToday: 0, occupancyPct: 0, vacantUnits: 0,
 };
@@ -83,6 +86,7 @@ async function loadLive(api: DwellmApi): Promise<OpsTodayData> {
     outstandingPaise: t.outstanding_amount_minor,
     arrearsCount: t.tenancies_in_arrears,
     activeTenancies: t.active_tenancies,
+    startingTenancies: t.starting_tenancies ?? 0,
     openTickets: tickets.length,
   };
 }

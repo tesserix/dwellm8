@@ -223,6 +223,8 @@ export type OpsPass = {
 export type OpsToday = {
   as_of: string;
   active_tenancies: number;
+  /** Signed, term not begun — no rent in force today, and a move-in to prepare. */
+  starting_tenancies?: number;
   rent_roll_amount_minor: number;
   outstanding_amount_minor: number;
   tenancies_in_arrears: number;
