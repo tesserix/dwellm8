@@ -94,6 +94,28 @@ func (o *Owners) TaxProfile(ctx context.Context, partyID string, on time.Time) (
 	return o.principals.TaxProfile(ctx, tenancy.ID(org), partyID, on)
 }
 
+// PartyDocument is one piece of the landlord's own paperwork, aliased for
+// TaxProfile's reason.
+type PartyDocument = store.PartyDocument
+
+// RecordPartyDocument files a copy the owner produced, in the owner's books.
+func (o *Owners) RecordPartyDocument(ctx context.Context, partyID string, d PartyDocument) error {
+	org, err := o.principals.OwnerOrgOf(ctx, partyID)
+	if err != nil {
+		return err
+	}
+	return o.principals.SavePartyDocument(ctx, tenancy.ID(org), partyID, d)
+}
+
+// PartyDocuments is everything held for a landlord, newest first.
+func (o *Owners) PartyDocuments(ctx context.Context, partyID string) ([]PartyDocument, error) {
+	org, err := o.principals.OwnerOrgOf(ctx, partyID)
+	if err != nil {
+		return nil, err
+	}
+	return o.principals.PartyDocuments(ctx, tenancy.ID(org), partyID)
+}
+
 // OwnerOrgOf is the books a party owns, for a surface that has to authorize
 // against them before it acts.
 func (o *Owners) OwnerOrgOf(ctx context.Context, partyID string) (string, error) {

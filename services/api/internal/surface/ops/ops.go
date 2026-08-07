@@ -29,6 +29,7 @@ import (
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/activity"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/blob"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
 	propertyservice "github.com/tesserix/dwellm8/services/api/internal/property/service"
 )
@@ -57,6 +58,7 @@ type Handler struct {
 
 	registrations *identityservice.Registrations
 	scanner       *docscan.Scanner
+	blob          *blob.Store
 	log           *slog.Logger
 	now           func() time.Time
 }

@@ -179,31 +179,38 @@ func (h *Handler) TaxProfile(w http.ResponseWriter, r *http.Request) {
 // A party the firm holds no mandate over is 404, not 403: whether somebody is
 // an owner here is itself something the caller is not entitled to learn.
 func (h *Handler) actsForParty(w http.ResponseWriter, r *http.Request, party string) bool {
+	_, ok := h.ownerOrgFor(w, r, party)
+	return ok
+}
+
+// ownerOrgFor is actsForParty with the books it resolved, for a caller that
+// needs to know where the row will land as well as that it may write it.
+func (h *Handler) ownerOrgFor(w http.ResponseWriter, r *http.Request, party string) (string, bool) {
 	firm, ok := tenancy.From(r.Context())
 	if !ok {
 		writeError(w, http.StatusForbidden, "no organisation in this session")
-		return false
+		return "", false
 	}
 	owner, err := h.owners.OwnerOrgOf(r.Context(), party)
 	switch {
 	case errors.Is(err, identitystore.ErrNoOwnerOrg):
 		writeError(w, http.StatusNotFound, "no such owner")
-		return false
+		return "", false
 	case err != nil:
 		h.log.Error("resolving a party's books", "party", party, "error", err)
 		writeError(w, http.StatusInternalServerError, "could not read the owner")
-		return false
+		return "", false
 	}
 	if owner == firm.String() {
-		return true
+		return owner, true
 	}
 	if _, err := h.owners.Portfolio(r.Context(), firm.String(), owner); err != nil {
-		h.log.Warn("a tax profile was asked for outside the firm's mandate",
+		h.log.Warn("an owner's own record was asked for outside the firm's mandate",
 			"firm", firm.String(), "party", party)
 		writeError(w, http.StatusNotFound, "no such owner")
-		return false
+		return "", false
 	}
-	return true
+	return owner, true
 }
 
 func (h *Handler) readBackTaxProfile(w http.ResponseWriter, r *http.Request, party string) {
