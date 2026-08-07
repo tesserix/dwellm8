@@ -167,7 +167,7 @@ describe('Onboard — an owner who has already furnished', () => {
   };
   const profile = {
     party_id: 'party-1', residency: 'resident', residence_country: 'IN',
-    pan_furnished: true, rule_37bc_furnished: false,
+    pan_furnished: true, payee_form: 'individual' as const, rule_37bc_furnished: false,
     source: 'owner_declaration', valid_from: '2026-08-07',
   };
 

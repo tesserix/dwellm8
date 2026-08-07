@@ -133,6 +133,7 @@ export default function Onboard() {
         setOnFile(p);
         setIdent((d) => ({
           ...d, resident: p.residency === 'resident',
+          individual: p.payee_form !== 'company',
           country: p.residency === 'resident' ? '' : p.residence_country,
         }));
       })

@@ -67,6 +67,7 @@ export function taxProfileFrom(d: IdentityDraft, validFrom: string): TaxProfileI
     residency: d.resident ? 'resident' : 'non_resident',
     residence_country: d.resident ? 'IN' : d.country.trim().toUpperCase(),
     pan: d.pan.trim() ? d.pan.trim().toUpperCase() : undefined,
+    payee_form: d.individual ? 'individual' : 'company',
     source: 'owner_declaration',
     valid_from: validFrom,
   };

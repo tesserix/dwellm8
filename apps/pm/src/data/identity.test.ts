@@ -70,6 +70,16 @@ describe('what is sent', () => {
     expect(nri.residence_country).toBe('AE');
   });
 
+  // The fourth character of the PAN is the payee's form, and the form picks the
+  // surcharge ladder. The wizard read it off the card and then dropped it, so
+  // every landlord was deducted on the individual ladder (#320).
+  it('carries the payee form the card decided', () => {
+    expect(taxProfileFrom({ ...emptyIdentity(), individual: true }, '2026-04-01').payee_form)
+      .toBe('individual');
+    expect(taxProfileFrom({ ...emptyIdentity(), individual: false }, '2026-04-01').payee_form)
+      .toBe('company');
+  });
+
   it('says who furnished it and from when', () => {
     const out = taxProfileFrom({ ...emptyIdentity(), resident: true }, '2026-04-01');
     expect(out.source).toBe('owner_declaration');
@@ -136,7 +146,7 @@ describe('prefilling from a photographed card', () => {
 describe('deciding whether to record what the wizard collected', () => {
   const onFile = (over: Partial<TaxProfile> = {}): TaxProfile => ({
     party_id: 'p1', residency: 'resident', residence_country: 'IN',
-    pan_furnished: true, rule_37bc_furnished: false,
+    pan_furnished: true, payee_form: 'individual' as const, rule_37bc_furnished: false,
     source: 'owner_declaration', valid_from: '2026-08-07', ...over,
   });
 
@@ -176,7 +186,7 @@ describe('deciding whether to record what the wizard collected', () => {
 describe('what the once-over says about tax', () => {
   const furnished: TaxProfile = {
     party_id: 'p1', residency: 'resident', residence_country: 'IN',
-    pan_furnished: true, rule_37bc_furnished: false,
+    pan_furnished: true, payee_form: 'individual' as const, rule_37bc_furnished: false,
     source: 'owner_declaration', valid_from: '2026-08-07',
   };
 

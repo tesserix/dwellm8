@@ -214,6 +214,8 @@ export type TaxProfile = {
   residency: 'resident' | 'non_resident';
   residence_country: string;
   pan_furnished: boolean;
+  /** individual or company — it picks the surcharge ladder (#320). */
+  payee_form: 'individual' | 'company';
   foreign_tin_masked?: string;
   trc_number?: string;
   trc_valid_to?: string;
@@ -227,6 +229,7 @@ export type TaxProfileInput = {
   residency: 'resident' | 'non_resident';
   residence_country: string;
   pan?: string;
+  payee_form?: 'individual' | 'company';
   foreign_tin?: string;
   trc_number?: string;
   trc_valid_from?: string;
