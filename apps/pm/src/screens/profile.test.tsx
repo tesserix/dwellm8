@@ -32,6 +32,13 @@ describe('Profile', () => {
     expect(queryByText(/not signed in/i)).toBeNull();
   });
 
+  // The two hand-rolled icon buttons in this app are here and on the switcher;
+  // shared controls have carried labels since #292 (#316).
+  it('names its icon-only back button for a screen reader', async () => {
+    const { getByLabelText } = await render(<Profile />);
+    expect(getByLabelText('Back')).toBeTruthy();
+  });
+
   it('logs out when the manager asks to', async () => {
     const { getByText } = await render(<Profile />);
 

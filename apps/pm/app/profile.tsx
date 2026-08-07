@@ -26,7 +26,12 @@ export default function Profile() {
       <AppHeader
         title="You"
         showCaret={false}
-        left={<Pressable onPress={() => router.back()} hitSlop={10}><ChevronLeft size={28} w={2.4} /></Pressable>}
+        left={
+          <Pressable accessibilityRole="button" accessibilityLabel="Back"
+            onPress={() => router.back()} hitSlop={10}>
+            <ChevronLeft size={28} w={2.4} />
+          </Pressable>
+        }
         right={
           <Pressable onPress={() => void signOut()} hitSlop={10}>
             <Text style={s.logout}>Log out</Text>

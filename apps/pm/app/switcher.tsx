@@ -50,9 +50,12 @@ export default function Switcher() {
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
       <SafeAreaView edges={['top']}>
         <View style={{ padding: space(4) }}>
-          <Pressable onPress={() => router.back()} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Close"
+            onPress={() => router.back()} hitSlop={10}>
+            <CloseIcon size={26} w={2.2} />
+          </Pressable>
           <Text style={s.title}>Switch portfolio</Text>
-          <Text style={s.sub}>Whose books are you working?</Text>
+          <Text style={s.sub}>Whose books are you working on?</Text>
         </View>
       </SafeAreaView>
 
