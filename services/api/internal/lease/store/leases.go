@@ -502,6 +502,44 @@ func (s *Leases) Billable(ctx context.Context, limit int) ([]domain.Lease, error
 	return out, nil
 }
 
+// Roster is the whole live book: how many tenancies, and the rent in force.
+type Roster struct {
+	// Active is running today. Starting is signed with its term still ahead —
+	// counted apart because its rent is not in this month's roll (#305).
+	Active   int
+	Starting int
+	// RentRollMinor is the rent in force today, over the active tenancies only.
+	RentRollMinor int64
+}
+
+// Roster counts the organisation's live tenancies and sums their rent.
+//
+// Aggregated in SQL over every row rather than by walking Billable's page: the
+// tile above a manager's morning list is a total, and a total that silently
+// stops at the five hundredth tenancy is a wrong number with nothing on the
+// screen saying so (#306).
+func (s *Leases) Roster(ctx context.Context, on effective.Date) (Roster, error) {
+	var r Roster
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `
+			SELECT count(*) FILTER (WHERE l.valid_from <= $1::date),
+			       count(*) FILTER (WHERE l.valid_from >  $1::date),
+			       coalesce(sum(r.amount_minor) FILTER (WHERE l.valid_from <= $1::date), 0)
+			  FROM leases l
+			  -- The schedule in force on the day; the exclusion constraint on
+			  -- rent_schedule is what makes this join at most one row per lease.
+			  LEFT JOIN rent_schedule r
+			         ON r.lease_id = l.id AND r.tenant_id = l.tenant_id
+			        AND r.retired_at IS NULL AND r.validity @> $1::date
+			 WHERE l.state IN ('active', 'in_notice')`, on.Time(),
+		).Scan(&r.Active, &r.Starting, &r.RentRollMinor)
+	})
+	if err != nil {
+		return Roster{}, fmt.Errorf("lease: counting the live roster: %w", err)
+	}
+	return r, nil
+}
+
 // interval rebuilds the agreed term from its two columns.
 func interval(from time.Time, to *time.Time) (effective.Interval, error) {
 	f := effective.Day(from.Year(), from.Month(), from.Day())

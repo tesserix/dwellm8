@@ -69,6 +69,19 @@ describe('DwellmApi — ops surface', () => {
     );
   });
 
+  it('opsPosition reads one tenancy rather than the whole arrears list (#306)', async () => {
+    const fetchMock = mockFetch({ lease_id: 'l1', due_amount_minor: 250000 });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsPosition('l1');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/ops/tenancies/l1/position`,
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(out.due_amount_minor).toBe(250000);
+  });
+
   it('opsRecordCollection posts the receipt against the one tenancy (#297)', async () => {
     const fetchMock = mockFetch({
       payment_id: 'pay-1', lease_id: 'l1', status: 'captured',

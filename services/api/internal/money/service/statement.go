@@ -45,6 +45,15 @@ func (s *Statements) Position(ctx context.Context, leaseID, partyID string) (Sta
 	return s.ledger.Statement(ctx, leaseID, partyID, s.now())
 }
 
+// LeaseDue is one tenancy's arrear. See store.LeaseDue.
+type LeaseDue = store.LeaseDue
+
+// Outstanding is every tenancy in the organisation that owes money today, most
+// owed first.
+func (s *Statements) Outstanding(ctx context.Context) ([]LeaseDue, error) {
+	return s.ledger.Outstanding(ctx, s.now())
+}
+
 // History is everything that has happened on a tenancy, as the tenant sees it.
 type History struct {
 	Charges  []Charge

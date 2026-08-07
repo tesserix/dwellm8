@@ -134,6 +134,61 @@ func (l *Ledger) Statement(ctx context.Context, leaseID, partyID string, asOf ti
 	return s, nil
 }
 
+// LeaseDue is one tenancy's arrear: what it owes, without the breakdown.
+type LeaseDue struct {
+	LeaseID string
+	Due     domain.Minor
+}
+
+// Outstanding is every tenancy in the organisation that owes money, most owed
+// first.
+//
+// One query over the whole organisation rather than Statement per lease. The
+// arrears screen is a manager's list of who to chase, and asking lease by lease
+// forced a limit onto the roster that took tenancies in identifier order — the
+// list was 500 arbitrary tenancies, not the ones in arrears (#306). RLS still
+// decides which rows exist here, so this reads exactly the leases the session
+// could have read one at a time.
+//
+// Due is the signed sum of the tenant's receivable and advance: an invoice
+// debits the receivable, a payment credits it, and money held in advance is a
+// credit that cancels what is owed. That is the same arithmetic Statement does
+// in Go, expressed once in SQL.
+func (l *Ledger) Outstanding(ctx context.Context, asOf time.Time) ([]LeaseDue, error) {
+	var out []LeaseDue
+	err := tenancy.Scoped(ctx, l.pool, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT e.lease_id::text, sum(p.signed_minor) AS due
+			  FROM ledger_postings p
+			  JOIN journal_entries e ON e.id = p.entry_id AND e.tenant_id = p.tenant_id
+			 WHERE p.party_kind = 'tenant'
+			   AND p.account_code = ANY($2)
+			   AND e.lease_id IS NOT NULL
+			   AND e.occurred_on <= $1::date
+			 GROUP BY e.lease_id
+			HAVING sum(p.signed_minor) > 0
+			 ORDER BY due DESC, e.lease_id`,
+			asOf, []string{domain.TenantReceivable, domain.TenantAdvance})
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var r LeaseDue
+			if err := rows.Scan(&r.LeaseID, &r.Due); err != nil {
+				return err
+			}
+			out = append(out, r)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, fmt.Errorf("money: reading what the organisation is owed: %w", err)
+	}
+	return out, nil
+}
+
 // Charges lists the ledger events on a tenancy, most recent first.
 //
 // Bounded by limit because this is the screen a tenant opens on a phone: six

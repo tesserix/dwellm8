@@ -1,7 +1,8 @@
 /**
- * One tenancy's position, read from the same roster the Collections tab reads
- * (#251). There is no per-tenancy arrears endpoint yet, so the row is picked
- * out of the roster rather than invented locally.
+ * One tenancy's position (GET /v1/ops/tenancies/{lease}/position, #251).
+ * Asked for directly: the arrears list carries only tenancies in arrears, so a
+ * settled one is not on it and searching it would report a live tenancy as
+ * missing (#306).
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -25,15 +26,10 @@ export function useArrear(leaseId: string | undefined): ArrearView {
       return;
     }
     let alive = true;
-    api.opsArrears()
-      .then((list) => {
+    api.opsPosition(leaseId)
+      .then((row) => {
         if (!alive) return;
-        const row = list.find((a) => a.lease_id === leaseId);
-        setState({
-          loading: false, row,
-          owes: (row?.due_amount_minor ?? 0) > 0,
-          error: row ? undefined : 'That tenancy is not on this roster.',
-        });
+        setState({ loading: false, row, owes: (row?.due_amount_minor ?? 0) > 0 });
       })
       .catch((err: Error) => { if (alive) setState({ loading: false, owes: false, error: err.message }); });
     return () => { alive = false; };

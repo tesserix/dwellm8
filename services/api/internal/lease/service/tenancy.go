@@ -111,6 +111,15 @@ func (s *Leases) Live(ctx context.Context, limit int) ([]domain.Lease, error) {
 	return s.store.Billable(ctx, limit)
 }
 
+// Roster is the whole live book: see store.Roster.
+type Roster = store.Roster
+
+// Roster counts every live tenancy and the rent in force, in one query rather
+// than by paging Live (#306).
+func (s *Leases) Roster(ctx context.Context, on effective.Date) (Roster, error) {
+	return s.store.Roster(ctx, on)
+}
+
 // PartiesOf returns the tenant and the owner on a tenancy as at a date.
 func (s *Leases) PartiesOf(ctx context.Context, leaseID string, on effective.Date) (tenant, owner string, err error) {
 	return s.store.Parties(ctx, leaseID, on)

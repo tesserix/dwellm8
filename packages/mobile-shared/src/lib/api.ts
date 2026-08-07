@@ -818,6 +818,12 @@ export class DwellmApi {
     return out.arrears ?? [];
   }
 
+  /** One tenancy's rent and what it owes. The arrears list is only the
+   * tenancies in arrears, so a settled one is read here, not looked up in it. */
+  opsPosition(leaseId: string): Promise<OpsArrear> {
+    return this.request('GET', `/v1/ops/tenancies/${encodeURIComponent(leaseId)}/position`);
+  }
+
   /** Rent taken in cash, by cheque or by a transfer the manager saw (#297).
    * The key is what stops a retry on a bad line becoming a second receipt. */
   opsRecordCollection(leaseId: string, req: {

@@ -14,6 +14,7 @@
 package ops
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -33,9 +34,9 @@ import (
 
 var ist = time.FixedZone("IST", 5*3600+1800)
 
-// rosterLimit bounds Leases.Live the way historyLimit bounds the resident
-// surface — a firm's whole live roster, not paged, because the screen this
-// serves is the manager's daily worklist and not an archive.
+// rosterLimit bounds the arrears list, which is now ordered by what is owed:
+// the cut falls on the smallest debts rather than on an arbitrary slice of the
+// roster, and the tiles above it are aggregates over every tenancy (#306).
 const rosterLimit = 500
 const activityLimit = 100
 
@@ -75,6 +76,8 @@ func (h *Handler) Routes(r *authz.Registrar) {
 		Relation: "can_view", Object: authz.Organisation()}, h.Property)
 	r.Handle("GET /v1/ops/arrears", authz.Check{
 		Relation: "can_view", Object: authz.Organisation()}, h.Arrears)
+	r.Handle("GET /v1/ops/tenancies/{lease}/position", authz.Check{
+		Relation: "can_view", Object: authz.Organisation()}, h.Position)
 	r.Handle("GET /v1/ops/today", authz.Check{
 		Relation: "can_view", Object: authz.Organisation()}, h.Today)
 	r.Handle("GET /v1/ops/activity", authz.Check{
@@ -227,49 +230,81 @@ type arrearResponse struct {
 	AsOf      string `json:"as_of"`
 }
 
-// Arrears reads the firm's live roster and what each tenancy currently
-// owes — one Tenancy, one PartiesOf and one Position call per lease, the
-// same per-record shape internal/surface/resident.Tenancies uses for its
-// own reason: each read is scoped to the one lease it concerns, so no query
-// in this product spans two tenancies' money in one round trip.
+// Arrears is who owes money, most owed first.
+//
+// The debts come from one ledger query over the organisation, not from walking
+// the roster lease by lease: read that way the list had to be cut at a page,
+// and the page was in identifier order, so a firm past five hundred tenancies
+// got five hundred arbitrary ones and its real arrears were not among them
+// (#306). Only the tenancies on the list are then described — a tenancy that
+// owes nothing costs no query at all.
 func (h *Handler) Arrears(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	today := effective.DateOf(h.now(), ist)
 
-	live, err := h.leases.Live(ctx, rosterLimit)
+	owing, err := h.statements.Outstanding(ctx)
 	if err != nil {
-		h.log.Error("reading the live roster", "error", err)
+		h.log.Error("reading what the firm is owed", "error", err)
 		writeError(w, http.StatusInternalServerError, "could not read the roster")
 		return
 	}
+	if len(owing) > rosterLimit {
+		owing = owing[:rosterLimit]
+	}
 
-	out := make([]arrearResponse, 0, len(live))
-	for _, l := range live {
-		t, err := h.leases.Tenancy(ctx, l.ID, today)
+	out := make([]arrearResponse, 0, len(owing))
+	for _, d := range owing {
+		item, err := h.arrear(ctx, d.LeaseID, today)
 		if err != nil {
-			h.log.Warn("reading a tenancy on the roster", "lease", l.ID, "error", err)
+			h.log.Warn("describing a tenancy in arrears", "lease", d.LeaseID, "error", err)
 			continue
 		}
-		tenantParty, _, err := h.leases.PartiesOf(ctx, l.ID, today)
-		if err != nil {
-			h.log.Warn("reading a tenancy's parties", "lease", l.ID, "error", err)
-			continue
-		}
-		item := arrearResponse{
-			LeaseID: l.ID, Property: t.PropertyName, Unit: t.UnitCode, Locality: t.Locality,
-			RentMinor: t.RentMinor, AsOf: today.String(),
-		}
-		if tenantParty != "" {
-			if phone, email, err := h.residents.Contact(ctx, tenantParty); err == nil {
-				item.Phone, item.Email = phone, email
-			}
-			if due, err := h.statements.Position(ctx, l.ID, tenantParty); err == nil {
-				item.DueMinor = int64(due.Due)
-			}
-		}
+		item.DueMinor = int64(d.Due)
 		out = append(out, item)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"arrears": out})
+}
+
+// Position is one tenancy's rent and what it owes, so a receipt or a collection
+// screen can read the tenancy in front of it without downloading the firm's
+// whole arrears list to find one row (#306).
+func (h *Handler) Position(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	today := effective.DateOf(h.now(), ist)
+	leaseID := r.PathValue("lease")
+
+	item, err := h.arrear(ctx, leaseID, today)
+	if err != nil {
+		// Not theirs and not there are the same answer, as everywhere else.
+		writeError(w, http.StatusNotFound, "no such tenancy")
+		return
+	}
+	tenantParty, _, err := h.leases.PartiesOf(ctx, leaseID, today)
+	if err == nil && tenantParty != "" {
+		if due, err := h.statements.Position(ctx, leaseID, tenantParty); err == nil {
+			item.DueMinor = int64(due.Due)
+		}
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+// arrear describes one tenancy for the arrears surface, without its debt: who
+// lives there, where, and on what rent.
+func (h *Handler) arrear(ctx context.Context, leaseID string, today effective.Date) (arrearResponse, error) {
+	t, err := h.leases.Tenancy(ctx, leaseID, today)
+	if err != nil {
+		return arrearResponse{}, err
+	}
+	item := arrearResponse{
+		LeaseID: leaseID, Property: t.PropertyName, Unit: t.UnitCode, Locality: t.Locality,
+		RentMinor: t.RentMinor, AsOf: today.String(),
+	}
+	if tenantParty, _, err := h.leases.PartiesOf(ctx, leaseID, today); err == nil && tenantParty != "" {
+		if phone, email, err := h.residents.Contact(ctx, tenantParty); err == nil {
+			item.Phone, item.Email = phone, email
+		}
+	}
+	return item, nil
 }
 
 // todayResponse is the collection roster's headline numbers.
@@ -284,47 +319,39 @@ type todayResponse struct {
 	TenanciesInArrear int   `json:"tenancies_in_arrears"`
 }
 
-// Today sums the roster Arrears reads into the figures a manager's morning
-// screen wants. It is the same reads, not a separate query — rent_roll and
-// outstanding are what the roster already carries, not a period-scoped
-// ledger question, so they are named for what they are: the position today,
-// not "collected this month" (which needs a period boundary this surface
-// does not ask about yet).
+// Today is the manager's morning screen: how many tenancies are live, what
+// rent they carry, and what is unpaid.
+//
+// Two aggregate queries over the whole book, not a walk of it. The tile is a
+// total, and a total assembled from a page of the roster was quietly the first
+// five hundred tenancies by identifier (#306). Named for what they are — the
+// position today, not "collected this month", which needs a period boundary
+// this surface does not ask about yet.
 func (h *Handler) Today(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	today := effective.DateOf(h.now(), ist)
 
-	live, err := h.leases.Live(ctx, rosterLimit)
+	roster, err := h.leases.Roster(ctx, today)
 	if err != nil {
-		h.log.Error("reading the live roster", "error", err)
+		h.log.Error("counting the live roster", "error", err)
+		writeError(w, http.StatusInternalServerError, "could not read the roster")
+		return
+	}
+	owing, err := h.statements.Outstanding(ctx)
+	if err != nil {
+		h.log.Error("reading what the firm is owed", "error", err)
 		writeError(w, http.StatusInternalServerError, "could not read the roster")
 		return
 	}
 
-	out := todayResponse{AsOf: today.String()}
-	for _, l := range live {
-		t, err := h.leases.Tenancy(ctx, l.ID, today)
-		if err != nil {
-			continue
-		}
-		if today.Before(t.Term.From()) {
-			out.StartingTenancies++
-			continue
-		}
-		out.ActiveTenancies++
-		out.RentRollMinor += t.RentMinor
-		tenantParty, _, err := h.leases.PartiesOf(ctx, l.ID, today)
-		if err != nil || tenantParty == "" {
-			continue
-		}
-		due, err := h.statements.Position(ctx, l.ID, tenantParty)
-		if err != nil {
-			continue
-		}
-		if due.Due > 0 {
-			out.OutstandingMinor += int64(due.Due)
-			out.TenanciesInArrear++
-		}
+	out := todayResponse{
+		AsOf:            today.String(),
+		ActiveTenancies: roster.Active, StartingTenancies: roster.Starting,
+		RentRollMinor: roster.RentRollMinor,
+	}
+	for _, d := range owing {
+		out.OutstandingMinor += int64(d.Due)
+		out.TenanciesInArrear++
 	}
 	writeJSON(w, http.StatusOK, out)
 }
