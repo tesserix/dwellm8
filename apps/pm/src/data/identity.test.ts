@@ -1,7 +1,8 @@
 import {
   emptyIdentity, identityReady, missingRule37BC, panLooksRight,
-  prefillFromPAN, prefillFromPassport, taxProfileFrom,
+  prefillFromPAN, prefillFromPassport, taxProfileAction, taxProfileFrom, taxSummary,
 } from './identity';
+import type { TaxProfile } from '@dwellm8/mobile-shared';
 
 // What the manager collects at the owner's identity step (#318). The number is
 // held only as far as the request that furnishes it — everything here is about
@@ -125,5 +126,70 @@ describe('prefilling from a photographed card', () => {
       nationality: 'UTO', date_of_birth: '1974-08-12', expires_on: '2012-04-15',
     });
     expect(after.warning).toMatch(/expired/i);
+  });
+});
+
+// An owner the firm already acts for has furnished this once. The wizard reads
+// their profile back but never sees the PAN itself — only that one is on file —
+// so posting the draft it seeded would declare "no PAN" over a PAN, and drop the
+// landlord to section 206AA's 20% floor (#319).
+describe('deciding whether to record what the wizard collected', () => {
+  const onFile = (over: Partial<TaxProfile> = {}): TaxProfile => ({
+    party_id: 'p1', residency: 'resident', residence_country: 'IN',
+    pan_furnished: true, rule_37bc_furnished: false,
+    source: 'owner_declaration', valid_from: '2026-08-07', ...over,
+  });
+
+  it('records for an owner with nothing on file', () => {
+    expect(taxProfileAction(emptyIdentity(), null).kind).toBe('record');
+  });
+
+  it('keeps what is on file when the manager re-declared nothing', () => {
+    const seeded = { ...emptyIdentity(), resident: true };
+    expect(taxProfileAction(seeded, onFile()).kind).toBe('keep');
+  });
+
+  it('records a PAN the manager has now furnished for an owner without one', () => {
+    const typed = { ...emptyIdentity(), pan: 'ABCPD1234E' };
+    expect(taxProfileAction(typed, onFile({ pan_furnished: false })).kind).toBe('record');
+  });
+
+  it('asks for the PAN again rather than erasing it when residency changes', () => {
+    const moved = { ...emptyIdentity(), resident: false, country: 'AE' };
+    expect(taxProfileAction(moved, onFile()).kind).toBe('needs-pan');
+  });
+
+  it('records the move once the PAN is furnished with it', () => {
+    const moved = { ...emptyIdentity(), resident: false, country: 'AE', pan: 'ABCPD1234E' };
+    expect(taxProfileAction(moved, onFile()).kind).toBe('record');
+  });
+
+  it('records a move for an owner who never furnished a PAN', () => {
+    const moved = { ...emptyIdentity(), resident: false, country: 'AE' };
+    expect(taxProfileAction(moved, onFile({ pan_furnished: false })).kind).toBe('record');
+  });
+});
+
+// The once-over said "no PAN — 20% applies" for an owner whose profile the same
+// screen had just read back as furnished (#319). It reads the record, not the
+// blank draft, whenever the record is what will stand.
+describe('what the once-over says about tax', () => {
+  const furnished: TaxProfile = {
+    party_id: 'p1', residency: 'resident', residence_country: 'IN',
+    pan_furnished: true, rule_37bc_furnished: false,
+    source: 'owner_declaration', valid_from: '2026-08-07',
+  };
+
+  it('reports the PAN on file for an owner nobody re-declared', () => {
+    expect(taxSummary(emptyIdentity(), furnished)).toMatch(/PAN on file/i);
+  });
+
+  it('reports the draft once the manager has changed it', () => {
+    const moved = { ...emptyIdentity(), resident: false, country: 'AE', pan: 'ABCPD1234E' };
+    expect(taxSummary(moved, furnished)).toMatch(/Non-resident · AE/);
+  });
+
+  it('says the 20% floor applies to a new owner who furnished nothing', () => {
+    expect(taxSummary(emptyIdentity(), null)).toMatch(/20%/);
   });
 });

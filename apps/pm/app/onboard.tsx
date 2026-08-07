@@ -12,7 +12,7 @@ import { useFirmContact } from '../src/data/firm';
 import { CaptureRefused, photographDocument } from '../src/data/capture';
 import {
   emptyIdentity, identityReady, missingRule37BC, prefillFromPAN, prefillFromPassport,
-  taxProfileFrom, type IdentityDraft,
+  taxProfileAction, taxProfileFrom, taxSummary, type IdentityDraft,
 } from '../src/data/identity';
 import { fileCopy, type Copy } from '../src/data/papers';
 
@@ -181,10 +181,13 @@ export default function Onboard() {
   };
 
   const shortfall = missingRule37BC(ident);
+  // What the wizard may do with what it collected, against what the owner
+  // already furnished (#319).
+  const taxAction = taxProfileAction(ident, onFile);
 
   const stepReady = [
     existing !== null || (ownerName.trim().length > 1 && phone.trim().length >= 10),
-    identityReady(ident),
+    identityReady(ident) && taxAction.kind !== 'needs-pan',
     propName.trim().length > 1 && addressLine1.trim().length > 1
       && locality.trim().length > 1 && city.trim().length > 1
       && /^[A-Z]{2}$/.test(stateCode.trim().toUpperCase()) && /^[1-9][0-9]{5}$/.test(pin.trim()),
@@ -228,10 +231,12 @@ export default function Onboard() {
       // The profile is written against the party, which only exists once the
       // onboarding lands. It failing does not undo any of the above — the
       // owner is on Dwellm8 either way, and the rate can be furnished later.
-      try {
-        await api.opsRecordTaxProfile(out.owner_party_id, taxProfileFrom(ident, startOn.trim() || todayIso()));
-      } catch {
-        say('Onboarded — but what they furnished for TDS did not save. Add it from their profile.');
+      if (taxAction.kind === 'record') {
+        try {
+          await api.opsRecordTaxProfile(out.owner_party_id, taxProfileFrom(ident, startOn.trim() || todayIso()));
+        } catch {
+          say('Onboarded — but what they furnished for TDS did not save. Add it from their profile.');
+        }
       }
       // The copies behind it, for the same reason and with the same fallback:
       // an owner on Dwellm8 with no passport on file is a chase, not an outage.
@@ -379,6 +384,15 @@ export default function Onboard() {
                 <KeyValue k="Residency" v={onFile.residency === 'resident' ? 'Indian resident' : `Non-resident · ${onFile.residence_country}`} />
                 <KeyValue k="PAN" v={onFile.pan_furnished ? 'Furnished' : 'Not furnished — 20% applies'} last />
                 <Text style={s.note}>Anything you change here is furnished afresh from today; what was true before stays true for the months it covered.</Text>
+                {taxAction.kind === 'needs-pan' ? (
+                  <>
+                    <StatusPill text="The PAN has to be entered again" tone="amber" dot />
+                    <Text style={s.note}>
+                      A fresh declaration replaces this one whole, and the PAN on file cannot be
+                      carried across — enter it again, or leave the rest as it was.
+                    </Text>
+                  </>
+                ) : null}
               </View>
             ) : null}
 
@@ -566,7 +580,7 @@ export default function Onboard() {
             <KeyValue k="Owner" v={existing ? `${existing.owner_name} · already yours` : `${ownerName} · ${phone}`} />
             <KeyValue
               k="For tax"
-              v={`${ident.resident ? 'Indian resident' : `Non-resident · ${ident.country}`} · ${ident.pan.trim() ? 'PAN furnished' : 'no PAN — 20% applies'}`}
+              v={taxSummary(ident, onFile)}
             />
             {!ident.resident && shortfall.length ? (
               <KeyValue k="Rule 37BC" v={`Missing ${shortfall.length} of 5 particulars`} tone="amber" />

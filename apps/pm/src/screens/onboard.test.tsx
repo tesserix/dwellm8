@@ -154,3 +154,76 @@ describe('Onboard — the copies', () => {
     expect(screen.getByLabelText('The owner signed and dated the copy').props.value).toBe(false);
   });
 });
+
+// An owner the firm already acts for furnished their PAN months ago. The wizard
+// reads the profile back but never sees the number, so posting the draft it
+// seeded declared "no PAN" over a PAN and dropped the landlord to section
+// 206AA's 20% floor (#319).
+describe('Onboard — an owner who has already furnished', () => {
+  const recordTaxProfile = jest.fn();
+  const portfolio = {
+    owner_org_id: 'org-1', owner_party_id: 'party-1', owner_name: 'Rohit Nambiar',
+    property_count: 1, unit_count: 2,
+  };
+  const profile = {
+    party_id: 'party-1', residency: 'resident', residence_country: 'IN',
+    pan_furnished: true, rule_37bc_furnished: false,
+    source: 'owner_declaration', valid_from: '2026-08-07',
+  };
+
+  beforeEach(() => {
+    recordTaxProfile.mockReset().mockResolvedValue(profile);
+    mockApi = {
+      opsPortfolios: async () => [portfolio],
+      opsTaxProfile: async () => profile,
+      opsRecordTaxProfile: recordTaxProfile,
+      opsOnboardOwner: async () => ({ owner_party_id: 'party-1', owner_org_id: 'org-1' }),
+      searchAddresses: async () => [],
+    };
+  });
+
+  const pickRohitAndWalkOn = async () => {
+    await render(<Onboard />);
+    await waitFor(() => expect(screen.getByLabelText('Rohit Nambiar')).toBeTruthy());
+    await fireEvent.press(screen.getByLabelText('Rohit Nambiar'));
+    await next();
+    await waitFor(() => expect(screen.getByText(/On file since/)).toBeTruthy());
+  };
+
+  it('says the PAN is on file rather than that 20% applies', async () => {
+    await pickRohitAndWalkOn();
+    await next();
+
+    await fill('Property name', 'Panampilly Residency');
+    await fill('Address', 'Panampilly Nagar Avenue');
+    await fill('Locality', 'Panampilly Nagar');
+    await fill('City', 'Ernakulam');
+    await fill(/State code/i, 'KL');
+    await fill(/PIN code/i, '682036');
+    await next();
+    await fill('Unit codes', '3A, 3B');
+    await fill(/Carpet area/i, '1150');
+    await next();
+    await next();
+
+    await waitFor(() => expect(screen.getByText(/PAN on file/)).toBeTruthy());
+    expect(screen.queryByText(/no PAN — 20% applies/)).toBeNull();
+
+    await fireEvent.press(screen.getByLabelText('Make it real'));
+    await waitFor(() => expect(recordTaxProfile).not.toHaveBeenCalled());
+  });
+
+  it('will not walk on from a change that would take the PAN with it', async () => {
+    await pickRohitAndWalkOn();
+    await fireEvent(screen.getByLabelText('The owner lives in India'), 'valueChange', false);
+    await fill(/Country of residence/i, 'AE');
+
+    expect(screen.getByText(/PAN has to be entered again/)).toBeTruthy();
+    await next();
+    expect(screen.getByText(/On file since/)).toBeTruthy();
+
+    await fill(/^PAN —/, 'AQWPN4821K');
+    await next();
+    await waitFor(() => expect(screen.getByLabelText('Property name')).toBeTruthy());
+  });
+});

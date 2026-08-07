@@ -1,4 +1,4 @@
-import type { ScannedPAN, ScannedPassport, TaxProfileInput } from '@dwellm8/mobile-shared';
+import type { ScannedPAN, ScannedPassport, TaxProfile, TaxProfileInput } from '@dwellm8/mobile-shared';
 
 /**
  * The owner's identity, as the wizard collects it (#318).
@@ -81,6 +81,43 @@ export function taxProfileFrom(d: IdentityDraft, validFrom: string): TaxProfileI
     foreign_email: some(d.foreignEmail),
     foreign_phone: some(d.foreignPhone),
   };
+}
+
+/**
+ * Whether the wizard may post what it collected over what is already on file.
+ *
+ * It reads a profile back but never sees the PAN itself, only that one exists,
+ * so a draft it seeded says "no PAN" about a landlord who furnished one. Posting
+ * that as a fresh declaration drops them to section 206AA's 20% floor (#319).
+ *
+ * needs-pan is the honest middle: the manager has changed something the profile
+ * must record, and the only way to carry the PAN through is to ask for it.
+ */
+export type TaxProfileAction = { kind: 'record' | 'keep' | 'needs-pan' };
+
+export function taxProfileAction(d: IdentityDraft, onFile: TaxProfile | null): TaxProfileAction {
+  if (!onFile) return { kind: 'record' };
+  const residency = d.resident ? 'resident' : 'non_resident';
+  const changed =
+    residency !== onFile.residency ||
+    (!d.resident && d.country.trim().toUpperCase() !== onFile.residence_country) ||
+    d.pan.trim() !== '' ||
+    [d.foreignTin, d.trcNumber, d.foreignAddress, d.foreignEmail, d.foreignPhone]
+      .some((v) => v.trim() !== '');
+  if (!changed) return { kind: 'keep' };
+  if (onFile.pan_furnished && d.pan.trim() === '') return { kind: 'needs-pan' };
+  return { kind: 'record' };
+}
+
+/** What the once-over shows: the record where the record is what will stand. */
+export function taxSummary(d: IdentityDraft, onFile: TaxProfile | null): string {
+  if (onFile && taxProfileAction(d, onFile).kind === 'keep') {
+    const where = onFile.residency === 'resident'
+      ? 'Indian resident' : `Non-resident · ${onFile.residence_country}`;
+    return `${where} · ${onFile.pan_furnished ? 'PAN on file' : 'no PAN — 20% applies'}`;
+  }
+  const where = d.resident ? 'Indian resident' : `Non-resident · ${d.country}`;
+  return `${where} · ${d.pan.trim() ? 'PAN furnished' : 'no PAN — 20% applies'}`;
 }
 
 // OCR hands back a card's shouting capitals; a name goes on an agreement.
