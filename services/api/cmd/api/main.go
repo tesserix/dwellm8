@@ -708,6 +708,8 @@ func run() error {
 	// The copies behind it — a passport, a TRC, an owner abroad's
 	// self-attestation, #318.
 	opsHandler.PartyDocumentRoutes(authz.NewRegistrar(opsMux, guard))
+	// The deed, or the power of attorney standing in for it, #339.
+	opsHandler.PropertyDocumentRoutes(authz.NewRegistrar(opsMux, guard))
 	// The agreements the firm issues, and its own revisions of them, #341.
 	opsHandler.TemplateRoutes(authz.NewRegistrar(opsMux, guard))
 	// Where the manager's own rent settles, #269. Provider-agnostic: the

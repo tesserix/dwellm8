@@ -6,6 +6,7 @@ import {
   HouseArt, color, font, inr, space, type OpsUnit,
 } from '@dwellm8/mobile-shared';
 import { usePropertyRecord } from '../src/data/property';
+import { useOwnershipEvidence } from '../src/data/ownership';
 
 /** One property and every unit in it — the record a manager opens on site. */
 export default function PropertyScreen() {
@@ -13,6 +14,7 @@ export default function PropertyScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { loading, error, property, units, occupied, vacant, spokenFor, rentRollPaise } =
     usePropertyRecord(id);
+  const ownership = useOwnershipEvidence(id);
 
   return (
     <>
@@ -38,6 +40,23 @@ export default function PropertyScreen() {
                 <KeyValue k="Reference" v={property.code} />
                 <KeyValue k="Kind" v={property.kind} last />
               </View>
+            </Card>
+
+            {/* A flat let on somebody's say-so has no answer when the real
+                owner appears, so the record says what is on file (#339). */}
+            <Card padded={false} style={{ paddingHorizontal: space(4) }}>
+              <ListRow
+                title="Ownership"
+                subtitle={ownership.proven
+                  ? 'The deed, or the power of attorney for it, is on file'
+                  : 'The deed or a power of attorney is still wanted'}
+                right={<StatusPill
+                  text={ownership.proven ? 'Proven' : 'Wanted'}
+                  tone={ownership.proven ? 'green' : 'amber'}
+                />}
+                onPress={() => router.push(`/deeds?id=${property.id}`)}
+                last
+              />
             </Card>
 
             <View style={s.metrics}>

@@ -257,12 +257,32 @@ type documentResponse struct {
 	DownloadURL string `json:"download_url,omitempty"`
 }
 
-// ListDocuments lists what's on file for a property. Phase 1 has no reader
-// on the documents table's own module yet (property/doc.go's module owns
-// it) — this composes through the property service the same way the rest of
-// this surface does.
+// ListDocuments lists what is on file for a property, newest first, each with
+// a signed URL minted at read time (#339).
 func (h *Handler) ListDocuments(w http.ResponseWriter, r *http.Request) {
-	writeError(w, http.StatusNotImplemented, "reading stored documents back is not wired yet")
+	propertyID := r.PathValue("id")
+	held, _, err := h.properties.Documents(r.Context(), propertyID)
+	if err != nil {
+		h.fail(w, "reading a property's documents", err)
+		return
+	}
+	out := make([]documentResponse, 0, len(held))
+	for _, d := range held {
+		item := documentResponse{
+			ID: d.ID, Filename: d.Filename, ContentType: d.ContentType, UploadedAt: d.CreatedAt,
+		}
+		if h.blob != nil {
+			url, err := h.blob.DownloadURL(r.Context(), auth.SurfaceOwn, d.ObjectPath)
+			if err != nil {
+				// A missing object is one broken row, not a failed list.
+				h.log.Warn("signing a document url", "document", d.ID, "error", err)
+			} else {
+				item.DownloadURL = url
+			}
+		}
+		out = append(out, item)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"documents": out})
 }
 
 type uploadURLRequest struct {

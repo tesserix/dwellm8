@@ -7,6 +7,7 @@ import Property from '../../app/property';
 // a flat gets offered from — was told it was free (#314).
 
 const mockProperty = jest.fn();
+const mockDocuments = jest.fn();
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
@@ -15,7 +16,7 @@ jest.mock('expo-router', () => ({
 
 jest.mock('@dwellm8/mobile-shared', () => {
   const actual = jest.requireActual('@dwellm8/mobile-shared');
-  return { ...actual, apiFromEnv: () => ({ opsProperty: mockProperty }) };
+  return { ...actual, apiFromEnv: () => ({ opsProperty: mockProperty, opsPropertyDocuments: mockDocuments }) };
 });
 
 const unit = (over: Record<string, unknown>) => ({
@@ -24,6 +25,10 @@ const unit = (over: Record<string, unknown>) => ({
 
 describe('Property record', () => {
   beforeEach(() => {
+    mockDocuments.mockReset().mockResolvedValue({
+      documents: [],
+      ownership: { proven: false, held: [], missing: ['title_deed', 'power_of_attorney'], advisory: [] },
+    });
     mockProperty.mockReset().mockResolvedValue({
       property: {
         id: 'p1', name: 'Kadavanthra Heights', locality: 'Kadavanthra', city: 'Kochi',
@@ -51,5 +56,14 @@ describe('Property record', () => {
     await waitFor(() => expect(queryAllByText(/2026-08-10/).length).toBeGreaterThan(0));
 
     expect(queryAllByText(/2026-08-10/)).toHaveLength(1);
+  });
+
+  // A flat let on somebody's say-so has no answer when the real owner appears,
+  // so the record says whether the deed is on file (#339).
+  it('says the deed is still wanted when nothing proves ownership', async () => {
+    const { getByText } = await render(<Property />);
+    await waitFor(() => expect(getByText('Ownership')).toBeTruthy());
+
+    expect(getByText(/deed or a power of attorney is still wanted/)).toBeTruthy();
   });
 });

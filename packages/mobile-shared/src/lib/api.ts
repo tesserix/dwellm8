@@ -149,6 +149,25 @@ export type OpsUnitRecord = {
   ancillaries: { id: string; code: string; kind: string }[];
 };
 
+/** What a firm holds against a property, and what it proves (#339). */
+export type OpsPropertyDocument = {
+  id: string;
+  kind: string;
+  filename: string;
+  content_type: string;
+  uploaded_by: string;
+  created_at: string;
+};
+
+/** Whether the deed — or the power of attorney standing in for it — is on
+ * file. `missing` is what would prove it; `advisory` blocks nothing. */
+export type OpsOwnershipEvidence = {
+  proven: boolean;
+  held: string[];
+  missing: string[];
+  advisory: string[];
+};
+
 /** An instrument the firm issues (GET /v1/ops/document-templates, #341). The
  * .docx is downloaded, signed on paper and uploaded back — no e-signing. */
 export type OpsDocumentTemplate = {
@@ -1061,6 +1080,36 @@ export class DwellmApi {
       listing: out.listing,
       ancillaries: out.ancillaries ?? [],
     };
+  }
+
+  /** The paperwork behind a property, and what it proves about the right to
+   * let it (#339). */
+  async opsPropertyDocuments(propertyId: string)
+    : Promise<{ documents: OpsPropertyDocument[]; ownership: OpsOwnershipEvidence }> {
+    const out = await this.request<{
+      documents: OpsPropertyDocument[]; ownership: OpsOwnershipEvidence;
+    }>('GET', `/v1/ops/properties/${encodeURIComponent(propertyId)}/documents`);
+    return { documents: out.documents ?? [], ownership: out.ownership };
+  }
+
+  /** Where the deed is PUT before it is filed. */
+  opsPropertyDocumentUploadUrl(propertyId: string, req: { filename: string; content_type: string })
+    : Promise<{ upload_url: string; object_path: string }> {
+    return this.request('POST',
+      `/v1/ops/properties/${encodeURIComponent(propertyId)}/documents/upload-url`, req);
+  }
+
+  /** Files a document that has already reached the bucket. */
+  async opsRecordPropertyDocument(propertyId: string, req: {
+    kind: string;
+    object_path: string;
+    filename: string;
+    content_type: string;
+  }): Promise<{ documents: OpsPropertyDocument[]; ownership: OpsOwnershipEvidence }> {
+    const out = await this.request<{
+      documents: OpsPropertyDocument[]; ownership: OpsOwnershipEvidence;
+    }>('POST', `/v1/ops/properties/${encodeURIComponent(propertyId)}/documents`, req);
+    return { documents: out.documents ?? [], ownership: out.ownership };
   }
 
   /** What the firm issues today — its own revisions resolved over the platform

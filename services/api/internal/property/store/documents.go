@@ -13,8 +13,11 @@ import (
 // itself lives in GCS (internal/platform/blob); this is what makes a bucket
 // listing into an authorization boundary.
 type Document struct {
-	ID          string
-	PropertyID  string
+	ID         string
+	PropertyID string
+	// Kind is what the document is — a deed, a power of attorney, an inspection
+	// report (#339). Empty on rows filed before the vocabulary existed.
+	Kind        string
 	ObjectPath  string
 	Filename    string
 	ContentType string
@@ -27,8 +30,8 @@ func (s *Properties) Documents(ctx context.Context, propertyID string) ([]Docume
 	var out []Document
 	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-			SELECT id::text, property_id::text, object_path, filename, content_type,
-			       uploaded_by, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SSOF')
+			SELECT id::text, property_id::text, coalesce(kind, ''), object_path, filename,
+			       content_type, uploaded_by, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SSOF')
 			  FROM documents
 			 WHERE property_id = $1::uuid
 			 ORDER BY created_at DESC`, propertyID)
@@ -38,7 +41,7 @@ func (s *Properties) Documents(ctx context.Context, propertyID string) ([]Docume
 		defer rows.Close()
 		for rows.Next() {
 			var d Document
-			if err := rows.Scan(&d.ID, &d.PropertyID, &d.ObjectPath, &d.Filename,
+			if err := rows.Scan(&d.ID, &d.PropertyID, &d.Kind, &d.ObjectPath, &d.Filename,
 				&d.ContentType, &d.UploadedBy, &d.CreatedAt); err != nil {
 				return err
 			}
@@ -58,17 +61,18 @@ func (s *Properties) Documents(ctx context.Context, propertyID string) ([]Docume
 // system observing one; a client that uploads and never confirms leaves
 // nothing behind but an unreferenced object, which is the failure mode worth
 // having here.
-func (s *Properties) RecordDocument(ctx context.Context, tenantID, propertyID, objectPath, filename, contentType, uploadedBy string) (string, error) {
+func (s *Properties) RecordDocument(ctx context.Context, tenantID string, d Document) (string, error) {
 	var id string
 	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `
-			INSERT INTO documents (tenant_id, property_id, object_path, filename, content_type, uploaded_by)
-			VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)
+			INSERT INTO documents (tenant_id, property_id, kind, object_path, filename, content_type, uploaded_by)
+			VALUES ($1::uuid, $2::uuid, nullif($3, ''), $4, $5, $6, $7)
 			RETURNING id::text`,
-			tenantID, propertyID, objectPath, filename, contentType, uploadedBy).Scan(&id)
+			tenantID, d.PropertyID, d.Kind, d.ObjectPath, d.Filename,
+			d.ContentType, d.UploadedBy).Scan(&id)
 	})
 	if err != nil {
-		return "", fmt.Errorf("property: recording a document on %s: %w", propertyID, err)
+		return "", fmt.Errorf("property: recording a document on %s: %w", d.PropertyID, err)
 	}
 	return id, nil
 }

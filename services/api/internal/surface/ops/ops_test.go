@@ -80,6 +80,7 @@ func serveWithPool(t *testing.T) (*http.ServeMux, tenancy.PlatformPool) {
 		WithTemplates(propertyservice.NewTemplates(propertystore.NewTemplates(pool)))
 	h.Routes(authz.NewRegistrar(mux, &authz.Guard{}))
 	h.TemplateRoutes(authz.NewRegistrar(mux, &authz.Guard{}))
+	h.PropertyDocumentRoutes(authz.NewRegistrar(mux, &authz.Guard{}))
 	return mux, tenancy.NewPlatformPool(plat)
 }
 
