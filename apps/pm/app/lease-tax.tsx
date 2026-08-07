@@ -5,7 +5,7 @@ import {
   BackHeader, Card, Screen, StatusPill, Button, ActionBar, KeyValue, ChoiceRow,
   Toast, color, font, space,
   deductorOptions, residencyOptions, pathFor, section195Acknowledgement, facilitationNotice,
-  type DeductorClass, type Residency,
+  type DeductorClass, type Residency, useBack,
 } from '@dwellm8/mobile-shared';
 
 /**
@@ -24,6 +24,7 @@ import {
 
 export default function LeaseTax() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [deductor, setDeductor] = useState<DeductorClass | null>(null);
   const [residency, setResidency] = useState<Residency | null>(null);
   const [accepted, setAccepted] = useState(false);
@@ -38,7 +39,7 @@ export default function LeaseTax() {
       <BackHeader
         title="Tax on the rent"
         subtitle="Two questions, before the tenancy starts"
-        onBack={() => router.back()}
+        onBack={goBack}
       />
       <Screen>
         {toast ? <Toast text={toast} /> : null}

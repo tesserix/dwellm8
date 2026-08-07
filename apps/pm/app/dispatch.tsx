@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Button, ActionBar, ChoiceRow, Field,
   Toast, KeyValue,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { useOpsTicket } from '../src/data/worklists';
 import { nextSlots, useDispatch } from '../src/data/dispatch';
@@ -18,6 +18,7 @@ import { nextSlots, useDispatch } from '../src/data/dispatch';
 
 export default function Dispatch() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { ticket } = useLocalSearchParams<{ ticket?: string }>();
   const { loading, error, data: t } = useOpsTicket(ticket);
   const slots = useMemo(() => nextSlots(), []);
@@ -31,7 +32,7 @@ export default function Dispatch() {
   if (loading) {
     return (
       <>
-        <BackHeader title="Dispatch a vendor" onBack={() => router.back()} />
+        <BackHeader title="Dispatch a vendor" onBack={goBack} />
         <Screen><View style={s.wait}><ActivityIndicator /></View></Screen>
       </>
     );
@@ -40,7 +41,7 @@ export default function Dispatch() {
   if (!t) {
     return (
       <>
-        <BackHeader title="Dispatch a vendor" onBack={() => router.back()} />
+        <BackHeader title="Dispatch a vendor" onBack={goBack} />
         <Screen><Card><Text style={s.note}>{error ?? 'That job is no longer open.'}</Text></Card></Screen>
       </>
     );
@@ -49,7 +50,7 @@ export default function Dispatch() {
   if (sent) {
     return (
       <>
-        <BackHeader title="Vendor dispatched" onBack={() => router.back()} />
+        <BackHeader title="Vendor dispatched" onBack={goBack} />
         <Screen>
           <Toast text="Scheduled — the tenant sees it on their own ticket" />
           <Card>
@@ -64,7 +65,7 @@ export default function Dispatch() {
               the technician is let in.
             </Text>
           </Card>
-          <Button label="Done" onPress={() => router.back()} style={{ marginHorizontal: space(4) }} />
+          <Button label="Done" onPress={goBack} style={{ marginHorizontal: space(4) }} />
         </Screen>
       </>
     );
@@ -72,7 +73,7 @@ export default function Dispatch() {
 
   return (
     <>
-      <BackHeader title="Dispatch a vendor" subtitle={t.title} onBack={() => router.back()} />
+      <BackHeader title="Dispatch a vendor" subtitle={t.title} onBack={goBack} />
       <Screen>
         <Card>
           <Text style={s.h}>Who is going?</Text>
@@ -99,7 +100,7 @@ export default function Dispatch() {
       </Screen>
 
       <ActionBar>
-        <Button label="Cancel" tone="secondary" onPress={() => router.back()} style={{ flex: 1 }} />
+        <Button label="Cancel" tone="secondary" onPress={goBack} style={{ flex: 1 }} />
         <Button
           label={sending ? 'Sending…' : 'Send job order'}
           onPress={() => dispatchTo(vendor, slot)}

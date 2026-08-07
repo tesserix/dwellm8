@@ -14,18 +14,19 @@ import {
   DottedRule,
   color,
   font,
-  space,
+  space, useBack,
 } from '@dwellm8/mobile-shared';
 
 export default function JobSheet() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const p = properties.find((x) => x.id === job.propertyId)!;
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
       <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFF' }}>
         <View style={s.head}>
-          <Pressable onPress={() => router.back()} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
+          <Pressable onPress={goBack} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
           <Text style={s.headTitle} numberOfLines={1}>{job.title}</Text>
           <Text style={s.jobNo}>#{job.id}</Text>
         </View>

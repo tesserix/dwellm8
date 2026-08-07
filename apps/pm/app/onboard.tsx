@@ -5,7 +5,7 @@ import {
   ActionBar, AddressLookup, BackHeader, Button, Card, ChoiceRow, Field, HouseArt, KeyValue,
   Screen, StatusPill, SwitchRow, Toast,
   apiFromEnv, color, font, inr, radius, setActingGrant, space,
-  type AddressSuggestion,
+  type AddressSuggestion, useBack,
 } from '@dwellm8/mobile-shared';
 import type { OpsPortfolio, OwnerOnboarded, TaxProfile } from '@dwellm8/mobile-shared';
 import { useFirmContact } from '../src/data/firm';
@@ -53,6 +53,7 @@ const plusMonthsIso = (months: number) => {
 
 export default function Onboard() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -267,7 +268,7 @@ export default function Onboard() {
   if (done) {
     return (
       <>
-        <BackHeader title="Welcome aboard" onBack={() => router.back()} />
+        <BackHeader title="Welcome aboard" onBack={goBack} />
         <Screen>
           <View style={{ alignItems: 'center', marginTop: space(4) }}><HouseArt size={150} /></View>
           <Card>
@@ -306,7 +307,7 @@ export default function Onboard() {
             </Text>
           </Card>
           <Button label="Onboard another owner" tone="secondary" onPress={() => { setDone(null); setStep(0); }} style={{ marginHorizontal: space(4) }} />
-          <Button label="Back to work" onPress={() => router.back()} style={{ marginHorizontal: space(4), marginTop: space(3) }} />
+          <Button label="Back to work" onPress={goBack} style={{ marginHorizontal: space(4), marginTop: space(3) }} />
         </Screen>
       </>
     );

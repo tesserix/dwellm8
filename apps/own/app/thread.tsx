@@ -14,11 +14,12 @@ import {
   font,
   radius,
   shadow,
-  space,
+  space, useBack,
 } from '@dwellm8/mobile-shared';
 
 export default function Thread() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [banner, setBanner] = useState(true);
   const [draft, setDraft] = useState('');
   let lastDay = '';
@@ -28,7 +29,7 @@ export default function Thread() {
       <AppHeader
         title="Anchor Property Care"
         showCaret={false}
-        left={<Pressable onPress={() => router.back()} hitSlop={10}><ChevronLeft size={28} w={2.4} /></Pressable>}
+        left={<Pressable onPress={goBack} hitSlop={10}><ChevronLeft size={28} w={2.4} /></Pressable>}
       />
 
       {banner ? (

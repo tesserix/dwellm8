@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, TriState, PhotoStrip, Button, ActionBar, KeyValue,
   StatusPill, Toast, Field, ProgressBar, CollapsibleHeader, SyncBadge,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { inspectionRooms, inspections } from '../src/data/mock';
 
@@ -20,6 +20,7 @@ type Mark = 'ok' | 'note' | 'issue';
 
 export default function InspectionScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const insp = inspections.find((x) => x.id === id) ?? inspections[0];
 
@@ -36,7 +37,7 @@ export default function InspectionScreen() {
   if (submitted) {
     return (
       <>
-        <BackHeader title="Report queued" onBack={() => router.back()} />
+        <BackHeader title="Report queued" onBack={goBack} />
         <Screen>
         <DemoNote issue={298} />
           <Toast text="Saved on the phone — uploading when you have signal" />
@@ -52,7 +53,7 @@ export default function InspectionScreen() {
               report; the tenant gets the parts that concern them.
             </Text>
           </Card>
-          <Button label="Back to inspections" onPress={() => router.back()} style={{ marginHorizontal: space(4) }} />
+          <Button label="Back to inspections" onPress={goBack} style={{ marginHorizontal: space(4) }} />
         </Screen>
       </>
     );
@@ -63,7 +64,7 @@ export default function InspectionScreen() {
       <BackHeader
         title={`${insp.kind} inspection`}
         subtitle={`${insp.unit} · ${insp.window}`}
-        onBack={() => router.back()}
+        onBack={goBack}
         right={<StatusPill text={`${pct}%`} tone={pct === 100 ? 'green' : 'amber'} />}
       />
       <Screen>
@@ -126,7 +127,7 @@ export default function InspectionScreen() {
       </Screen>
 
       <ActionBar>
-        <Button label="Save draft" tone="secondary" onPress={() => router.back()} style={{ flex: 1 }} />
+        <Button label="Save draft" tone="secondary" onPress={goBack} style={{ flex: 1 }} />
         <Button label="Submit report" onPress={() => setSubmitted(true)} disabled={doneCount === 0} style={{ flex: 2 }} />
       </ActionBar>
     </>

@@ -14,6 +14,7 @@ export * from './components/controls';
 export * from './components/Shell';
 export * from './lib/money';
 export * from './lib/words';
+export * from './lib/nav';
 export * from './lib/tds';
 export * from './lib/api';
 export * from './lib/auth';

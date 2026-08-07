@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, CloseIcon, color, font, inr, radius, space } from '@dwellm8/mobile-shared';
+import { Card, CloseIcon, color, font, inr, radius, space, useBack } from '@dwellm8/mobile-shared';
 import { raiseTicket, ticketCategories, useLiveData } from '../src/data/source';
 
 /**
@@ -12,6 +12,7 @@ import { raiseTicket, ticketCategories, useLiveData } from '../src/data/source';
  */
 export default function Raise() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { leaseId } = useLiveData();
   const [cat, setCat] = useState(ticketCategories[0]);
   const [urgent, setUrgent] = useState(false);
@@ -39,7 +40,7 @@ export default function Raise() {
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
       <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFF' }}>
         <View style={{ padding: space(4) }}>
-          <Pressable onPress={() => router.back()} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
+          <Pressable onPress={goBack} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
           <Text style={s.title}>Raise a request</Text>
         </View>
       </SafeAreaView>

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ChipRow, ListRow, Avatar, StatusPill, Metric,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { fmtDate } from '../src/data/worklists';
@@ -20,6 +20,7 @@ const OPEN = ['submitted', 'under_review'];
 
 export default function Screening() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [filter, setFilter] = useState('Open');
   const { loading, error, data: rows } = useApplications();
 
@@ -29,7 +30,7 @@ export default function Screening() {
 
   return (
     <>
-      <BackHeader title="Screening" subtitle="Applications on your properties" onBack={() => router.back()} />
+      <BackHeader title="Screening" subtitle="Applications on your properties" onBack={goBack} />
       <Screen>
         <View style={s.metrics}>
           <Metric value={loading ? '…' : String(open)} label="to screen" tone="blue" />

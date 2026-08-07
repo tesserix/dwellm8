@@ -2,11 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Badge, Card, CloseIcon, DottedRule, MoneyRow, color, font, inr, space } from '@dwellm8/mobile-shared';
+import { Badge, Card, CloseIcon, DottedRule, MoneyRow, color, font, inr, space, useBack } from '@dwellm8/mobile-shared';
 import { useLiveData, useTicket } from '../src/data/source';
 
 export default function Ticket() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id: string }>();
   const { leaseId } = useLiveData();
   const { loading, error, ticket: t } = useTicket(leaseId, id);
@@ -16,7 +17,7 @@ export default function Ticket() {
       <View style={{ flex: 1, backgroundColor: color.bgTop }}>
         <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFF' }}>
           <View style={s.head}>
-            <Pressable onPress={() => router.back()} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
+            <Pressable onPress={goBack} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
             <Text style={s.headTitle} numberOfLines={1}>Request</Text>
           </View>
         </SafeAreaView>
@@ -31,7 +32,7 @@ export default function Ticket() {
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
       <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFF' }}>
         <View style={s.head}>
-          <Pressable onPress={() => router.back()} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
+          <Pressable onPress={goBack} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
           <Text style={s.headTitle} numberOfLines={1}>{t.title}</Text>
         </View>
       </SafeAreaView>

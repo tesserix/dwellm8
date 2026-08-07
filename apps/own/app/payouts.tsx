@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, StatusPill, ListRow, Metric, Button,
   Timeline, PLATFORM_FEE_PCT,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { inr, payouts, properties } from '../src/data/mock';
 import type { Payout } from '../src/data/mock';
@@ -22,6 +22,7 @@ const tone = (p: Payout) =>
 
 export default function Payouts() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [open, setOpen] = useState<string | null>(payouts[0].id);
 
   const paidThisYear = payouts.filter((p) => p.state === 'Paid').reduce((a, p) => a + p.netPaise, 0);
@@ -29,7 +30,7 @@ export default function Payouts() {
 
   return (
     <>
-      <BackHeader title="Payouts" subtitle="Fortnightly, to HDFC ••4471" onBack={() => router.back()} />
+      <BackHeader title="Payouts" subtitle="Fortnightly, to HDFC ••4471" onBack={goBack} />
       <Screen>
         <View style={s.metrics}>
           <Metric value={inr(paidThisYear, { noPaise: true })} label="paid to you this year" tone="green" />

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   AppHeader, Card, ChevronLeft, ListRow, KeyValue, StatusPill, Avatar, Button,
   BellIcon, DocIcon, GlobeIcon, RefreshIcon, ShieldIcon, UsersIcon,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { useAccount } from '../src/data/account';
 import { useSession } from '../src/auth/session';
@@ -18,6 +18,7 @@ const constitutionLabel: Record<string, string> = {
 /** Who you are, what you may do, and what the app is holding for you. */
 export default function Profile() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const me = useAccount();
   const { signOut } = useSession();
 
@@ -28,7 +29,7 @@ export default function Profile() {
         showCaret={false}
         left={
           <Pressable accessibilityRole="button" accessibilityLabel="Back"
-            onPress={() => router.back()} hitSlop={10}>
+            onPress={goBack} hitSlop={10}>
             <ChevronLeft size={28} w={2.4} />
           </Pressable>
         }

@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, StatusPill, Button, ActionBar, KeyValue, Field,
   Toast, Timeline,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { approvals } from '../src/data/mock';
@@ -15,6 +15,7 @@ const riskTone: Record<string, Tone> = { Low: 'green', Medium: 'amber', High: 'r
 
 export default function ApprovalScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const a = approvals.find((x) => x.id === id) ?? approvals[0];
 
@@ -24,7 +25,7 @@ export default function ApprovalScreen() {
   if (decided) {
     return (
       <>
-        <BackHeader title="Decision recorded" onBack={() => router.back()} />
+        <BackHeader title="Decision recorded" onBack={goBack} />
         <Screen>
           <Toast text={`${decided} — written to the audit trail`} />
           <Card>
@@ -34,7 +35,7 @@ export default function ApprovalScreen() {
             <KeyValue k="Decided by" v="Kavya Desai · Platform Operations" />
             <KeyValue k="Reason" v={reason || 'Not given'} last />
           </Card>
-          <Button label="Back to the queue" onPress={() => router.back()} style={{ marginHorizontal: space(4) }} />
+          <Button label="Back to the queue" onPress={goBack} style={{ marginHorizontal: space(4) }} />
         </Screen>
       </>
     );
@@ -42,7 +43,7 @@ export default function ApprovalScreen() {
 
   return (
     <>
-      <BackHeader title={a.kind} subtitle={a.subject} onBack={() => router.back()} />
+      <BackHeader title={a.kind} subtitle={a.subject} onBack={goBack} />
       <Screen>
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

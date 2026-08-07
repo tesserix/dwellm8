@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   CloseIcon, BuildingIcon, ShieldIcon, StatusPill,
   apiFromEnv, getActingGrant, setActingGrant,
-  color, font, radius, shadow, space,
+  color, font, radius, shadow, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { OpsPortfolio } from '@dwellm8/mobile-shared';
 import { refreshWorklists } from '../src/data/worklists';
@@ -18,6 +18,7 @@ import { refreshWorklists } from '../src/data/worklists';
 
 export default function Switcher() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const api = useMemo(() => apiFromEnv(), []);
   const [portfolios, setPortfolios] = useState<OpsPortfolio[]>([]);
   const [loading, setLoading] = useState(!!api);
@@ -51,7 +52,7 @@ export default function Switcher() {
       <SafeAreaView edges={['top']}>
         <View style={{ padding: space(4) }}>
           <Pressable accessibilityRole="button" accessibilityLabel="Close"
-            onPress={() => router.back()} hitSlop={10}>
+            onPress={goBack} hitSlop={10}>
             <CloseIcon size={26} w={2.2} />
           </Pressable>
           <Text style={s.title}>Switch portfolio</Text>

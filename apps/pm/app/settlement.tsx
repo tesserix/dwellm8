@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   ActionBar, BackHeader, Button, Card, ChoiceRow, Field, KeyValue, Screen, StatusPill, Toast,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { ConnectMerchant, MerchantAccount, Tone } from '@dwellm8/mobile-shared';
 import { connectMerchant, refreshMerchant, useMerchants } from '../src/data/merchant';
@@ -29,6 +29,7 @@ const BUSINESS_TYPES: { code: ConnectMerchant['business_type']; label: string; h
 
 export default function Settlement() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { loading, error, data: accounts } = useMerchants();
 
   const [businessName, setBusinessName] = useState('');
@@ -86,7 +87,7 @@ export default function Settlement() {
 
   return (
     <>
-      <BackHeader title="Where rent settles" subtitle="Your own account, your own aggregator" onBack={() => router.back()} />
+      <BackHeader title="Where rent settles" subtitle="Your own account, your own aggregator" onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 

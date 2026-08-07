@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Button, ActionBar, Toast, KeyValue, StatusPill,
-  color, font, radius, space,
+  color, font, radius, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { jobs } from '../src/data/mock';
 
@@ -17,6 +17,7 @@ import { jobs } from '../src/data/mock';
 
 export default function Otp() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const j = jobs.find((x) => x.id === id) ?? jobs[0];
 
@@ -39,7 +40,7 @@ export default function Otp() {
   if (started) {
     return (
       <>
-        <BackHeader title="Work started" onBack={() => router.back()} />
+        <BackHeader title="Work started" onBack={goBack} />
         <Screen>
           <Toast text="Clock running — the manager and tenant can see it" />
           <Card>
@@ -67,7 +68,7 @@ export default function Otp() {
 
   return (
     <>
-      <BackHeader title="Start work" subtitle={j.unit} onBack={() => router.back()} />
+      <BackHeader title="Start work" subtitle={j.unit} onBack={goBack} />
       <Screen scroll={false}>
         <View style={{ flex: 1, paddingTop: space(6) }}>
           <Text style={s.ask}>Ask {j.contact.split(' ')[0]} for the four-digit code</Text>
@@ -110,7 +111,7 @@ export default function Otp() {
       </Screen>
 
       <ActionBar>
-        <Button label="Tenant not available" tone="secondary" onPress={() => router.back()} style={{ flex: 1 }} />
+        <Button label="Tenant not available" tone="secondary" onPress={goBack} style={{ flex: 1 }} />
       </ActionBar>
     </>
   );

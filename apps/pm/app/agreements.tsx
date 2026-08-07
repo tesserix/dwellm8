@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Linking, Alert } from 'react
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, ErrorState, Screen, ListRow, SectionTitle, StatusPill,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { useDocumentTemplates } from '../src/data/templates';
 
@@ -21,6 +21,7 @@ const titles: Record<string, string> = {
  */
 export default function AgreementsScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { loading, error, templates, download, reload } = useDocumentTemplates();
 
   async function open(id: string, name: string) {
@@ -41,7 +42,7 @@ export default function AgreementsScreen() {
       <BackHeader
         title="Agreements"
         subtitle="Download, sign on paper, upload the signed copy"
-        onBack={() => router.back()}
+        onBack={goBack}
       />
       <Screen>
         {loading ? <View style={s.waiting}><ActivityIndicator /></View> : null}

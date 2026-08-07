@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ListRow, StatusPill, Field, Button, ActionBar, Toast,
   apiFromEnv, type RentalApplication, type Tone,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 
 /**
@@ -20,6 +20,7 @@ const tone: Record<string, Tone> = {
 
 export default function Applications() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const client = useMemo(() => apiFromEnv(), []);
   const [apps, setApps] = useState<RentalApplication[]>([]);
   const [loading, setLoading] = useState(!!client);
@@ -106,7 +107,7 @@ export default function Applications() {
 
   return (
     <>
-      <BackHeader title="Applications" subtitle="Everyone who has formally applied" onBack={() => router.back()} />
+      <BackHeader title="Applications" subtitle="Everyone who has formally applied" onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
         {!client ? (

@@ -10,18 +10,19 @@ import {
   font,
   radius,
   shadow,
-  space,
+  space, useBack,
 } from '@dwellm8/mobile-shared';
 
 export default function Switcher() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const cards = [{ id: 'all', address: 'All Properties' }, ...properties];
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
       <SafeAreaView edges={['top']}>
         <View style={{ padding: space(4) }}>
-          <Pressable onPress={() => router.back()} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
+          <Pressable onPress={goBack} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
           <Text style={s.title}>Filter by…</Text>
         </View>
       </SafeAreaView>
@@ -30,7 +31,7 @@ export default function Switcher() {
         {cards.map((c, i) => {
           const active = i === 0;
           return (
-            <Pressable key={c.id} style={[s.card, active && s.cardActive]} onPress={() => router.back()}>
+            <Pressable key={c.id} style={[s.card, active && s.cardActive]} onPress={goBack}>
               <View style={[s.thumb, active && { backgroundColor: '#FBE9CE' }]}>
                 <HomeIcon size={62} c={active ? '#D08A4B' : '#9FB0C4'} w={1.7} />
                 <View style={s.badge}><Text style={s.badgeText}>OWNER</Text></View>

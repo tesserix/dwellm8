@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ListRow, StatusPill, Button, Avatar, KeyValue,
   Toast, ChoiceRow, Field, ActionBar,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { access, accessRoles } from '../src/data/mock';
@@ -27,6 +27,7 @@ const roleTone: Record<string, Tone> = {
 
 export default function Access() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [people, setPeople] = useState(access);
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
@@ -95,7 +96,7 @@ export default function Access() {
 
   return (
     <>
-      <BackHeader title="People with access" subtitle="Your properties, your people" onBack={() => router.back()} />
+      <BackHeader title="People with access" subtitle="Your properties, your people" onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 

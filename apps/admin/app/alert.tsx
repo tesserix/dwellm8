@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, StatusPill, Button, ActionBar, KeyValue, Timeline,
   Toast, ListRow, ChoiceRow,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { alerts } from '../src/data/mock';
@@ -18,6 +18,7 @@ const sevTone: Record<string, Tone> = { P1: 'red', P2: 'amber', P3: 'blue' };
 
 export default function AlertScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const a = alerts.find((x) => x.id === id) ?? alerts[0];
 
@@ -38,7 +39,7 @@ export default function AlertScreen() {
 
   return (
     <>
-      <BackHeader title={a.severity + ' incident'} subtitle={a.service} onBack={() => router.back()} />
+      <BackHeader title={a.severity + ' incident'} subtitle={a.service} onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 

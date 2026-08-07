@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, ActivityIndic
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, ListRow, Avatar, Card, Screen, SendIcon, EmptyState, HouseArt,
-  color, font, radius, space,
+  color, font, radius, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { fmtDate, fmtTime, useOpsThread, useOpsThreads } from '../src/data/worklists';
 
@@ -19,11 +19,12 @@ export default function Thread() {
 
 function Inbox() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { loading, error, data: threads } = useOpsThreads();
 
   return (
     <>
-      <BackHeader title="Inbox" onBack={() => router.back()} />
+      <BackHeader title="Inbox" onBack={goBack} />
       <Screen>
         {loading ? (
           <View style={{ paddingVertical: space(8), alignItems: 'center' }}><ActivityIndicator /></View>

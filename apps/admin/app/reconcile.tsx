@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Metric, ListRow, KeyValue, Button, ProgressBar,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { reconciliation } from '../src/data/mock';
 
@@ -17,11 +17,12 @@ import { reconciliation } from '../src/data/mock';
 
 export default function Reconcile() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const pct = Math.round((reconciliation.matched / reconciliation.bankCredits) * 100);
 
   return (
     <>
-      <BackHeader title="Reconciliation" subtitle={reconciliation.date} onBack={() => router.back()} />
+      <BackHeader title="Reconciliation" subtitle={reconciliation.date} onBack={goBack} />
       <Screen>
         <Card>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ListRow, StatusPill, Metric, Button, KeyValue,
   Toast, ChipRow, ShieldIcon, AlertIcon,
-  color, count, font, inr, inrShort, space,
+  color, count, font, inr, inrShort, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { compliance } from '../src/data/mock';
@@ -21,6 +21,7 @@ const stateTone: Record<string, Tone> = { Current: 'green', 'Due soon': 'amber',
 
 export default function Compliance() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [filter, setFilter] = useState('All');
   const [toast, setToast] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
@@ -41,7 +42,7 @@ export default function Compliance() {
 
   return (
     <>
-      <BackHeader title="Compliance register" subtitle="Every certificate, and who owns it" onBack={() => router.back()} />
+      <BackHeader title="Compliance register" subtitle="Every certificate, and who owns it" onBack={goBack} />
       <Screen>
         <DemoNote issue={301} />
         {toast ? <Toast text={toast} /> : null}

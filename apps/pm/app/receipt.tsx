@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Field, ChoiceRow, Button, ActionBar, KeyValue,
   Toast, StatusPill,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { useRecordCollection, type CollectionMethod } from '../src/data/collection';
 
@@ -24,6 +24,7 @@ const methods: { id: CollectionMethod; label: string; hint?: string }[] = [
 
 export default function RecordReceipt() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { lease, unit, tenant, due } = useLocalSearchParams<{
     lease?: string; unit?: string; tenant?: string; due?: string;
   }>();
@@ -39,7 +40,7 @@ export default function RecordReceipt() {
   if (!lease) {
     return (
       <>
-        <BackHeader title="Record a payment" onBack={() => router.back()} />
+        <BackHeader title="Record a payment" onBack={goBack} />
         <Screen>
           <Card><Text style={s.sub}>Open this from a tenancy, so the receipt has one to post against.</Text></Card>
         </Screen>
@@ -50,7 +51,7 @@ export default function RecordReceipt() {
   if (result) {
     return (
       <>
-        <BackHeader title="Receipt issued" onBack={() => router.back()} />
+        <BackHeader title="Receipt issued" onBack={goBack} />
         <Screen>
           <Toast text="Posted to the ledger" />
           <Card>
@@ -74,7 +75,7 @@ export default function RecordReceipt() {
               platform fee is charged once, at payout.
             </Text>
           </Card>
-          <Button label="Done" onPress={() => router.back()} style={{ marginHorizontal: space(4) }} />
+          <Button label="Done" onPress={goBack} style={{ marginHorizontal: space(4) }} />
         </Screen>
       </>
     );
@@ -82,7 +83,7 @@ export default function RecordReceipt() {
 
   return (
     <>
-      <BackHeader title="Record a payment" subtitle={unit} onBack={() => router.back()} />
+      <BackHeader title="Record a payment" subtitle={unit} onBack={goBack} />
       <Screen>
         <Card>
           {error ? <Text style={s.error} accessibilityRole="alert">{error}</Text> : null}
@@ -120,7 +121,7 @@ export default function RecordReceipt() {
       </Screen>
 
       <ActionBar>
-        <Button label="Cancel" tone="secondary" onPress={() => router.back()} style={{ flex: 1 }} />
+        <Button label="Cancel" tone="secondary" onPress={goBack} style={{ flex: 1 }} />
         <Button
           label={saving ? 'Posting…' : 'Issue receipt'}
           onPress={() => record(paise, method, ref)}

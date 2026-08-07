@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, StatusPill, Button, ActionBar, PhotoStrip,
   Field, Toast, ChoiceRow, ListRow, Timeline,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { approvals, inr, properties } from '../src/data/mock';
 
@@ -18,6 +18,7 @@ import { approvals, inr, properties } from '../src/data/mock';
 
 export default function Approve() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const a = approvals.find((x) => x.id === id) ?? approvals[0];
   const p = properties.find((x) => x.id === a.propertyId)!;
@@ -50,7 +51,7 @@ export default function Approve() {
   if (decided) {
     return (
       <>
-        <BackHeader title={decided} onBack={() => router.back()} />
+        <BackHeader title={decided} onBack={goBack} />
         <Screen>
           <Toast text={decided === 'Approved' ? 'Your manager has been told — work can start' : 'Sent back to your manager'} />
           <Card>
@@ -78,7 +79,7 @@ export default function Approve() {
               <Text style={s.note}>Reason recorded: {reason || 'none given'}</Text>
             )}
           </Card>
-          <Button label="Done" onPress={() => router.back()} style={{ marginHorizontal: space(4) }} />
+          <Button label="Done" onPress={goBack} style={{ marginHorizontal: space(4) }} />
         </Screen>
       </>
     );
@@ -86,7 +87,7 @@ export default function Approve() {
 
   return (
     <>
-      <BackHeader title={a.kind === "spend" ? "Approve spend" : a.kind === "renewal" ? "Renewal" : "Letting offer"} subtitle={p.address} onBack={() => router.back()} />
+      <BackHeader title={a.kind === "spend" ? "Approve spend" : a.kind === "renewal" ? "Renewal" : "Letting offer"} subtitle={p.address} onBack={goBack} />
       <Screen>
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

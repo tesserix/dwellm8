@@ -2,10 +2,11 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, CloseIcon, HouseArt, MoneyRow, color, font, inr, radius, space } from '@dwellm8/mobile-shared';
+import { Card, CloseIcon, HouseArt, MoneyRow, color, font, inr, radius, space, useBack } from '@dwellm8/mobile-shared';
 
 export default function PayConfirm() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { status, amount, url } = useLocalSearchParams<{ status?: string; amount?: string; url?: string }>();
   const paise = Number(amount ?? 0);
   const offline = status === 'recorded' || status === 'pending_confirmation';
@@ -20,7 +21,7 @@ export default function PayConfirm() {
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
       <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFF' }}>
         <View style={{ padding: space(4) }}>
-          <Pressable onPress={() => router.back()} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
+          <Pressable onPress={goBack} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
         </View>
       </SafeAreaView>
 
@@ -44,7 +45,7 @@ export default function PayConfirm() {
           </Pressable>
         ) : null}
 
-        <Pressable style={s.done} onPress={() => router.back()}>
+        <Pressable style={s.done} onPress={goBack}>
           <Text style={s.doneText}>Done</Text>
         </Pressable>
       </ScrollView>

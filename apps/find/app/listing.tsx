@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, StatusPill, Button, ActionBar, ListRow,
   Toast, CheckCircleIcon, ShieldIcon, AlertIcon, MapPinIcon, UsersIcon,
-  color, font, inr, radius, space,
+  color, font, inr, radius, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { listings, photos } from '../src/data/mock';
 import { api, prospectToken, useListing } from '../src/data/source';
@@ -20,6 +20,7 @@ import { api, prospectToken, useListing } from '../src/data/source';
 
 export default function ListingScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const live = useListing(id);
   const l = live.listing ?? listings.find((x) => x.id === id) ?? listings[0];
@@ -62,7 +63,7 @@ export default function ListingScreen() {
       <BackHeader
         title={l.title}
         subtitle={`${l.locality}, ${l.city}`}
-        onBack={() => router.back()}
+        onBack={goBack}
         right={<Button label={saved ? 'Saved' : 'Save'} tone="secondary" small onPress={save} />}
       />
       <Screen>

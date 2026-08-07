@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, StatusPill, KeyValue, Button, ListRow, Timeline,
   Metric, Toast, Segmented, Avatar, BuildingIcon,
-  color, font, inrShort, space,
+  color, font, inrShort, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { customers } from '../src/data/mock';
 
@@ -12,6 +12,7 @@ import { customers } from '../src/data/mock';
 
 export default function CustomerScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const c = customers.find((x) => x.id === id) ?? customers[0];
   const [tab, setTab] = useState('Overview');
@@ -24,7 +25,7 @@ export default function CustomerScreen() {
 
   return (
     <>
-      <BackHeader title={c.name} subtitle={c.kind} onBack={() => router.back()} />
+      <BackHeader title={c.name} subtitle={c.kind} onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 

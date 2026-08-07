@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BackHeader, Button, Card, EmptyState, HouseArt, Screen, color, font, space } from '@dwellm8/mobile-shared';
+import { BackHeader, Button, Card, EmptyState, HouseArt, Screen, color, font, space, useBack } from '@dwellm8/mobile-shared';
 
 /**
  * Book a service — paid-for extras, separate from a maintenance request. The
@@ -10,10 +10,11 @@ import { BackHeader, Button, Card, EmptyState, HouseArt, Screen, color, font, sp
  */
 export default function Services() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
 
   return (
     <>
-      <BackHeader title="Book a service" subtitle="Vetted vendors, fixed prices" onBack={() => router.back()} />
+      <BackHeader title="Book a service" subtitle="Vetted vendors, fixed prices" onBack={goBack} />
       <Screen>
         <EmptyState
           art={<HouseArt size={180} />}

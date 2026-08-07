@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Segmented, ListRow, StatusPill, Metric, Button,
   KeyValue, Toast, Field, Avatar, ProgressBar, PlusIcon,
-  color, font, inr, inrShort, space,
+  color, font, inr, inrShort, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { amenities, society, societyDues, societyNotices } from '../src/data/mock';
@@ -21,6 +21,7 @@ const dueTone: Record<string, Tone> = { Paid: 'green', Due: 'amber', Late: 'red'
 
 export default function Society() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [tab, setTab] = useState('Dues');
   const [notice, setNotice] = useState('');
   const [toast, setToast] = useState<string | null>(null);
@@ -32,7 +33,7 @@ export default function Society() {
 
   return (
     <>
-      <BackHeader title={society.name} subtitle={`${society.flats} flats · ${society.committee}`} onBack={() => router.back()} />
+      <BackHeader title={society.name} subtitle={`${society.flats} flats · ${society.committee}`} onBack={goBack} />
       <Screen>
         <DemoNote issue={300} />
         {toast ? <Toast text={toast} /> : null}

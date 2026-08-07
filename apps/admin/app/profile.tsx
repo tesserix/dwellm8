@@ -4,13 +4,14 @@ import { useRouter } from 'expo-router';
 import {
   AppHeader, Card, ChevronLeft, ListRow, KeyValue, StatusPill, Avatar, SwitchRow,
   BellIcon, DocIcon, ShieldIcon, ChartIcon,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { admin, webOnly } from '../src/data/mock';
 
 /** Who is on call, and the boundary between this app and the console. */
 export default function Profile() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [onCall, setOnCall] = React.useState(admin.onCall);
 
   return (
@@ -18,7 +19,7 @@ export default function Profile() {
       <AppHeader
         title="You"
         showCaret={false}
-        left={<Pressable onPress={() => router.back()} hitSlop={10}><ChevronLeft size={28} w={2.4} /></Pressable>}
+        left={<Pressable onPress={goBack} hitSlop={10}><ChevronLeft size={28} w={2.4} /></Pressable>}
         right={<Pressable hitSlop={10}><Text style={s.logout}>Log out</Text></Pressable>}
       />
       <ScrollView contentContainerStyle={{ paddingBottom: space(10) }}>

@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Button, ActionBar, PhotoStrip, Field, ChoiceRow,
   KeyValue, Toast, StatusPill, SwitchRow, SyncBadge,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { jobs, parts } from '../src/data/mock';
 
@@ -18,6 +18,7 @@ import { jobs, parts } from '../src/data/mock';
 
 export default function Complete() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const j = jobs.find((x) => x.id === id) ?? jobs[0];
 
@@ -63,7 +64,7 @@ export default function Complete() {
 
   return (
     <>
-      <BackHeader title="Complete the job" subtitle={j.unit} onBack={() => router.back()} />
+      <BackHeader title="Complete the job" subtitle={j.unit} onBack={goBack} />
       <Screen>
         <SyncBadge queued={2} />
 
@@ -112,7 +113,7 @@ export default function Complete() {
       </Screen>
 
       <ActionBar>
-        <Button label="Save draft" tone="secondary" onPress={() => router.back()} style={{ flex: 1 }} />
+        <Button label="Save draft" tone="secondary" onPress={goBack} style={{ flex: 1 }} />
         <Button label="Submit" onPress={() => setDone(true)} disabled={!signoff} style={{ flex: 1.6 }} />
       </ActionBar>
     </>

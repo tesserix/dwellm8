@@ -3,7 +3,7 @@ import { Text, StyleSheet, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Button, Card, Screen, KeyValue, StatusPill, Segmented, Timeline, Toast,
-  color, font, inr, radius, space,
+  color, font, inr, radius, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { fmtDate, serveNotice, useLiveData } from '../src/data/source';
 
@@ -20,13 +20,14 @@ const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
 
 export default function Tenancy() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [tab, setTab] = useState('Agreement');
   const { tenancy, loading } = useLiveData();
   const live = tenancy.state === 'active' || tenancy.state === 'in_notice';
 
   return (
     <>
-      <BackHeader title="Your tenancy" subtitle={tenancy.unit} onBack={() => router.back()} />
+      <BackHeader title="Your tenancy" subtitle={tenancy.unit} onBack={goBack} />
       <Screen>
         <View style={{ marginTop: space(3), marginBottom: space(3) }}>
           <Segmented items={['Agreement', 'Deposit', 'Notice']} value={tab} onChange={setTab} />

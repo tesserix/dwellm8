@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, ListRow, Metric, SectionTitle, StatusPill,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { useUnitRecord } from '../src/data/unit';
 
@@ -14,6 +14,7 @@ import { useUnitRecord } from '../src/data/unit';
  */
 export default function UnitScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { loading, error, unit, property, tenancy, listing, ancillaries, bedrooms } =
     useUnitRecord(id);
@@ -23,7 +24,7 @@ export default function UnitScreen() {
       <BackHeader
         title={unit ? `Flat ${unit.code}` : 'Unit'}
         subtitle={property ? [property.name, property.locality].filter(Boolean).join(', ') : undefined}
-        onBack={() => router.back()}
+        onBack={goBack}
       />
       <Screen>
         {loading ? <View style={s.waiting}><ActivityIndicator /></View> : null}

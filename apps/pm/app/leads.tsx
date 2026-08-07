@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ChipRow, ListRow, Avatar, StatusPill, Metric,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { fmtDate, useOpsEnquiries } from '../src/data/worklists';
@@ -17,6 +17,7 @@ const stateTone: Record<string, Tone> = {
 
 export default function Leads() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [filter, setFilter] = useState('Open');
   const { loading, error, data: rows } = useOpsEnquiries();
 
@@ -27,7 +28,7 @@ export default function Leads() {
 
   return (
     <>
-      <BackHeader title="Leads" subtitle="Enquiries on your listings" onBack={() => router.back()} />
+      <BackHeader title="Leads" subtitle="Enquiries on your listings" onBack={goBack} />
       <Screen>
         <View style={s.metrics}>
           <Metric value={loading ? '…' : String(open)} label="open enquiries" tone="blue" />

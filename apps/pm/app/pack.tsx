@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActionBar, BackHeader, Button, Card, ChoiceRow, Field, KeyValue, Screen,
   SectionTitle, StatusPill, Banner, describeHistory, monthLabel, packReadiness,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { ApplicantAddress, ApplicantPerson } from '@dwellm8/mobile-shared';
 import {
@@ -22,6 +22,7 @@ const emptyAddress: ApplicantAddress = { kind: 'rented', line1: '', city: '', fr
 
 export default function Pack() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id: string }>();
   const pack = useApplicantPack(id);
   const history = useAddressHistory(id);
@@ -74,7 +75,7 @@ export default function Pack() {
   if (pack.loading) {
     return (
       <>
-        <BackHeader title="Applicant pack" onBack={() => router.back()} />
+        <BackHeader title="Applicant pack" onBack={goBack} />
         <View style={s.wait}><ActivityIndicator /></View>
       </>
     );
@@ -85,7 +86,7 @@ export default function Pack() {
       <BackHeader
         title="Applicant pack"
         subtitle={pack.data?.full_name || 'Not started'}
-        onBack={() => router.back()}
+        onBack={goBack}
       />
       <Screen>
         {pack.error ? <Banner>{pack.error}</Banner> : null}

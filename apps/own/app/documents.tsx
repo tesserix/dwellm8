@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ListRow, SearchBar, Segmented, DocIcon, Button,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { taxPack } from '../src/data/mock';
 import { useOwnerDocuments } from '../src/data/source';
@@ -27,6 +27,7 @@ const COMPLIANCE = [
 
 export default function Documents() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [tab, setTab] = useState('Statements');
   const [q, setQ] = useState('');
   const { documents } = useOwnerDocuments();
@@ -41,7 +42,7 @@ export default function Documents() {
 
   return (
     <>
-      <BackHeader title="Documents" subtitle="Everything on file for your properties" onBack={() => router.back()} />
+      <BackHeader title="Documents" subtitle="Everything on file for your properties" onBack={goBack} />
       <Screen>
         <View style={{ marginTop: space(3), marginBottom: space(3) }}>
           <Segmented items={['Statements', 'Agreements', 'Compliance', 'Tax']} value={tab} onChange={setTab} />

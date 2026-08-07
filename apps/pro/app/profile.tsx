@@ -4,20 +4,21 @@ import { useRouter } from 'expo-router';
 import {
   AppHeader, Card, ChevronLeft, ListRow, KeyValue, StatusPill, Avatar, Metric,
   BellIcon, DocIcon, GlobeIcon, RefreshIcon, ShieldIcon, ToolboxIcon,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { earnings, tech } from '../src/data/mock';
 
 /** The technician's own record — rating, documents and how they are paid. */
 export default function Profile() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
       <AppHeader
         title="You"
         showCaret={false}
-        left={<Pressable onPress={() => router.back()} hitSlop={10}><ChevronLeft size={28} w={2.4} /></Pressable>}
+        left={<Pressable onPress={goBack} hitSlop={10}><ChevronLeft size={28} w={2.4} /></Pressable>}
         right={<Pressable hitSlop={10}><Text style={s.logout}>Log out</Text></Pressable>}
       />
       <ScrollView contentContainerStyle={{ paddingBottom: space(10) }}>

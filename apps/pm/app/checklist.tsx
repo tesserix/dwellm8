@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Button, Card, Screen, KeyValue, StatusPill, Toast,
-  apiFromEnv, color, font, space,
+  apiFromEnv, color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { refreshWorklists, useOpsChecklist } from '../src/data/worklists';
@@ -16,6 +16,7 @@ const taskTone: Record<string, Tone> = {
 
 export default function Checklist() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { loading, error, data: c } = useOpsChecklist(id);
   const [busy, setBusy] = useState(false);
@@ -42,7 +43,7 @@ export default function Checklist() {
   if (loading || !c) {
     return (
       <>
-        <BackHeader title="Process" onBack={() => router.back()} />
+        <BackHeader title="Process" onBack={goBack} />
         <Screen>
           <View style={{ paddingVertical: space(10), alignItems: 'center' }}>
             {loading ? <ActivityIndicator /> : <Text style={s.sub}>{error ?? 'No such process.'}</Text>}
@@ -61,7 +62,7 @@ export default function Checklist() {
       <BackHeader
         title={c.process.replace(/_/g, ' ').replace(/^\w/, (ch) => ch.toUpperCase())}
         subtitle={`anchored ${c.anchor_on}`}
-        onBack={() => router.back()}
+        onBack={goBack}
       />
       <Screen>
         {toast ? <Toast text={toast} /> : null}

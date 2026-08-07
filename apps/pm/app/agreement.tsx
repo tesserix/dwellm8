@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Linking } from 'react-native
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Button, Card, Field, Screen, SectionTitle,
-  apiFromEnv, color, font, space,
+  apiFromEnv, color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { agreementQuestions, printAgreement, type AgreementQuestion, type PrintedAgreement } from '../src/data/agreement';
 
@@ -14,6 +14,7 @@ import { agreementQuestions, printAgreement, type AgreementQuestion, type Printe
  */
 export default function AgreementScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [questions, setQuestions] = useState<AgreementQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -59,7 +60,7 @@ export default function AgreementScreen() {
       <BackHeader
         title="Management agreement"
         subtitle="Print it, sign on paper, file the signed copy"
-        onBack={() => router.back()}
+        onBack={goBack}
       />
       <Screen>
         <Card>

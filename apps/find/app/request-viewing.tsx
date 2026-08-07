@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, ActivityIndicator } from 'react-nati
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Button, ActionBar, Toast, ChoiceRow, StatusPill, KeyValue,
-  color, font, space, type ViewingRequest,
+  color, font, space, type ViewingRequest, useBack,
 } from '@dwellm8/mobile-shared';
 import { api, prospectToken } from '../src/data/source';
 
@@ -40,6 +40,7 @@ function whenLabel(iso: string): string {
 
 export default function RequestViewing() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id, headline, kind: kindParam } =
     useLocalSearchParams<{ id?: string; headline?: string; kind?: string }>();
   const client = api();
@@ -119,7 +120,7 @@ export default function RequestViewing() {
       <BackHeader
         title="Ask for a viewing"
         subtitle={headline ?? 'This home'}
-        onBack={() => router.back()}
+        onBack={goBack}
       />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
@@ -216,7 +217,7 @@ export default function RequestViewing() {
       </Screen>
 
       <ActionBar>
-        <Button label="Back" tone="secondary" onPress={() => router.back()} style={{ flex: 1 }} />
+        <Button label="Back" tone="secondary" onPress={goBack} style={{ flex: 1 }} />
         <Button
           label={busy ? 'Sending…' : 'Send the request'}
           disabled={busy || !picked.length || !client}

@@ -15,7 +15,7 @@ import {
   color,
   font,
   radius,
-  space,
+  space, useBack,
 } from '@dwellm8/mobile-shared';
 
 /** The owner's own profile — read from /v1/me and self-served (#240). Demo
@@ -51,6 +51,7 @@ function useMe() {
 
 export default function Profile() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const me = useMe();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
@@ -85,7 +86,7 @@ export default function Profile() {
       <AppHeader
         title="Profile"
         showCaret={false}
-        left={<Pressable onPress={() => router.back()} hitSlop={10}><ChevronLeft size={28} w={2.4} /></Pressable>}
+        left={<Pressable onPress={goBack} hitSlop={10}><ChevronLeft size={28} w={2.4} /></Pressable>}
         right={<Pressable hitSlop={10}><Text style={s.logout}>Log Out</Text></Pressable>}
       />
       <ScrollView contentContainerStyle={{ paddingBottom: space(10) }}>

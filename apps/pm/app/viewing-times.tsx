@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-nati
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Button, Card, Field, Screen, SectionTitle, StatusPill, ListRow,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import {
@@ -25,6 +25,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function ViewingTimes() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id, headline } = useLocalSearchParams<{ id?: string; headline?: string }>();
   const { loading, error, schedules, slots } = useListingViewings(id);
 
@@ -80,7 +81,7 @@ export default function ViewingTimes() {
       <BackHeader
         title="Viewing times"
         subtitle={headline || 'This listing'}
-        onBack={() => router.back()}
+        onBack={goBack}
       />
       <Screen>
         {failed ? <Text style={s.failed}>{failed}</Text> : null}

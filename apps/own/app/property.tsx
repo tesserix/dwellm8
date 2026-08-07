@@ -23,11 +23,12 @@ import {
   color,
   font,
   radius,
-  space,
+  space, useBack,
 } from '@dwellm8/mobile-shared';
 
 export default function PropertySheet() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const params = useLocalSearchParams<{ tab?: string }>();
   const [tab, setTab] = useState(params.tab || 'Details');
   const p = properties[0];
@@ -36,7 +37,7 @@ export default function PropertySheet() {
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
       <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFF' }}>
         <View style={{ padding: space(4), paddingBottom: space(3) }}>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={{ marginBottom: space(3) }}>
+          <Pressable onPress={goBack} hitSlop={10} style={{ marginBottom: space(3) }}>
             <CloseIcon size={26} w={2.2} />
           </Pressable>
           <Text style={s.title}>{p.address}</Text>

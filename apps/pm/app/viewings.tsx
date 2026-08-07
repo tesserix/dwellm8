@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ListRow, StatusPill, EmptyState, CalendarIcon,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { useOpsListings } from '../src/data/viewings';
@@ -17,11 +17,12 @@ const stateTone: Record<string, Tone> = {
 
 export default function Viewings() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { loading, error, data: listings } = useOpsListings();
 
   return (
     <>
-      <BackHeader title="Viewing times" subtitle="Set when people can come and see" onBack={() => router.back()} />
+      <BackHeader title="Viewing times" subtitle="Set when people can come and see" onBack={goBack} />
       <Screen>
         <Card padded={false} style={{ paddingHorizontal: space(4) }}>
           {loading ? (

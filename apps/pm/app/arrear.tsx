@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, StatusPill, Button, Toast,
   Avatar, ActionBar, PhoneIcon, ChatIcon, RupeeIcon, Field,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { useArrear } from '../src/data/arrear';
 import { useOpsThread } from '../src/data/worklists';
@@ -19,6 +19,7 @@ import { useOpsThread } from '../src/data/worklists';
 
 export default function ArrearScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { loading, error, row, owes } = useArrear(id);
   const thread = useOpsThread(id);
@@ -50,7 +51,7 @@ export default function ArrearScreen() {
   if (loading) {
     return (
       <>
-        <BackHeader title="Tenancy" onBack={() => router.back()} />
+        <BackHeader title="Tenancy" onBack={goBack} />
         <Screen><View style={s.wait}><ActivityIndicator /></View></Screen>
       </>
     );
@@ -59,7 +60,7 @@ export default function ArrearScreen() {
   if (!row) {
     return (
       <>
-        <BackHeader title="Tenancy" onBack={() => router.back()} />
+        <BackHeader title="Tenancy" onBack={goBack} />
         <Screen><Card><Text style={s.note}>{error ?? 'That tenancy is not on this roster.'}</Text></Card></Screen>
       </>
     );
@@ -67,7 +68,7 @@ export default function ArrearScreen() {
 
   return (
     <>
-      <BackHeader title={row.unit} subtitle={row.property} onBack={() => router.back()} />
+      <BackHeader title={row.unit} subtitle={row.property} onBack={goBack} />
       <Screen>
         {sent ? <Toast text={sent} /> : null}
 

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ListRow, StatusPill, Button, Avatar, Toast, Field,
   ChoiceRow, KeyValue, ActionBar, EmptyState, HouseArt,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { useLiveData, usePasses } from '../src/data/source';
@@ -30,6 +30,7 @@ const kinds = [
 
 export default function Visitors() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { tenancy, leaseId } = useLiveData();
   const { loading, passes, create, cancel } = usePasses(leaseId);
   const [adding, setAdding] = useState(false);
@@ -96,7 +97,7 @@ export default function Visitors() {
 
   return (
     <>
-      <BackHeader title="Visitors" subtitle={tenancy.unit} onBack={() => router.back()} />
+      <BackHeader title="Visitors" subtitle={tenancy.unit} onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 

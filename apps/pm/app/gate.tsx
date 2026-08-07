@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ListRow, StatusPill, Button, Avatar,
   Toast, Metric, ShieldIcon,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { fmtDate, setPassState, useOpsPasses } from '../src/data/worklists';
@@ -27,6 +27,7 @@ const stateLabel: Record<string, string> = {
 
 export default function Gate() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { loading, error, data: passes } = useOpsPasses();
   const [toast, setToast] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -55,7 +56,7 @@ export default function Gate() {
 
   return (
     <>
-      <BackHeader title="Gate" onBack={() => router.back()} />
+      <BackHeader title="Gate" onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 

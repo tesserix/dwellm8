@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ListRow, SectionTitle, StatusPill,
-  apiFromEnv, color, font, space,
+  apiFromEnv, color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { useOwnershipEvidence } from '../src/data/ownership';
 import { deedKinds, fileDeed } from '../src/data/deeds';
@@ -16,6 +16,7 @@ import { photographDocument, pickDocument, CaptureRefused } from '../src/data/ca
  */
 export default function DeedsScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { loading, error, documents, proven, held, advisory } = useOwnershipEvidence(id);
   const [filing, setFiling] = useState('');
@@ -50,7 +51,7 @@ export default function DeedsScreen() {
       <BackHeader
         title="Ownership"
         subtitle="What proves this property may be let"
-        onBack={() => router.back()}
+        onBack={goBack}
       />
       <Screen>
         {loading ? <View style={s.waiting}><ActivityIndicator /></View> : null}

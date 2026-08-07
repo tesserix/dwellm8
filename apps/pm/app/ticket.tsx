@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, StatusPill, Button, Timeline, Toast,
   ActionBar, Field, ChoiceRow, ChatIcon,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { TICKET_STATUS_LABEL, advanceTicket, fmtDate, fmtTime, useOpsTicket } from '../src/data/worklists';
@@ -24,6 +24,7 @@ const statusTone: Record<string, Tone> = {
 
 export default function TicketScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { loading, error, data: t } = useOpsTicket(id);
 
@@ -56,7 +57,7 @@ export default function TicketScreen() {
   if (loading || !t) {
     return (
       <>
-        <BackHeader title="Job" onBack={() => router.back()} />
+        <BackHeader title="Job" onBack={goBack} />
         <Screen>
           <View style={{ paddingVertical: space(10), alignItems: 'center' }}>
             {loading ? <ActivityIndicator /> : <Text style={s.sub}>{error ?? 'No such job.'}</Text>}
@@ -70,7 +71,7 @@ export default function TicketScreen() {
 
   return (
     <>
-      <BackHeader title={t.title} subtitle={`${t.unit ?? ''}, ${t.property ?? ''}`} onBack={() => router.back()} />
+      <BackHeader title={t.title} subtitle={`${t.unit ?? ''}, ${t.property ?? ''}`} onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 

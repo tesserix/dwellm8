@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BackHeader, Button, Card, Screen, Timeline, color, font, space } from '@dwellm8/mobile-shared';
+import { BackHeader, Button, Card, Screen, Timeline, color, font, space, useBack } from '@dwellm8/mobile-shared';
 import { useLiveData } from '../src/data/source';
 
 /**
@@ -11,11 +11,12 @@ import { useLiveData } from '../src/data/source';
  */
 export default function Autopay() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { tenancy } = useLiveData();
 
   return (
     <>
-      <BackHeader title="Autopay" subtitle={tenancy.unit} onBack={() => router.back()} />
+      <BackHeader title="Autopay" subtitle={tenancy.unit} onBack={goBack} />
       <Screen>
         <Card style={{ marginTop: space(3) }}>
           <Text style={s.h}>Never think about rent again</Text>

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Segmented, SectionTitle, ListRow, StatusPill, Metric,
   AlertIcon, CalendarIcon, RupeeIcon,
-  color, count, font, inr, inrShort, space, type OpsReminder,
+  color, count, font, inr, inrShort, space, type OpsReminder, useBack,
 } from '@dwellm8/mobile-shared';
 import { useReminders } from '../src/data/reminders';
 
@@ -39,6 +39,7 @@ function headline(r: OpsReminder): string {
 
 export default function Reminders() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [tab, setTab] = useState('Next 30 days');
   const view = useReminders(windows[tab]);
 
@@ -47,7 +48,7 @@ export default function Reminders() {
       <BackHeader
         title="What is coming"
         subtitle="Rent falling due, arrears, and terms running out"
-        onBack={() => router.back()}
+        onBack={goBack}
       />
       <Screen>
         <View style={{ marginTop: space(3) }}>

@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Field, ChoiceRow, Button, ActionBar, KeyValue,
   StatusPill, Toast, SwitchRow, Timeline, ApiError,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { api, prospectToken, useListing } from '../src/data/source';
 
@@ -27,6 +27,7 @@ function toApiDate(input: string): string {
 
 export default function Apply() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const client = useMemo(() => api(), []);
   const { listing: l } = useListing(id);
@@ -169,7 +170,7 @@ export default function Apply() {
 
   return (
     <>
-      <BackHeader title="Apply" subtitle={`${l.title} · ${inr(l.rentPaise, { noPaise: true })}`} onBack={() => router.back()} />
+      <BackHeader title="Apply" subtitle={`${l.title} · ${inr(l.rentPaise, { noPaise: true })}`} onBack={goBack} />
       <Screen>
         <Card>
           <Field label="How many people will live here?" value={occupants} onChange={setOccupants} keyboardType="numeric" />
@@ -203,7 +204,7 @@ export default function Apply() {
       </Screen>
 
       <ActionBar>
-        <Button label="Cancel" tone="secondary" onPress={() => router.back()} style={{ flex: 1 }} />
+        <Button label="Cancel" tone="secondary" onPress={goBack} style={{ flex: 1 }} />
         <Button
           label={busy ? 'Sending…' : 'Send application'}
           onPress={submit}

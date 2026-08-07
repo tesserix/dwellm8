@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, StatusPill, Button, Timeline, PhotoStrip,
   ActionBar, Toast, PhoneIcon, MapPinIcon, ClockIcon,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { jobs } from '../src/data/mock';
@@ -18,6 +18,7 @@ const stateTone: Record<string, Tone> = {
 
 export default function JobScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const j = jobs.find((x) => x.id === id) ?? jobs[0];
   const [toast, setToast] = useState<string | null>(null);
@@ -30,7 +31,7 @@ export default function JobScreen() {
 
   return (
     <>
-      <BackHeader title={j.title} subtitle={`${j.id.toUpperCase()} · ${j.unit}`} onBack={() => router.back()} />
+      <BackHeader title={j.title} subtitle={`${j.id.toUpperCase()} · ${j.unit}`} onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 

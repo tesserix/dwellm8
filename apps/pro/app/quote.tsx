@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Button, ActionBar, ChoiceRow, Field, KeyValue,
   Toast, StatusPill, Timeline, PhotoStrip,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { parts, quotes } from '../src/data/mock';
 
@@ -12,6 +12,7 @@ import { parts, quotes } from '../src/data/mock';
 
 export default function Quote() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const existing = quotes.find((q) => q.id === id);
 
@@ -27,7 +28,7 @@ export default function Quote() {
   if (existing) {
     return (
       <>
-        <BackHeader title={existing.id.toUpperCase()} subtitle={existing.job} onBack={() => router.back()} />
+        <BackHeader title={existing.id.toUpperCase()} subtitle={existing.job} onBack={goBack} />
         <Screen>
           <Card>
             <StatusPill text={existing.state} tone={existing.state === 'Approved' ? 'green' : 'amber'} />
@@ -58,7 +59,7 @@ export default function Quote() {
   if (sent) {
     return (
       <>
-        <BackHeader title="Quote sent" onBack={() => router.back()} />
+        <BackHeader title="Quote sent" onBack={goBack} />
         <Screen>
           <Toast text="With the manager — you will be told when it is decided" />
           <Card>
@@ -68,7 +69,7 @@ export default function Quote() {
             <KeyValue k="Decision by" v="Manager, or the owner if above ₹10,000" last />
             <Text style={s.note}>Do not start the work until this is approved. Unapproved work cannot be settled.</Text>
           </Card>
-          <Button label="Done" onPress={() => router.back()} style={{ marginHorizontal: space(4) }} />
+          <Button label="Done" onPress={goBack} style={{ marginHorizontal: space(4) }} />
         </Screen>
       </>
     );
@@ -76,7 +77,7 @@ export default function Quote() {
 
   return (
     <>
-      <BackHeader title="Raise a quote" onBack={() => router.back()} />
+      <BackHeader title="Raise a quote" onBack={goBack} />
       <Screen>
         <Card>
           <Text style={s.h}>What is needed</Text>
@@ -107,7 +108,7 @@ export default function Quote() {
       </Screen>
 
       <ActionBar>
-        <Button label="Cancel" tone="secondary" onPress={() => router.back()} style={{ flex: 1 }} />
+        <Button label="Cancel" tone="secondary" onPress={goBack} style={{ flex: 1 }} />
         <Button label="Send quote" onPress={() => setSent(true)} disabled={total <= 0} style={{ flex: 1.6 }} />
       </ActionBar>
     </>

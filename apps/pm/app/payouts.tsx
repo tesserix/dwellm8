@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Button, Card, EmptyState, Field, KeyValue, ListRow, Metric, Screen, StatusPill, Toast,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Settlement, Tone } from '@dwellm8/mobile-shared';
 import { releaseSettlement, useSettlements } from '../src/data/settlements';
@@ -24,6 +24,7 @@ const stateLabel: Record<Settlement['state'], string> = {
 
 export default function Payouts() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { loading, error, data: settlements } = useSettlements();
   const [open, setOpen] = useState<string | null>(null);
   const [beneficiary, setBeneficiary] = useState('');
@@ -52,7 +53,7 @@ export default function Payouts() {
 
   return (
     <>
-      <BackHeader title="Owner payouts" subtitle="What you are holding for somebody else" onBack={() => router.back()} />
+      <BackHeader title="Owner payouts" subtitle="What you are holding for somebody else" onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 

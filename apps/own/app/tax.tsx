@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, ListRow, Button, StatusPill, DocIcon,
-  color, font, space,
+  color, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { inr, taxPack } from '../src/data/mock';
 
@@ -17,11 +17,12 @@ import { inr, taxPack } from '../src/data/mock';
 
 export default function Tax() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const t = taxPack;
 
   return (
     <>
-      <BackHeader title={`Tax pack ${t.year}`} subtitle="Income from house property" onBack={() => router.back()} />
+      <BackHeader title={`Tax pack ${t.year}`} subtitle="Income from house property" onBack={goBack} />
       <Screen>
         <Card>
           <StatusPill text="Ready to file" tone="green" dot />

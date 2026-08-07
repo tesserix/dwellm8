@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
-import { AppHeader, Card, ChevronLeft, ChevronRight, DocIcon, DottedRule, GlobeIcon, Toast, color, font, radius, space } from '@dwellm8/mobile-shared';
+import { AppHeader, Card, ChevronLeft, ChevronRight, DocIcon, DottedRule, GlobeIcon, Toast, color, font, radius, space, useBack } from '@dwellm8/mobile-shared';
 import { useLiveData, useMe } from '../src/data/source';
 
 export default function Profile() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { tenancy } = useLiveData();
   const me = useMe();
   const [editing, setEditing] = useState(false);
@@ -48,7 +49,7 @@ export default function Profile() {
       <AppHeader
         title="Profile"
         showCaret={false}
-        left={<Pressable onPress={() => router.back()} hitSlop={10}><ChevronLeft size={28} w={2.4} /></Pressable>}
+        left={<Pressable onPress={goBack} hitSlop={10}><ChevronLeft size={28} w={2.4} /></Pressable>}
         right={<Pressable hitSlop={10}><Text style={s.logout}>Log Out</Text></Pressable>}
       />
       <ScrollView contentContainerStyle={{ paddingBottom: space(10) }}>

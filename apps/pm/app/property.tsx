@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, StatusPill, ListRow, Metric,
-  HouseArt, color, font, inr, space, type OpsUnit,
+  HouseArt, color, font, inr, space, type OpsUnit, useBack,
 } from '@dwellm8/mobile-shared';
 import { usePropertyRecord } from '../src/data/property';
 import { useOwnershipEvidence } from '../src/data/ownership';
@@ -11,6 +11,7 @@ import { useOwnershipEvidence } from '../src/data/ownership';
 /** One property and every unit in it — the record a manager opens on site. */
 export default function PropertyScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { loading, error, property, units, occupied, vacant, spokenFor, rentRollPaise } =
     usePropertyRecord(id);
@@ -21,7 +22,7 @@ export default function PropertyScreen() {
       <BackHeader
         title={property?.name ?? 'Property'}
         subtitle={property ? [property.locality, property.city].filter(Boolean).join(', ') : undefined}
-        onBack={() => router.back()}
+        onBack={goBack}
       />
       <Screen>
         {loading ? (

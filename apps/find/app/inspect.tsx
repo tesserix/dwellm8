@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, StatusPill, Button, ActionBar, Toast,
   ChoiceRow, Timeline, UsersIcon,
-  color, font, radius, space,
+  color, font, radius, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { listings } from '../src/data/mock';
 
@@ -18,6 +18,7 @@ import { listings } from '../src/data/mock';
 
 export default function Inspect() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id, slot } = useLocalSearchParams<{ id?: string; slot?: string }>();
   const l = listings.find((x) => x.id === id) ?? listings[0];
   const [pick, setPick] = useState(slot ?? l.inspections[0]?.id ?? 'i1');
@@ -29,7 +30,7 @@ export default function Inspect() {
   if (booked) {
     return (
       <>
-        <BackHeader title="You are booked" subtitle={l.title} onBack={() => router.back()} />
+        <BackHeader title="You are booked" subtitle={l.title} onBack={goBack} />
         <Screen>
           <Toast text="Added to your enquiries — we will remind you an hour before" />
           <Card>
@@ -72,7 +73,7 @@ export default function Inspect() {
 
   return (
     <>
-      <BackHeader title="Book an inspection" subtitle={l.title} onBack={() => router.back()} />
+      <BackHeader title="Book an inspection" subtitle={l.title} onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
         <Card>
@@ -109,7 +110,7 @@ export default function Inspect() {
       </Screen>
 
       <ActionBar>
-        <Button label="Cancel" tone="secondary" onPress={() => router.back()} style={{ flex: 1 }} />
+        <Button label="Cancel" tone="secondary" onPress={goBack} style={{ flex: 1 }} />
         <Button label="Book it" onPress={() => setBooked(true)} disabled={!l.inspections.length} style={{ flex: 1.6 }} />
       </ActionBar>
     </>

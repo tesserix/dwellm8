@@ -2,17 +2,18 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, CloseIcon, MoneyRow, color, font, inr, space } from '@dwellm8/mobile-shared';
+import { Card, CloseIcon, MoneyRow, color, font, inr, space, useBack } from '@dwellm8/mobile-shared';
 import { useLiveData } from '../src/data/source';
 
 export default function Documents() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { tenancy } = useLiveData();
   return (
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
       <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFF' }}>
         <View style={{ padding: space(4) }}>
-          <Pressable onPress={() => router.back()} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
+          <Pressable onPress={goBack} hitSlop={10}><CloseIcon size={26} w={2.2} /></Pressable>
           <Text style={s.title}>Your tenancy</Text>
         </View>
       </SafeAreaView>

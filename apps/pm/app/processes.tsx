@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, ListRow, StatusPill, Metric, ClipboardIcon,
-  color, count, font, space,
+  color, count, font, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { useOpsChecklists } from '../src/data/worklists';
@@ -19,6 +19,7 @@ const processLabel = (p: string) => p.replace(/_/g, ' ').replace(/^\w/, (c) => c
 
 export default function Processes() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { loading, error, data: rows } = useOpsChecklists();
 
   const open = rows.filter((c) => c.state === 'open');
@@ -26,7 +27,7 @@ export default function Processes() {
 
   return (
     <>
-      <BackHeader title="Processes" subtitle="Move-ins, move-outs, onboardings" onBack={() => router.back()} />
+      <BackHeader title="Processes" subtitle="Move-ins, move-outs, onboardings" onBack={goBack} />
       <Screen>
         <View style={s.metrics}>
           <Metric value={loading ? '…' : String(open.length)} label="under way" tone="blue" />

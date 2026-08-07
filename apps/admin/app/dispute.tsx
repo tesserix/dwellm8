@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, StatusPill, Button, ActionBar, KeyValue, Timeline,
   Toast, ChoiceRow, Field,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { disputes } from '../src/data/mock';
 
@@ -12,6 +12,7 @@ import { disputes } from '../src/data/mock';
 
 export default function DisputeScreen() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const d = disputes.find((x) => x.id === id) ?? disputes[0];
 
@@ -28,7 +29,7 @@ export default function DisputeScreen() {
 
   return (
     <>
-      <BackHeader title={d.id.toUpperCase()} subtitle={d.org} onBack={() => router.back()} />
+      <BackHeader title={d.id.toUpperCase()} subtitle={d.org} onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 

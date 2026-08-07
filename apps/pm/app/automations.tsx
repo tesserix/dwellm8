@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   BackHeader, Button, Card, Screen, KeyValue, StatusPill, SwitchRow, Toast, Metric,
-  apiFromEnv, color, font, inr, space,
+  apiFromEnv, color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { refreshWorklists, useOpsApprovals, useOpsAutomations } from '../src/data/worklists';
 
@@ -12,6 +12,7 @@ import { refreshWorklists, useOpsApprovals, useOpsAutomations } from '../src/dat
 
 export default function Automations() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const { loading, error, data: automations } = useOpsAutomations();
   const approvals = useOpsApprovals();
   const [busy, setBusy] = useState(false);
@@ -55,7 +56,7 @@ export default function Automations() {
 
   return (
     <>
-      <BackHeader title="Automations" subtitle="What runs by itself, and its limits" onBack={() => router.back()} />
+      <BackHeader title="Automations" subtitle="What runs by itself, and its limits" onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
         <View style={s.metrics}>

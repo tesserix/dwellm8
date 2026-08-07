@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, Metric, StatusPill, Button, Avatar,
   Toast, KeyValue, EmptyState, ErrorState,
-  color, count, font, inr, radius, space,
+  color, count, font, inr, radius, space, useBack,
 } from '@dwellm8/mobile-shared';
 import type { OpsBed } from '@dwellm8/mobile-shared';
 import { useBeds } from '../src/data/beds';
@@ -28,6 +28,7 @@ const pillTone = { vacant: 'amber', reserved: 'violet', notice: 'amber', occupie
 
 export default function Beds() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const params = useLocalSearchParams<{ id?: string }>();
   const portfolio = usePortfolio();
   // Opened from Quick actions there is no property in hand: the first
@@ -58,7 +59,7 @@ export default function Beds() {
   if (portfolio.loading) {
     return (
       <>
-        <BackHeader title="Bed allocation" onBack={() => router.back()} />
+        <BackHeader title="Bed allocation" onBack={goBack} />
         <Screen><View style={s.waiting}><ActivityIndicator /></View></Screen>
       </>
     );
@@ -67,7 +68,7 @@ export default function Beds() {
   if (!property) {
     return (
       <>
-        <BackHeader title="Bed allocation" onBack={() => router.back()} />
+        <BackHeader title="Bed allocation" onBack={goBack} />
         <Screen>
           <EmptyState
             title="No hostel or PG yet"
@@ -83,7 +84,7 @@ export default function Beds() {
       <BackHeader
         title={property.name}
         subtitle={`${count(board.beds.length, 'bed')} under management`}
-        onBack={() => router.back()}
+        onBack={goBack}
       />
       <Screen>
         {toast ? <Toast text={toast} /> : null}

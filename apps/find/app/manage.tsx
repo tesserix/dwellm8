@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   BackHeader, Card, Screen, KeyValue, StatusPill, Button, Metric, ListRow,
   Toast, ProgressBar, Timeline, ActionBar,
-  color, font, inr, space,
+  color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
 import { BOOST_PAISE, LISTING_DAYS, listings, myListing } from '../src/data/mock';
 
@@ -16,6 +16,7 @@ import { BOOST_PAISE, LISTING_DAYS, listings, myListing } from '../src/data/mock
 
 export default function Manage() {
   const router = useRouter();
+  const goBack = useBack('/(tabs)');
   const [boosted, setBoosted] = useState(myListing.boosted);
   const [live, setLive] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
@@ -30,7 +31,7 @@ export default function Manage() {
 
   return (
     <>
-      <BackHeader title="Your listing" subtitle={myListing.title} onBack={() => router.back()} />
+      <BackHeader title="Your listing" subtitle={myListing.title} onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 
