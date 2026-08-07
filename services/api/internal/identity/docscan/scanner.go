@@ -2,12 +2,17 @@ package docscan
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
 // MaxImageBytes is the ceiling on a document photograph. A phone camera picture
 // is well under it; anything above is not a document.
 const MaxImageBytes = 8 << 20
+
+// ErrEngine separates the recogniser failing from the document not parsing.
+// One is ours to fix and the other is a retaken photograph.
+var ErrEngine = errors.New("docscan: the engine did not answer")
 
 // minImageBytes rejects a truncated upload before it is paid for.
 const minImageBytes = 1 << 10
@@ -50,7 +55,7 @@ func (s *Scanner) read(ctx context.Context, image []byte) (string, error) {
 	}
 	text, err := s.engine.Text(ctx, image)
 	if err != nil {
-		return "", fmt.Errorf("docscan: reading the image: %w", err)
+		return "", fmt.Errorf("docscan: reading the image: %w: %w", ErrEngine, err)
 	}
 	return text, nil
 }

@@ -25,6 +25,7 @@ import (
 	twilioverify "github.com/tesserix/dwellm8/services/api/internal/discovery/provider/twilio"
 	discoveryservice "github.com/tesserix/dwellm8/services/api/internal/discovery/service"
 	discoverystore "github.com/tesserix/dwellm8/services/api/internal/discovery/store"
+	"github.com/tesserix/dwellm8/services/api/internal/identity/docscan"
 	identityhttp "github.com/tesserix/dwellm8/services/api/internal/identity/http"
 	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 	identitystore "github.com/tesserix/dwellm8/services/api/internal/identity/store"
@@ -40,6 +41,7 @@ import (
 	propertyhttp "github.com/tesserix/dwellm8/services/api/internal/property/http"
 	propertyservice "github.com/tesserix/dwellm8/services/api/internal/property/service"
 	propertystore "github.com/tesserix/dwellm8/services/api/internal/property/store"
+	"golang.org/x/oauth2/google"
 
 	"github.com/tesserix/dwellm8/services/api/internal/platform/activity"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/auth"
@@ -646,6 +648,12 @@ func run() error {
 			moneystore.NewSettlements(pool), moneystore.NewMerchants(pool), providers)).
 		WithRegistrations(identityservice.NewRegistrations(principals)).
 		WithPayments(payments)
+	if scanner, err := documentScanner(cfg.DocScanEngine, logger); err != nil {
+		return fmt.Errorf("document scanner: %w", err)
+	} else if scanner != nil {
+		opsHandler.WithScanner(scanner)
+		opsHandler.ScanRoutes(authz.NewRegistrar(opsMux, guard))
+	}
 	opsHandler.Routes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.WorklistRoutes(authz.NewRegistrar(opsMux, guard))
 	opsHandler.OnboardingRoutes(authz.NewRegistrar(opsMux, guard))
@@ -942,4 +950,32 @@ func residentRoutes(r *http.Request) string {
 		return ""
 	}
 	return httpx.ByBearer("resident:anonymous")(r)
+}
+
+// documentScanner builds the identity-document reader (#318). Nil, not an
+// error, when no engine is named: prefill is an aid and the forms are typed by
+// hand without it. The credential is workload identity, as the blob store's is
+// — nothing about Vision belongs in a secret this service holds.
+func documentScanner(engine string, log *slog.Logger) (*docscan.Scanner, error) {
+	switch engine {
+	case "":
+		log.Warn("no document scanner; identity documents are typed in by hand",
+			"set", "DOCSCAN_ENGINE=vision")
+		return nil, nil
+	case "vision":
+		src, err := google.DefaultTokenSource(context.Background(),
+			"https://www.googleapis.com/auth/cloud-platform")
+		if err != nil {
+			return nil, fmt.Errorf("vision credentials: %w", err)
+		}
+		return docscan.New(docscan.NewVision(func(ctx context.Context) (string, error) {
+			t, err := src.Token()
+			if err != nil {
+				return "", err
+			}
+			return t.AccessToken, nil
+		})), nil
+	default:
+		return nil, fmt.Errorf("%q is not a document engine", engine)
+	}
 }

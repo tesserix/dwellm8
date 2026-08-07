@@ -22,6 +22,7 @@ import (
 	"time"
 
 	communityservice "github.com/tesserix/dwellm8/services/api/internal/community/service"
+	"github.com/tesserix/dwellm8/services/api/internal/identity/docscan"
 	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
 	maintenanceservice "github.com/tesserix/dwellm8/services/api/internal/maintenance/service"
@@ -55,6 +56,7 @@ type Handler struct {
 	payments    *moneyservice.Payments
 
 	registrations *identityservice.Registrations
+	scanner       *docscan.Scanner
 	log           *slog.Logger
 	now           func() time.Time
 }

@@ -47,6 +47,10 @@ type Config struct {
 	// working configuration — the chain falls back to Photon.
 	Places places.Config
 
+	// DocScanEngine names the recogniser behind identity-document prefill
+	// (#318). Empty leaves the scan route off; the forms are typed by hand.
+	DocScanEngine string
+
 	// Identity is ADR-0027: the GIP project every token must be minted for, and
 	// the prefix that names this product's user pools.
 	Identity Identity
@@ -284,6 +288,8 @@ func Load() (Config, error) {
 		APIKey: os.Getenv("RESEND_API_KEY"),
 		From:   get("RESEND_FROM", "Dwellm8 <no-reply@dwellm8.com>"),
 	}
+
+	c.DocScanEngine = os.Getenv("DOCSCAN_ENGINE")
 
 	c.Places = places.Config{
 		MapplsClientID:     os.Getenv("MAPPLS_CLIENT_ID"),

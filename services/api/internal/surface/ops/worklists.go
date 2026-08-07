@@ -359,7 +359,13 @@ func (h *Handler) SetPassState(w http.ResponseWriter, r *http.Request) {
 }
 
 func decode(w http.ResponseWriter, r *http.Request, v any) error {
-	body, err := io.ReadAll(io.LimitReader(r.Body, maxBody))
+	return decodeUpTo(w, r, v, maxBody)
+}
+
+// decodeUpTo is decode with a stated ceiling, for the one request that carries
+// a photograph rather than a few hundred bytes of ticket.
+func decodeUpTo(w http.ResponseWriter, r *http.Request, v any, limit int) error {
+	body, err := io.ReadAll(io.LimitReader(r.Body, int64(limit)))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "could not read the request")
 		return err
