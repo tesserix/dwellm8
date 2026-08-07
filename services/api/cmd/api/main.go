@@ -432,6 +432,31 @@ func run() error {
 			}
 		}()
 
+		// A viewing called off reaching the person holding it (#332): the same
+		// push path as the alerts, addressed to a prospect rather than to a
+		// saved search.
+		ensureCtx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		noticeCons, err := eventsConn.EnsureConsumer(ensureCtx, natsx.ConsumerSpec{
+			Name:     "discovery-viewing-notices",
+			Stream:   "DWELLM8_DISCOVERY",
+			Subjects: []string{"dwellm8.discovery.inspection.>"},
+		})
+		cancel()
+		if err != nil {
+			return fmt.Errorf("discovery viewing notices consumer: %w", err)
+		}
+		notices := discoveryservice.Notices{
+			Tokens: pushTokens,
+			Sender: push.New(""),
+			Log:    logger,
+		}
+		go func() {
+			if err := natsx.Consume(relayCtx, noticeCons, notices.Handle, logger); err != nil &&
+				!errors.Is(err, context.Canceled) {
+				logger.Error("discovery consumer stopped", "consumer", "discovery-viewing-notices", "error", err)
+			}
+		}()
+
 		letMarker := discoveryservice.Consumer{
 			Marker: discoverystore.NewLetMarker(tenancy.NewPlatformPool(platformPool)),
 			Stay:   discoverystore.NewStay(pool, tenancy.NewPlatformPool(platformPool)),
@@ -450,7 +475,7 @@ func run() error {
 			}
 		}()
 		logger.Info("discovery consumers running",
-			"consumers", "discovery-listings, discovery-stay-payments")
+			"consumers", "discovery-listings, discovery-stay-payments, discovery-viewing-notices")
 	} else {
 		logger.Warn("the event-triggered automations are off; a tenancy going live will not " +
 			"start its move-in until somebody does. The scheduled ones are unaffected.")

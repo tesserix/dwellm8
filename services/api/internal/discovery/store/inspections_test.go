@@ -21,6 +21,7 @@ type inspectionFixture struct {
 	inspections *store.Inspections
 	prospects   *store.Prospects
 	listing     string
+	unit        string
 }
 
 func newInspectionFixture(t *testing.T) inspectionFixture {
@@ -41,7 +42,7 @@ func newInspectionFixture(t *testing.T) inspectionFixture {
 		events.Actor{Kind: events.ActorSystem}); err != nil {
 		t.Fatalf("publishing: %v", err)
 	}
-	f.listing = id
+	f.listing, f.unit = id, u
 	return f
 }
 

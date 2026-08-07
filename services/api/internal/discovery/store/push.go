@@ -45,6 +45,31 @@ func (s *PushTokens) Drop(ctx context.Context, prospectID, token string) error {
 		})
 }
 
+// ForProspect lists the live devices one prospect has registered — what a
+// message addressed to a person, rather than to a saved search, is sent to.
+func (s *PushTokens) ForProspect(ctx context.Context, prospectID string) ([]string, error) {
+	var out []string
+	err := tenancy.Platform(ctx, s.pool, "reading a prospect's devices (#126)",
+		func(ctx context.Context, tx pgx.Tx) error {
+			rows, err := tx.Query(ctx, `
+				SELECT expo_token FROM prospect_push_tokens
+				 WHERE prospect_id = $1 AND disabled_at IS NULL`, prospectID)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var t string
+				if err := rows.Scan(&t); err != nil {
+					return err
+				}
+				out = append(out, t)
+			}
+			return rows.Err()
+		})
+	return out, err
+}
+
 // Disable marks tokens Expo declared dead. Not a delete: the row is the
 // record of why this prospect stopped hearing from us.
 func (s *PushTokens) Disable(ctx context.Context, tokens []string) error {

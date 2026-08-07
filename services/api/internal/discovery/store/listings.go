@@ -236,10 +236,76 @@ func (s *LetMarker) MarkLetByUnit(ctx context.Context, tenant, unitID string) (i
 				if err := events.Append(ctx, tx, env); err != nil {
 					return err
 				}
+				if err := closeTheViewings(ctx, tx, tenant, id); err != nil {
+					return err
+				}
 			}
 			return nil
 		})
 	return len(closed), err
+}
+
+// closeTheViewings ends what the advertisement was carrying (#332): open times
+// stop taking bookings, and every live enquiry on the listing is closed with the
+// reason. The cancellation fact per booked prospect is the part that matters —
+// somebody expecting to view a flat that is taken must be told, not turned away
+// at the door — and it goes to the outbox on this transaction, never inline.
+func closeTheViewings(ctx context.Context, tx pgx.Tx, tenant, listingID string) error {
+	if _, err := tx.Exec(ctx, `
+		UPDATE inspection_slots SET state = 'closed', updated_at = now()
+		 WHERE listing_id = $1 AND state = 'open'`, listingID); err != nil {
+		return err
+	}
+
+	rows, err := tx.Query(ctx, `
+		UPDATE enquiries
+		   SET state = 'closed', outcome = 'listing_let', outcome_at = now(), updated_at = now()
+		 WHERE listing_id = $1 AND state IN ('new', 'owner_responded', 'scheduled')
+		 RETURNING id::text, prospect_id::text, coalesce(slot_id::text, ''), scheduled_for`,
+		listingID)
+	if err != nil {
+		return err
+	}
+	type told struct {
+		enquiry, prospect, slot string
+		at                      *time.Time
+	}
+	var telling []told
+	for rows.Next() {
+		var t told
+		if err := rows.Scan(&t.enquiry, &t.prospect, &t.slot, &t.at); err != nil {
+			rows.Close()
+			return err
+		}
+		telling = append(telling, t)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for _, t := range telling {
+		if t.slot == "" {
+			continue
+		}
+		env, err := events.New(string(domain.EventInspectionCancelled), tenant,
+			events.Subject{Kind: "enquiry", ID: t.enquiry},
+			events.Actor{Kind: events.ActorSystem},
+			struct {
+				By         string     `json:"by"`
+				ListingID  string     `json:"listing_id"`
+				ProspectID string     `json:"prospect_id"`
+				SlotID     string     `json:"slot_id"`
+				StartsAt   *time.Time `json:"starts_at,omitempty"`
+			}{"listing_let", listingID, t.prospect, t.slot, t.at})
+		if err != nil {
+			return err
+		}
+		if err := events.Append(ctx, tx, env); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 const selectListing = `

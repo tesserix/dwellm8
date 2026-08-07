@@ -84,6 +84,10 @@ func TestLifecycle(t *testing.T) {
 		{StatePaused, StateLive, EventResumed},
 		{StatePaused, StateLet, EventLet},
 		{StatePaused, StateWithdrawn, EventWithdrawn},
+		// #332: a tenancy that falls over before it starts puts the advert back
+		// as itself. Republishing from scratch would lose the viewings and
+		// outcomes the next appraisal is read from.
+		{StateLet, StateLive, EventResumed},
 	}
 	for _, tc := range allowed {
 		ev, err := Transition(tc.from, tc.to)
@@ -95,7 +99,7 @@ func TestLifecycle(t *testing.T) {
 	refused := []struct{ from, to State }{
 		{StateDraft, StatePaused}, // pausing needs a publication to keep
 		{StateDraft, StateLet},    // a draft was never advertised
-		{StateLet, StateLive},     // history, not inventory
+		{StateLet, StatePaused},   // nothing to pause: it is off the market already
 		{StateWithdrawn, StateLive},
 		{StateLive, StateLive},
 	}

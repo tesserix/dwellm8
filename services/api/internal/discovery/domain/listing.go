@@ -188,6 +188,13 @@ var transitions = map[State]map[State]Event{
 		StateWithdrawn: EventWithdrawn,
 		StateSuspended: EventSuspended,
 	},
+	// A let advert goes back on the market as itself when the tenancy falls
+	// over (#332): the viewings and outcomes on it are the unit's letting
+	// history, and a fresh listing would start without them.
+	StateLet: {
+		StateLive:      EventResumed,
+		StateWithdrawn: EventWithdrawn,
+	},
 	// Suspension is moderation's act, and only moderation lifts it.
 	StateSuspended: {
 		StateLive:      EventReinstated,
@@ -195,8 +202,8 @@ var transitions = map[State]map[State]Event{
 	},
 }
 
-// Transition returns the event a move publishes, or refuses the move. Both
-// terminal states refuse everything: a let listing is history, not inventory.
+// Transition returns the event a move publishes, or refuses the move.
+// Withdrawal is the one move nothing comes back from.
 func Transition(from, to State) (Event, error) {
 	ev, ok := transitions[from][to]
 	if !ok {
