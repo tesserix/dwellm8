@@ -24,7 +24,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Dwellm8 uses your photos only to read an identity document you choose.",
+          "cameraPermission": "Dwellm8 uses the camera to read an owner's PAN card or passport, so you do not type it."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

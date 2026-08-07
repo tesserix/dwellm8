@@ -7,8 +7,13 @@ import {
   apiFromEnv, color, font, inr, radius, space,
   type AddressSuggestion,
 } from '@dwellm8/mobile-shared';
-import type { OpsPortfolio, OwnerOnboarded } from '@dwellm8/mobile-shared';
+import type { OpsPortfolio, OwnerOnboarded, TaxProfile } from '@dwellm8/mobile-shared';
 import { useFirmContact } from '../src/data/firm';
+import { CaptureRefused, photographDocument } from '../src/data/capture';
+import {
+  emptyIdentity, identityReady, missingRule37BC, prefillFromPAN, prefillFromPassport,
+  taxProfileFrom, type IdentityDraft,
+} from '../src/data/identity';
 
 /**
  * Onboard an owner (#240) — one guided flow, five small questions.
@@ -30,7 +35,7 @@ const kinds = [
   { code: 'plot', label: 'Plot' },
 ];
 
-const STEPS = ['The owner', 'The place', 'The units', 'Moving in', 'The once-over'] as const;
+const STEPS = ['The owner', 'Who they are', 'The place', 'The units', 'Moving in', 'The once-over'] as const;
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const plusMonthsIso = (months: number) => {
@@ -77,8 +82,11 @@ export default function Onboard() {
   const [dueDay, setDueDay] = useState('5');
   const [startOn, setStartOn] = useState(todayIso());
   const [endOn, setEndOn] = useState(plusMonthsIso(11));
-  const [ownerIndividual, setOwnerIndividual] = useState(true);
-  const [ownerResident, setOwnerResident] = useState(true);
+  // Who they are, for TDS — the identifiers travel once and are stored masked
+  // or as a boolean by the endpoint that receives them (#318, ADR-0013).
+  const [ident, setIdent] = useState<IdentityDraft>(emptyIdentity());
+  const [onFile, setOnFile] = useState<TaxProfile | null>(null);
+  const [scanning, setScanning] = useState<'pan' | 'passport' | null>(null);
 
   const unitList = units.split(',').map((c) => c.trim()).filter(Boolean);
 
@@ -103,6 +111,23 @@ export default function Onboard() {
     api.opsPortfolios().then(setPortfolios).catch(() => setPortfolios([]));
   }, []);
 
+  // An owner the firm already acts for may have furnished this months ago.
+  // Show what is on file rather than asking for it a second time.
+  useEffect(() => {
+    const api = apiFromEnv();
+    const party = existing?.owner_party_id;
+    if (!api || !party) { setOnFile(null); return; }
+    api.opsTaxProfile(party)
+      .then((p) => {
+        setOnFile(p);
+        setIdent((d) => ({
+          ...d, resident: p.residency === 'resident',
+          country: p.residency === 'resident' ? '' : p.residence_country,
+        }));
+      })
+      .catch(() => setOnFile(null));
+  }, [existing?.owner_party_id]);
+
   const say = (m: string) => {
     setToast(m);
     setTimeout(() => setToast(null), 3200);
@@ -110,8 +135,35 @@ export default function Onboard() {
 
   const ownerLabel = existing ? existing.owner_name : ownerName;
 
+  // Read the card, then hand back what it says for the owner to confirm. A
+  // document that did not read cleanly is refused by the API rather than
+  // half-prefilled, so there is nothing to undo here.
+  const scan = async (kind: 'pan' | 'passport') => {
+    const api = apiFromEnv();
+    if (!api || scanning) return;
+    setScanning(kind);
+    try {
+      const image = await photographDocument();
+      setIdent(kind === 'pan'
+        ? prefillFromPAN(ident, await api.opsScanPAN(image))
+        : prefillFromPassport(ident, await api.opsScanPassport(image)));
+    } catch (err) {
+      if (!(err instanceof CaptureRefused)) say((err as Error).message);
+    } finally {
+      setScanning(null);
+    }
+  };
+
+  const takeScannedName = () => {
+    if (ident.scannedName) setOwnerName(ident.scannedName);
+    setIdent((d) => ({ ...d, scannedName: undefined }));
+  };
+
+  const shortfall = missingRule37BC(ident);
+
   const stepReady = [
     existing !== null || (ownerName.trim().length > 1 && phone.trim().length >= 10),
+    identityReady(ident),
     propName.trim().length > 1 && addressLine1.trim().length > 1
       && locality.trim().length > 1 && city.trim().length > 1
       && /^[A-Z]{2}$/.test(stateCode.trim().toUpperCase()) && /^[1-9][0-9]{5}$/.test(pin.trim()),
@@ -148,10 +200,18 @@ export default function Onboard() {
           rent_amount_minor: Math.round(Number(rent) * 100),
           deposit_amount_minor: Math.round(Number(deposit || 0) * 100),
           due_day: Number(dueDay) || 5,
-          deductor_class: ownerIndividual ? 'individual_no_audit' : 'business',
-          landlord_residency: ownerResident ? 'resident' : 'non_resident',
+          deductor_class: ident.individual ? 'individual_no_audit' : 'business',
+          landlord_residency: ident.resident ? 'resident' : 'non_resident',
         } : undefined,
       });
+      // The profile is written against the party, which only exists once the
+      // onboarding lands. It failing does not undo any of the above — the
+      // owner is on Dwellm8 either way, and the rate can be furnished later.
+      try {
+        await api.opsRecordTaxProfile(out.owner_party_id, taxProfileFrom(ident, startOn.trim() || todayIso()));
+      } catch {
+        say('Onboarded — but what they furnished for TDS did not save. Add it from their profile.');
+      }
       setDone(out);
     } catch (err) {
       say((err as Error).message);
@@ -276,6 +336,129 @@ export default function Onboard() {
 
         {step === 1 ? (
           <Card>
+            <Text style={s.q}>Who are they, for tax?</Text>
+            <Text style={s.sub}>
+              This is what decides the rate their rent is deducted at, so it is worth a minute.
+              Photograph the card and Dwellm8 reads it — nothing is stored as you see it here:
+              the PAN becomes a yes, and a foreign tax number keeps only its last four digits.
+            </Text>
+
+            {onFile ? (
+              <View style={{ marginBottom: space(3) }}>
+                <StatusPill text={`On file since ${onFile.valid_from}`} tone="green" dot />
+                <KeyValue k="Residency" v={onFile.residency === 'resident' ? 'Indian resident' : `Non-resident · ${onFile.residence_country}`} />
+                <KeyValue k="PAN" v={onFile.pan_furnished ? 'Furnished' : 'Not furnished — 20% applies'} last />
+                <Text style={s.note}>Anything you change here is furnished afresh from today; what was true before stays true for the months it covered.</Text>
+              </View>
+            ) : null}
+
+            <SwitchRow
+              label="The owner lives in India"
+              hint="Tax residency, not citizenship — it selects section 194-I or 195"
+              value={ident.resident}
+              onChange={(v) => setIdent((d) => ({ ...d, resident: v }))}
+            />
+            <SwitchRow
+              label="The owner is an individual"
+              hint="Not a company or a firm. The PAN's fourth letter says which"
+              value={ident.individual}
+              onChange={(v) => setIdent((d) => ({ ...d, individual: v }))}
+              last
+            />
+
+            <Button
+              label={scanning === 'pan' ? 'Reading the card…' : 'Photograph the PAN card'}
+              tone="secondary" disabled={scanning !== null} onPress={() => scan('pan')}
+              style={{ marginTop: space(3) }}
+            />
+            <Field
+              label="PAN — leave it empty if they have none"
+              value={ident.pan} onChange={(v) => setIdent((d) => ({ ...d, pan: v }))}
+              placeholder="ABCPD1234E" autoCapitalize="characters"
+            />
+            {ident.pan.trim() === '' ? (
+              <Text style={s.note}>
+                Without a PAN, section 206AA deducts at 20% however the tenancy is written.
+              </Text>
+            ) : null}
+
+            {ident.scannedName ? (
+              <Pressable onPress={takeScannedName} style={s.prefill}>
+                <Text style={s.prefillText}>The document reads {ident.scannedName} — use that name</Text>
+              </Pressable>
+            ) : null}
+            {ident.warning ? <Text style={s.warn}>{ident.warning}</Text> : null}
+
+            {!ident.resident ? (
+              <>
+                <Text style={[s.q, { fontSize: 17, marginTop: space(4) }]}>Living abroad</Text>
+                <Text style={s.sub}>
+                  Rent to a non-resident is deducted under section 195, and without a PAN that
+                  means 20% — unless all five of rule 37BC(2)'s particulars are furnished. Take
+                  them off the passport and the certificate now and the rate follows.
+                </Text>
+                <Button
+                  label={scanning === 'passport' ? 'Reading the passport…' : 'Photograph the passport'}
+                  tone="secondary" disabled={scanning !== null} onPress={() => scan('passport')}
+                />
+                <Field
+                  label="Country of residence — two letters"
+                  value={ident.country} onChange={(v) => setIdent((d) => ({ ...d, country: v }))}
+                  placeholder="AE" autoCapitalize="characters"
+                />
+                <Field
+                  label="Foreign tax identification number"
+                  value={ident.foreignTin} onChange={(v) => setIdent((d) => ({ ...d, foreignTin: v }))}
+                  placeholder="784197412345671"
+                />
+                <Field
+                  label="Tax residency certificate number"
+                  value={ident.trcNumber} onChange={(v) => setIdent((d) => ({ ...d, trcNumber: v }))}
+                  placeholder="TRC-AE-2026-0041"
+                />
+                <Field
+                  label="Certificate valid from (YYYY-MM-DD)"
+                  value={ident.trcValidFrom} onChange={(v) => setIdent((d) => ({ ...d, trcValidFrom: v }))}
+                  placeholder="2026-04-01"
+                />
+                <Field
+                  label="Certificate valid to"
+                  value={ident.trcValidTo} onChange={(v) => setIdent((d) => ({ ...d, trcValidTo: v }))}
+                  placeholder="2027-03-31"
+                />
+                <Field
+                  label="Address abroad"
+                  value={ident.foreignAddress} onChange={(v) => setIdent((d) => ({ ...d, foreignAddress: v }))}
+                  placeholder="Villa 12, Al Barsha, Dubai"
+                />
+                <Field
+                  label="Email abroad"
+                  value={ident.foreignEmail} onChange={(v) => setIdent((d) => ({ ...d, foreignEmail: v }))}
+                  placeholder="anjali@example.ae" keyboardType="email-address"
+                />
+                <Field
+                  label="Phone abroad"
+                  value={ident.foreignPhone} onChange={(v) => setIdent((d) => ({ ...d, foreignPhone: v }))}
+                  placeholder="+971 50 000 0001" keyboardType="phone-pad"
+                />
+                {shortfall.length ? (
+                  <Text style={s.warn}>
+                    Still missing {shortfall.join(', ')}. Until all five are furnished, a
+                    non-resident without a PAN is deducted at 20%.
+                  </Text>
+                ) : (
+                  <Text style={s.note}>
+                    All five particulars are furnished — rule 37BC(2) is satisfied and the
+                    treaty rate governs instead of 206AA's floor.
+                  </Text>
+                )}
+              </>
+            ) : null}
+          </Card>
+        ) : null}
+
+        {step === 2 ? (
+          <Card>
             <Text style={s.q}>Where's the place?</Text>
             <Text style={s.sub}>These details follow the property everywhere — listings, agreements, receipts.</Text>
             <Field label="Property name" value={propName} onChange={setPropName} placeholder="Brigade Palm Grove" />
@@ -292,7 +475,7 @@ export default function Onboard() {
           </Card>
         ) : null}
 
-        {step === 2 ? (
+        {step === 3 ? (
           <Card>
             <Text style={s.q}>How is it split?</Text>
             <Text style={s.sub}>
@@ -311,7 +494,7 @@ export default function Onboard() {
           </Card>
         ) : null}
 
-        {step === 3 ? (
+        {step === 4 ? (
           <Card>
             <Text style={s.q}>Anyone moving in?</Text>
             <Text style={s.sub}>
@@ -329,18 +512,23 @@ export default function Onboard() {
                 <Field label="Rent due day" value={dueDay} onChange={setDueDay} placeholder="5" keyboardType="numeric" />
                 <Field label="Starts on (YYYY-MM-DD)" value={startOn} onChange={setStartOn} placeholder={todayIso()} />
                 <Field label="Ends on — 11 months is the usual" value={endOn} onChange={setEndOn} placeholder={plusMonthsIso(11)} />
-                <SwitchRow label="The owner is an individual" hint="Not a company or firm — decides the TDS section" value={ownerIndividual} onChange={setOwnerIndividual} />
-                <SwitchRow label="The owner lives in India" hint="Tax residency, not citizenship" value={ownerResident} onChange={setOwnerResident} last />
               </>
             ) : null}
           </Card>
         ) : null}
 
-        {step === 4 ? (
+        {step === 5 ? (
           <Card>
             <Text style={s.q}>The once-over</Text>
             <Text style={s.sub}>One look before it becomes the record.</Text>
             <KeyValue k="Owner" v={existing ? `${existing.owner_name} · already yours` : `${ownerName} · ${phone}`} />
+            <KeyValue
+              k="For tax"
+              v={`${ident.resident ? 'Indian resident' : `Non-resident · ${ident.country}`} · ${ident.pan.trim() ? 'PAN furnished' : 'no PAN — 20% applies'}`}
+            />
+            {!ident.resident && shortfall.length ? (
+              <KeyValue k="Rule 37BC" v={`Missing ${shortfall.length} of 5 particulars`} tone="amber" />
+            ) : null}
             <KeyValue k="Property" v={`${propName}, ${locality}, ${city} ${pin}`} />
             <KeyValue k="Units" v={`${unitList.join(', ')} · ${carpetArea} sq ft each`} />
             {withTenant ? (
@@ -352,7 +540,7 @@ export default function Onboard() {
                   v={Number(deposit) > 0 ? inr(Math.round(Number(deposit) * 100)) : 'None taken'}
                 />
                 <KeyValue k="Term" v={`${startOn} → ${endOn || 'open-ended'}`} />
-                <KeyValue k="TDS facts" v={`${ownerIndividual ? 'Individual' : 'Business'}, ${ownerResident ? 'Indian resident' : 'non-resident'}`} last />
+                <KeyValue k="TDS facts" v={`${ident.individual ? 'Individual' : 'Business'}, ${ident.resident ? 'Indian resident' : `non-resident · ${ident.country}`}`} last />
               </>
             ) : (
               <KeyValue k="First tenancy" v="Not yet — add one any time" last />
@@ -396,4 +584,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 7,
   },
   chipText: { ...font.label, color: color.accentDeep },
+  prefill: {
+    backgroundColor: '#EEF3FC', borderRadius: radius.md, borderWidth: 1, borderColor: '#DCE5F5',
+    padding: space(3), marginTop: space(3),
+  },
+  prefillText: { ...font.label, color: color.accentDeep },
+  warn: { ...font.small, color: color.negative, marginTop: space(3), lineHeight: 18 },
 });

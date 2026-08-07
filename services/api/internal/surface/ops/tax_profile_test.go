@@ -112,3 +112,38 @@ func TestAnotherFirmCannotReadThatOwnersTaxProfile(t *testing.T) {
 		t.Fatalf("an organisation with no mandate read it: %d %s", w.Code, w.Body.String())
 	}
 }
+
+// The switcher names the owner but the tax profile is written against the
+// party, so a firm returning to an owner it onboarded weeks ago has no way to
+// reach the profile without it (#318).
+func TestTheSwitcherNamesThePartyTheTaxProfileIsWrittenAgainst(t *testing.T) {
+	mux := serveOnboarding(t)
+	party, grant := onboardAnOwner(t, mux, "Nandini Prasad")
+
+	w := call(t, mux, isolationtest.OrgFirm, http.MethodGet, "/v1/ops/portfolios")
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET portfolios: %d %s", w.Code, w.Body.String())
+	}
+	var list struct {
+		Portfolios []struct {
+			OwnerPartyID string `json:"owner_party_id"`
+		} `json:"portfolios"`
+	}
+	decode(t, w, &list)
+
+	var found bool
+	for _, p := range list.Portfolios {
+		if p.OwnerPartyID == party {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("the onboarded owner's party %s is on no portfolio in the switcher", party)
+	}
+
+	// And it is the party the route accepts, not merely a well-formed id.
+	if w := putUnderGrant(t, mux, isolationtest.OrgFirm, grant,
+		"/v1/ops/parties/"+party+"/tax-profile", aResidentProfile()); w.Code != http.StatusOK {
+		t.Fatalf("the party the switcher named was refused: %d %s", w.Code, w.Body.String())
+	}
+}

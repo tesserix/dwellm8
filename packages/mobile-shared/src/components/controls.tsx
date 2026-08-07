@@ -35,6 +35,9 @@ export function Button({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
+      // The prop, not just a null handler: without it the press still reaches
+      // the responder, and a form walks past the step guarding it.
+      disabled={disabled}
       onPress={disabled ? undefined : onPress}
       style={({ pressed }) => [
         s.btn,

@@ -313,9 +313,13 @@ func (s *Principals) ClaimOwner(ctx context.Context, p auth.Principal) (Person, 
 
 // ManagedPortfolio is one owner's books this firm holds a live mandate over.
 type ManagedPortfolio struct {
-	GrantID       string
-	OwnerOrgID    string
-	OwnerName     string
+	GrantID    string
+	OwnerOrgID string
+	OwnerName  string
+	// OwnerPartyID is the person the books belong to, not the books. What is
+	// written against a party rather than an organisation — a tax profile —
+	// needs it, and the switcher is where a firm returns to an owner (#318).
+	OwnerPartyID  string
 	Permissions   []string
 	Since         time.Time
 	PropertyCount int
@@ -348,7 +352,7 @@ func (s *Principals) PortfoliosFor(ctx context.Context, firmOrgID string) ([]Man
 			for rows.Next() {
 				var p ManagedPortfolio
 				if err := rows.Scan(&p.GrantID, &p.OwnerOrgID, &p.OwnerName,
-					&p.Permissions, &p.Since, &p.PropertyCount); err != nil {
+					&p.Permissions, &p.Since, &p.PropertyCount, &p.OwnerPartyID); err != nil {
 					return err
 				}
 				out = append(out, p)
@@ -366,7 +370,8 @@ func (s *Principals) ownBooks(ctx context.Context, tx pgx.Tx, orgID string) (*Ma
 	p := ManagedPortfolio{OwnerOrgID: orgID, SelfManaged: true, Permissions: managementPermissions}
 	err := tx.QueryRow(ctx, `
 		SELECT o.name, o.created_at,
-		       (SELECT count(*) FROM properties pr WHERE pr.tenant_id = o.id)
+		       (SELECT count(*) FROM properties pr WHERE pr.tenant_id = o.id),
+		       coalesce(`+ownerPartyOf("o.id")+`, '')
 		  FROM organisations o
 		 WHERE o.id = $1::uuid
 		   AND (EXISTS (SELECT 1 FROM properties pr WHERE pr.tenant_id = o.id)
@@ -375,7 +380,7 @@ func (s *Principals) ownBooks(ctx context.Context, tx pgx.Tx, orgID string) (*Ma
 		                  JOIN identity_principals ip ON ip.party_id = m.party_id
 		                 WHERE m.tenant_id = o.id AND m.role = 'owner'
 		                   AND m.validity @> current_date AND ip.surface = 'own'))`,
-		orgID).Scan(&p.OwnerName, &p.Since, &p.PropertyCount)
+		orgID).Scan(&p.OwnerName, &p.Since, &p.PropertyCount, &p.OwnerPartyID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -385,11 +390,23 @@ func (s *Principals) ownBooks(ctx context.Context, tx pgx.Tx, orgID string) (*Ma
 	return &p, nil
 }
 
+// ownerPartyOf is OwnerParty as a subselect, so every portfolio read names the
+// landlord the same way the standalone lookup does.
+func ownerPartyOf(orgColumn string) string {
+	return `(SELECT m.party_id::text
+	           FROM organisation_members m
+	          WHERE m.tenant_id = ` + orgColumn + ` AND m.role = 'owner'
+	            AND m.validity @> current_date
+	          ORDER BY m.created_at
+	          LIMIT 1)`
+}
+
 // portfolioQuery is the live-mandate read both the switcher and the
 // single-owner lookup run — one definition of "live", not two.
-const portfolioQuery = `
+var portfolioQuery = `
 	SELECT g.id::text, g.tenant_id::text, o.name, g.permissions, g.created_at,
-	       (SELECT count(*) FROM properties p WHERE p.tenant_id = g.tenant_id)
+	       (SELECT count(*) FROM properties p WHERE p.tenant_id = g.tenant_id),
+	       coalesce(` + ownerPartyOf("g.tenant_id") + `, '')
 	  FROM delegation_grants g
 	  JOIN organisations o ON o.id = g.tenant_id
 	 WHERE g.grantee_org_id = $1::uuid
@@ -402,7 +419,7 @@ const portfolioQuery = `
 // — and the switcher is a list of whose books the firm can open, so it shows
 // the owner once: the newest grant, everything all the live ones together
 // permit, and the date the firm began acting for them.
-const switcherQuery = `
+var switcherQuery = `
 	SELECT * FROM (
 		SELECT DISTINCT ON (g.tenant_id)
 		       g.id::text, g.tenant_id::text, o.name AS owner_name,
@@ -414,7 +431,8 @@ const switcherQuery = `
 		           AND now() >= w.valid_from
 		           AND (w.valid_to IS NULL OR now() < w.valid_to)),
 		       min(g.created_at) OVER (PARTITION BY g.tenant_id),
-		       (SELECT count(*) FROM properties p WHERE p.tenant_id = g.tenant_id)
+		       (SELECT count(*) FROM properties p WHERE p.tenant_id = g.tenant_id),
+		       coalesce(` + ownerPartyOf("g.tenant_id") + `, '')
 		  FROM delegation_grants g
 		  JOIN organisations o ON o.id = g.tenant_id
 		 WHERE g.grantee_org_id = $1::uuid
@@ -434,7 +452,8 @@ func (s *Principals) PortfolioFor(ctx context.Context, firmOrgID, ownerOrgID str
 				   AND g.tenant_id = $2::uuid
 				 ORDER BY g.created_at DESC
 				 LIMIT 1`, firmOrgID, ownerOrgID).
-				Scan(&p.GrantID, &p.OwnerOrgID, &p.OwnerName, &p.Permissions, &p.Since, &p.PropertyCount)
+				Scan(&p.GrantID, &p.OwnerOrgID, &p.OwnerName, &p.Permissions, &p.Since,
+					&p.PropertyCount, &p.OwnerPartyID)
 			if errors.Is(err, pgx.ErrNoRows) {
 				return ErrNoMandate
 			}

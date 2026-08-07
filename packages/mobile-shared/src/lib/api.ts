@@ -204,6 +204,58 @@ export type OpsPortfolio = {
   property_count: number;
   /** The manager's own property — held rather than managed for somebody (#268). */
   self_managed?: boolean;
+  /** Whose books these are. A tax profile is written against the party (#318). */
+  owner_party_id?: string;
+};
+
+/** What a landlord has furnished for TDS (PUT/GET /v1/ops/parties/{id}/tax-profile). */
+export type TaxProfile = {
+  party_id: string;
+  residency: 'resident' | 'non_resident';
+  residence_country: string;
+  pan_furnished: boolean;
+  foreign_tin_masked?: string;
+  trc_number?: string;
+  trc_valid_to?: string;
+  rule_37bc_furnished: boolean;
+  source: string;
+  valid_from: string;
+};
+
+/** What is furnished. The identifiers travel whole and are never stored whole. */
+export type TaxProfileInput = {
+  residency: 'resident' | 'non_resident';
+  residence_country: string;
+  pan?: string;
+  foreign_tin?: string;
+  trc_number?: string;
+  trc_valid_from?: string;
+  trc_valid_to?: string;
+  foreign_address?: string;
+  foreign_email?: string;
+  foreign_phone?: string;
+  source: string;
+  valid_from: string;
+};
+
+/** What a photographed passport reads as (POST /v1/ops/identity/scan). */
+export type ScannedPassport = {
+  surname: string;
+  given_names: string;
+  number: string;
+  nationality: string;
+  date_of_birth: string;
+  sex?: string;
+  expires_on: string;
+};
+
+/** What a photographed PAN card reads as. */
+export type ScannedPAN = {
+  number: string;
+  name?: string;
+  father_name?: string;
+  date_of_birth?: string;
+  individual: boolean;
 };
 
 /** One gate pass on the org worklist (GET /v1/ops/passes). */
@@ -908,6 +960,32 @@ export class DwellmApi {
   async opsPortfolios(): Promise<OpsPortfolio[]> {
     const out = await this.request<{ portfolios?: OpsPortfolio[] }>('GET', '/v1/ops/portfolios');
     return out.portfolios ?? [];
+  }
+
+  opsTaxProfile(party: string): Promise<TaxProfile> {
+    return this.request('GET', `/v1/ops/parties/${party}/tax-profile`);
+  }
+
+  opsRecordTaxProfile(party: string, p: TaxProfileInput): Promise<TaxProfile> {
+    return this.request('PUT', `/v1/ops/parties/${party}/tax-profile`, p);
+  }
+
+  /**
+   * Read a photographed identity document. The image is sent, never kept, and
+   * what comes back is a prefill the manager confirms against the card (#318).
+   */
+  async opsScanPassport(imageBase64: string): Promise<ScannedPassport> {
+    const out = await this.request<{ passport?: ScannedPassport }>(
+      'POST', '/v1/ops/identity/scan', { kind: 'passport', image: imageBase64 });
+    if (!out.passport) throw new Error('the passport did not read cleanly');
+    return out.passport;
+  }
+
+  async opsScanPAN(imageBase64: string): Promise<ScannedPAN> {
+    const out = await this.request<{ pan?: ScannedPAN }>(
+      'POST', '/v1/ops/identity/scan', { kind: 'pan', image: imageBase64 });
+    if (!out.pan) throw new Error('the card did not read cleanly');
+    return out.pan;
   }
 
   async opsChecklists(state?: string): Promise<OpsChecklistProgress[]> {

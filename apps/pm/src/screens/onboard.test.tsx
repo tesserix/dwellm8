@@ -16,11 +16,17 @@ jest.mock('@dwellm8/mobile-shared', () => {
 
 const fill = (label: string | RegExp, text: string) =>
   fireEvent.changeText(screen.getByLabelText(label), text);
-const next = () => fireEvent.press(screen.getByText('Next'));
+// The button, not the label inside it: pressing the Text bubbles past a
+// disabled Pressable, which no thumb on a real screen can do.
+const next = () => fireEvent.press(screen.getByLabelText('Next'));
 
 async function walkToTheOnceOver() {
   await fill("Owner's name", 'Anjali Menon');
   await fill('Mobile number', '+919999000001');
+  await next();
+
+  // Who they are, for tax (#318). An Indian resident with no PAN is a complete
+  // answer — 206AA's 20% is a rate, not an unfinished form — so it walks past.
   await next();
 
   await fill('Property name', 'Menon Palm Court');
@@ -60,5 +66,41 @@ describe('Onboard — the once-over', () => {
 
     expect(screen.getByText(/₹38,000/)).toBeTruthy();
     expect(screen.getByText(/→/)).toBeTruthy();
+  });
+});
+
+// Who they are, for tax (#318). Non-residency opens rule 37BC(2)'s five
+// particulars, and the step says plainly how many are still missing — which is
+// the difference between the treaty rate and 206AA's 20% floor.
+describe('Onboard — who they are', () => {
+  const toTheIdentityStep = async () => {
+    await fill("Owner's name", 'Anjali Menon');
+    await fill('Mobile number', '+919999000001');
+    await next();
+  };
+
+  it('asks a non-resident for the particulars that keep them out of 206AA', async () => {
+    await render(<Onboard />);
+    await toTheIdentityStep();
+
+    expect(screen.queryByLabelText(/Foreign tax identification/i)).toBeNull();
+    await fireEvent(screen.getByLabelText('The owner lives in India'), 'valueChange', false);
+
+    expect(screen.getByLabelText(/Foreign tax identification/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Tax residency certificate number/i)).toBeTruthy();
+    expect(screen.getByText(/Still missing/)).toBeTruthy();
+  });
+
+  it('does not walk on until it knows which country', async () => {
+    await render(<Onboard />);
+    await toTheIdentityStep();
+    await fireEvent(screen.getByLabelText('The owner lives in India'), 'valueChange', false);
+
+    await next();
+    expect(screen.getByText(/Living abroad/)).toBeTruthy();
+
+    await fill(/Country of residence/i, 'AE');
+    await next();
+    await waitFor(() => expect(screen.getByLabelText('Property name')).toBeTruthy());
   });
 });

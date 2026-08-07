@@ -35,6 +35,7 @@ func (h *Handler) PortfolioRoutes(r *authz.Registrar) {
 type portfolioResponse struct {
 	GrantID       string   `json:"grant_id"`
 	OwnerOrgID    string   `json:"owner_org_id"`
+	OwnerPartyID  string   `json:"owner_party_id,omitempty"`
 	OwnerName     string   `json:"owner_name"`
 	Permissions   []string `json:"permissions"`
 	Since         string   `json:"since"`
@@ -65,7 +66,8 @@ func (h *Handler) Portfolios(w http.ResponseWriter, r *http.Request) {
 	out := make([]portfolioResponse, 0, len(list))
 	for _, p := range list {
 		out = append(out, portfolioResponse{
-			GrantID: p.GrantID, OwnerOrgID: p.OwnerOrgID, OwnerName: p.OwnerName,
+			GrantID: p.GrantID, OwnerOrgID: p.OwnerOrgID, OwnerPartyID: p.OwnerPartyID,
+			OwnerName:   p.OwnerName,
 			Permissions: p.Permissions, Since: p.Since.Format(time.RFC3339),
 			PropertyCount: p.PropertyCount, SelfManaged: p.SelfManaged,
 		})
