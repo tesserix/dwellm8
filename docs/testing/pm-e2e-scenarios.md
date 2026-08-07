@@ -42,9 +42,11 @@ The owner-operator: their own flats, their own Cashfree account, no delegation.
 | A10a | Search for the registered office | Picking a match fills line, locality, city, state code and PIN | pass |
 | A10b | Search while the geocoder is down | "unavailable", and the fields stay typeable by hand | pass — #285 |
 | A11 | Add a property, "It's mine" | Property owned by the firm; `grant_id` empty on every later call | pass — property `KVH` minted under the firm, no grant |
-| A12 | Add units to that property | Units listed under the property, addressable in a tenancy | pass in the API; a unit let from a date ahead now says so — #304 |
+| A12 | Add units to that property | Units listed under the property, addressable in a tenancy | pass — a unit let from a date ahead says so in its pill (#304) and in its own row (#314); the three tiles partition the units (#311) |
 | A13 | Onboard a tenant into a unit | Tenancy live on unit 101; rent, deposit and dates as entered | pass — first tenancy activates through the tax gate, so `active` not `pending_signature` |
-| A14 | Today screen after the first tenancy | Rent roll and arrears real, not the demonstration figures | rent roll live; a tenancy that has not started is counted apart from the active ones — #305. The date and four tiles still demo — #291, #251 |
+| A14 | Today screen after the first tenancy | Rent roll and arrears real, not the demonstration figures | rent roll live; a tenancy that has not started is counted apart (#305) and named on the screen (#308); no sync queue is claimed (#309). The date and four tiles still demo — #291, #251 |
+| A17 | Collections with every tenancy square | Both tabs readable: arrears empty, the roster still carries the tenancy | pass — the roster tab reads its own endpoint (#313); before that it borrowed the arrears list and showed nothing |
+| A18 | Profile and portfolio switcher | Names the signed-in manager, states the mandate, offers a way out | pass — #315, #316. Log out is wired but deliberately not pressed: signing back in is the user's to do |
 | A15 | Connect the firm's own Cashfree account | Merchant recorded against this organisation only | refusals tested locally only — the live call opens a real merchant account with Cashfree, so it is the user's to run |
 | A16 | Record an offline rent payment | Ledger entry and receipt; arrears fall by the amount | pass live — ₹50,000 deposit receipted against the KVH tenancy before its term starts (#303), the retry returned the same payment, and the feed carries `money.payment.received` |
 
@@ -93,6 +95,6 @@ The nationwide firm: staff, roles, and property that belongs to somebody else.
 | E1 | Cold start with no network | The last known state, not a sign-in screen | |
 | E2 | Token expiring mid-request | Refreshed once, request retried once, no sign-out | |
 | E3 | Two devices signed into one account | Both see the same firm; neither sees the other's drafts | |
-| E4 | Sign out and back in | Every gate that was passed stays passed | |
-| E5 | An organisation with nothing in it | Empty states say what to do, not "0" | |
+| E4 | Sign out and back in | Every gate that was passed stays passed | blocked: signing back in means entering a password, which is the user's to do |
+| E5 | An organisation with nothing in it | Empty states say what to do, not "0" | pass — Collect (both tabs), Jobs (all three), Inspect and the switcher each name what fills them. #313 was this row failing on the roster tab |
 | E6 | A request the server refuses | The server's own words, at the field that caused it | |
