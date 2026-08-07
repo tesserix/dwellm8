@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { getActingGrant, setActingGrant } from '@dwellm8/mobile-shared';
 import Onboard from '../../app/onboard';
 
 // The once-over calls itself the look before it becomes the record, and the
@@ -225,5 +226,32 @@ describe('Onboard — an owner who has already furnished', () => {
     await fill(/^PAN —/, 'AQWPN4821K');
     await next();
     await waitFor(() => expect(screen.getByLabelText('Property name')).toBeTruthy());
+  });
+});
+
+// A new owner comes with a new mandate, and the app was still acting under the
+// previous one — so the property just created was legitimately outside the
+// scope the manager was returned to, with nothing on screen saying why (#321).
+describe('Onboard — where the manager lands afterwards', () => {
+  beforeEach(() => {
+    setActingGrant(null);
+    mockApi = {
+      opsPortfolios: async () => [],
+      searchAddresses: async () => [],
+      opsRecordTaxProfile: async () => ({}),
+      opsOnboardOwner: async () => ({
+        owner_party_id: 'party-9', owner_org_id: 'org-9',
+        grant_id: 'grant-9', created_organisation: true, unit_ids: ['u1'],
+      }),
+    };
+  });
+
+  it('acts under the mandate it just created', async () => {
+    await render(<Onboard />);
+    await walkToTheOnceOver();
+
+    await fireEvent.press(screen.getByLabelText('Make it real'));
+    await waitFor(() => expect(screen.getByText(/A brand-new portfolio/)).toBeTruthy());
+    expect(getActingGrant()).toBe('grant-9');
   });
 });

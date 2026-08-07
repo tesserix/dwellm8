@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   ActionBar, AddressLookup, BackHeader, Button, Card, ChoiceRow, Field, HouseArt, KeyValue,
   Screen, StatusPill, SwitchRow, Toast,
-  apiFromEnv, color, font, inr, radius, space,
+  apiFromEnv, color, font, inr, radius, setActingGrant, space,
   type AddressSuggestion,
 } from '@dwellm8/mobile-shared';
 import type { OpsPortfolio, OwnerOnboarded, TaxProfile } from '@dwellm8/mobile-shared';
@@ -15,6 +15,7 @@ import {
   taxProfileAction, taxProfileFrom, taxSummary, type IdentityDraft,
 } from '../src/data/identity';
 import { fileCopy, type Copy } from '../src/data/papers';
+import { refreshWorklists } from '../src/data/worklists';
 
 /**
  * Onboard an owner (#240) — one guided flow, five small questions.
@@ -247,6 +248,13 @@ export default function Onboard() {
         } catch {
           say('Onboarded — but a copy did not upload. Attach it from their profile.');
         }
+      }
+      // A new owner comes with a new mandate, and the app was still acting under
+      // the old one — so the property just created was outside the scope the
+      // manager was handed back to (#321).
+      if (out.grant_id) {
+        setActingGrant(out.grant_id);
+        refreshWorklists();
       }
       setDone(out);
     } catch (err) {
