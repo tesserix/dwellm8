@@ -15,6 +15,32 @@ import (
 // and a caller must choose that rather than receive it.
 var ErrNoTaxProfile = errors.New("identity: this party has no tax profile")
 
+// ErrNoOwnerOrg is a party who owns nothing. A tax profile belongs in the books
+// the rent is credited to, so there is nowhere to put one.
+var ErrNoOwnerOrg = errors.New("identity: this party owns no organisation")
+
+// OwnerOrgOf is OwnerParty read the other way: from the person to the books.
+// A tax profile is written under the owner's tenancy, never the firm's, however
+// broad the mandate the firm is asking under.
+func (s *Principals) OwnerOrgOf(ctx context.Context, party string) (string, error) {
+	var org string
+	err := tenancy.Platform(ctx, s.platform, "reading a party's owner organisation",
+		func(ctx context.Context, tx pgx.Tx) error {
+			err := tx.QueryRow(ctx, `
+				SELECT m.tenant_id::text
+				  FROM organisation_members m
+				 WHERE m.party_id = $1::uuid AND m.role = 'owner'
+				   AND m.validity @> current_date
+				 ORDER BY m.created_at
+				 LIMIT 1`, party).Scan(&org)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNoOwnerOrg
+			}
+			return err
+		})
+	return org, err
+}
+
 // TaxProfile is what a landlord has furnished for TDS purposes, as of a date.
 // Rule37BCFurnished is derived by the database from the particulars themselves.
 type TaxProfile struct {

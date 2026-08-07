@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/tesserix/dwellm8/services/api/internal/identity/store"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 )
 
 // Owners is the identity module's seam for manager-led owner onboarding and
@@ -64,4 +66,25 @@ func (o *Owners) ProfileByParty(ctx context.Context, partyID string) (Profile, e
 // UpdateProfileByParty fills in self-served PI. The phone never moves here.
 func (o *Owners) UpdateProfileByParty(ctx context.Context, partyID, displayName, email string) (Profile, error) {
 	return o.principals.UpdateProfileByParty(ctx, partyID, displayName, email)
+}
+
+// RecordTaxProfile writes what a landlord has furnished, into the books the
+// rent is credited to rather than the firm's — a mandate lets a manager record
+// this, it does not move whose income it is.
+func (o *Owners) RecordTaxProfile(ctx context.Context, partyID string, p store.TaxProfile) error {
+	org, err := o.principals.OwnerOrgOf(ctx, partyID)
+	if err != nil {
+		return err
+	}
+	return o.principals.SaveTaxProfile(ctx, tenancy.ID(org), partyID, p)
+}
+
+// TaxProfile reads what was furnished as of a date, which is not always what is
+// furnished now.
+func (o *Owners) TaxProfile(ctx context.Context, partyID string, on time.Time) (store.TaxProfile, error) {
+	org, err := o.principals.OwnerOrgOf(ctx, partyID)
+	if err != nil {
+		return store.TaxProfile{}, err
+	}
+	return o.principals.TaxProfile(ctx, tenancy.ID(org), partyID, on)
 }
