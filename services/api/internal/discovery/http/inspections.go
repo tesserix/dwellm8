@@ -59,6 +59,13 @@ type slotResponse struct {
 	AssignedTo   string `json:"assigned_to,omitempty"`
 	MeetingPoint string `json:"meeting_point,omitempty"`
 	State        string `json:"state,omitempty"`
+	// Owner only: how many people the manager would be turning away by moving
+	// or cancelling this one. A prospect sees places left, never the count.
+	Capacity int `json:"capacity,omitempty"`
+	Booked   int `json:"booked,omitempty"`
+	// The clock this viewing happens on, so the manager's phone shows the hour
+	// the person at the door will arrive rather than its own (#334).
+	Zone string `json:"zone,omitempty"`
 }
 
 func toSlot(s store.Slot, ownerView bool) slotResponse {
@@ -70,6 +77,9 @@ func toSlot(s store.Slot, ownerView bool) slotResponse {
 		out.AssignedTo = s.AssignedTo
 		out.MeetingPoint = s.MeetingPoint
 		out.State = s.State
+		out.Capacity = s.Capacity
+		out.Booked = s.Booked
+		out.Zone = s.Zone
 	}
 	return out
 }

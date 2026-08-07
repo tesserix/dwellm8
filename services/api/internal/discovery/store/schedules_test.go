@@ -60,6 +60,11 @@ func TestASeriesBecomesBookableSlots(t *testing.T) {
 		if s.StartsAt.In(time.UTC).Format("15:04") != "04:30" { // 10:00 IST
 			t.Errorf("slot at %s is not the series' local ten o'clock", s.StartsAt)
 		}
+		// The clock the viewing happens on. Without it the manager's phone
+		// renders the instant in whatever zone the manager is standing in (#334).
+		if s.Zone != "Asia/Kolkata" {
+			t.Errorf("slot %s came back in zone %q, want the series'", s.ID, s.Zone)
+		}
 	}
 }
 

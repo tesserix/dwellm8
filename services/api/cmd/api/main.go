@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -863,6 +864,15 @@ func run() error {
 		// local API reads the impersonated organisation's portfolio.
 		mux.Handle("/v1/owner/", resolver.Middleware(ownerMux))
 		mux.Handle("/v1/ops/", resolver.Middleware(opsSurface))
+		// The apps gate on /v1/me. With authentication off there is no principal
+		// to look one up by, so it answers the impersonated party — otherwise
+		// every app pointed at a local API sits on the "name your firm" screen.
+		mux.HandleFunc("GET /v1/me", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"party_id": "dev-impersonated", "display_name": "Dev impersonation",
+			})
+		})
 	}
 
 	tenantLimiter := httpx.NewLimiter(cfg.RateLimits.Tenant, nil)

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  AppHeader, AvatarButton, Card, Screen, ListRow, StatusPill, Metric, CalendarIcon,
+  AppHeader, AvatarButton, Button, Card, Screen, ListRow, StatusPill, Metric, CalendarIcon,
   color, font, space,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
@@ -49,7 +49,9 @@ export default function Inspect() {
                   tone={v.outcome ? 'green' : stateTone[v.state ?? 'open'] ?? 'neutral'}
                 />
               }
-              onPress={() => {}}
+              onPress={v.listing_id
+                ? () => router.push({ pathname: '/viewing-times', params: { id: v.listing_id! } })
+                : undefined}
               last={i === rows.length - 1}
             />
           ))}
@@ -60,6 +62,12 @@ export default function Inspect() {
             </Text>
           ) : null}
         </Card>
+
+        <Button
+          label="Set viewing times"
+          onPress={() => router.push('/viewings')}
+          style={{ marginHorizontal: space(4), marginTop: space(3) }}
+        />
       </Screen>
     </>
   );

@@ -52,6 +52,9 @@ type Slot struct {
 	// the approximate location becomes exact only then.
 	MeetingPoint string
 	State        string
+	// Zone is the clock the viewing happens on — the series', or the country's
+	// default where a slot was published on its own (#334).
+	Zone string
 }
 
 // SlotDraft is what the owner publishes.
@@ -506,7 +509,9 @@ func (s *Inspections) DayView(ctx context.Context, on time.Time) ([]Booked, erro
 
 const selectSlot = `
 	SELECT id::text, listing_id::text, starts_at, duration_mins, capacity, booked,
-	       coalesce(assigned_to, ''), coalesce(meeting_point, ''), state
+	       coalesce(assigned_to, ''), coalesce(meeting_point, ''), state,
+	       coalesce((SELECT sc.zone FROM inspection_schedules sc WHERE sc.id = schedule_id),
+	                'Asia/Kolkata')
 	  FROM inspection_slots`
 
 func scanSlots(rows pgx.Rows, out *[]Slot) error {
@@ -514,7 +519,8 @@ func scanSlots(rows pgx.Rows, out *[]Slot) error {
 	for rows.Next() {
 		var sl Slot
 		if err := rows.Scan(&sl.ID, &sl.ListingID, &sl.StartsAt, &sl.DurationMins,
-			&sl.Capacity, &sl.Booked, &sl.AssignedTo, &sl.MeetingPoint, &sl.State); err != nil {
+			&sl.Capacity, &sl.Booked, &sl.AssignedTo, &sl.MeetingPoint, &sl.State,
+			&sl.Zone); err != nil {
 			return err
 		}
 		*out = append(*out, sl)

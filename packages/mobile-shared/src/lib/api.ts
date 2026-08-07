@@ -188,10 +188,34 @@ export type OpsEnquiry = {
   message?: string; contact_masked?: string; scheduled_for?: string; created_at: string;
 };
 
+/** A listing this firm advertises (GET /v1/listings). */
+export type OpsListing = {
+  id: string; property_id: string; unit_id: string; state: string;
+  headline: string; locality: string; city: string;
+  rent_minor: number; published_at?: string; bedrooms?: number;
+};
+
+/** A recurring viewing time on a listing (#330). */
+export type ViewingSchedule = {
+  id: string; listing_id: string; weekdays: number[]; start_time: string; zone: string;
+  duration_mins: number; capacity: number; starts_on: string; ends_on?: string;
+  state: string; assigned_to?: string; meeting_point?: string;
+};
+
+export type ViewingScheduleInput = {
+  weekdays: number[]; start_time: string; zone?: string;
+  duration_mins?: number; capacity?: number;
+  assigned_to?: string; meeting_point?: string;
+  starts_on?: string; ends_on?: string;
+};
+
 export type OpsInspection = {
   id?: string; starts_at: string; duration_mins?: number; remaining?: number;
   assigned_to?: string; meeting_point?: string; state?: string;
   listing_id?: string; outcome?: string; note?: string;
+  capacity?: number; booked?: number;
+  /** The clock this viewing happens on, so a screen shows the property's hour. */
+  zone?: string;
 };
 
 /** One owner's books this firm manages (GET /v1/ops/portfolios). */
@@ -1170,6 +1194,47 @@ export class DwellmApi {
     const out = await this.request<{ inspections?: OpsInspection[] }>(
       'GET', `/v1/inspections${on ? `?on=${on}` : ''}`);
     return out.inspections ?? [];
+  }
+
+  /* --------------------------------------- viewing times (#330, #333) */
+
+  async opsListings(state?: string): Promise<OpsListing[]> {
+    const out = await this.request<{ listings?: OpsListing[] }>(
+      'GET', `/v1/listings${state ? `?state=${state}` : ''}`);
+    return out.listings ?? [];
+  }
+
+  async listingSchedules(listingId: string): Promise<ViewingSchedule[]> {
+    const out = await this.request<{ schedules?: ViewingSchedule[] }>(
+      'GET', `/v1/listings/${listingId}/schedules`);
+    return out.schedules ?? [];
+  }
+
+  async opsListingSlots(listingId: string): Promise<OpsInspection[]> {
+    const out = await this.request<{ slots?: OpsInspection[] }>(
+      'GET', `/v1/listings/${listingId}/slots`);
+    return out.slots ?? [];
+  }
+
+  createSchedule(listingId: string, d: ViewingScheduleInput): Promise<{ id: string }> {
+    return this.request('POST', `/v1/listings/${listingId}/schedules`, d);
+  }
+
+  /** Change a series from a date forward — the calendar's "this and all after it". */
+  amendSchedule(scheduleId: string, d: ViewingScheduleInput & { from: string }): Promise<{ id: string }> {
+    return this.request('PATCH', `/v1/schedules/${scheduleId}`, d);
+  }
+
+  endSeries(scheduleId: string, from?: string): Promise<void> {
+    return this.request('DELETE', `/v1/schedules/${scheduleId}${from ? `?from=${from}` : ''}`);
+  }
+
+  cancelSlot(slotId: string): Promise<void> {
+    return this.request('POST', `/v1/slots/${slotId}/cancel`, {});
+  }
+
+  moveSlot(slotId: string, startsAt: string): Promise<void> {
+    return this.request('POST', `/v1/slots/${slotId}/move`, { starts_at: startsAt });
   }
 
   /* ------------------------------------------ inventory registration (#32) */

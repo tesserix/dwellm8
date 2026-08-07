@@ -24,6 +24,8 @@ export default function RootLayout() {
               <Stack.Screen name="ticket" options={{ presentation: 'modal' }} />
               <Stack.Screen name="dispatch" options={{ presentation: 'modal' }} />
               <Stack.Screen name="inspection" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="viewings" />
+              <Stack.Screen name="viewing-times" />
               <Stack.Screen name="property" options={{ presentation: 'modal' }} />
               <Stack.Screen name="beds" />
               <Stack.Screen name="gate" />
