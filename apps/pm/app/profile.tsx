@@ -7,6 +7,7 @@ import {
   color, font, inr, space,
 } from '@dwellm8/mobile-shared';
 import { useAccount } from '../src/data/account';
+import { useSession } from '../src/auth/session';
 import { version } from '../package.json';
 
 const constitutionLabel: Record<string, string> = {
@@ -18,6 +19,7 @@ const constitutionLabel: Record<string, string> = {
 export default function Profile() {
   const router = useRouter();
   const me = useAccount();
+  const { signOut } = useSession();
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bgTop }}>
@@ -25,7 +27,11 @@ export default function Profile() {
         title="You"
         showCaret={false}
         left={<Pressable onPress={() => router.back()} hitSlop={10}><ChevronLeft size={28} w={2.4} /></Pressable>}
-        right={<Pressable hitSlop={10}><Text style={s.logout}>Log out</Text></Pressable>}
+        right={
+          <Pressable onPress={() => void signOut()} hitSlop={10}>
+            <Text style={s.logout}>Log out</Text>
+          </Pressable>
+        }
       />
       <ScrollView contentContainerStyle={{ paddingBottom: space(10) }}>
         <View style={s.hero}>

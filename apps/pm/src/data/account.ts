@@ -27,7 +27,13 @@ const empty: Account = {
 };
 
 function initialsOf(name: string): string {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+  return name.split(/[\s.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+}
+
+// Registration never asks for a display name, so most managers have none and
+// the profile read "Not signed in" above their own email address (#315).
+function nameOf(displayName: string, email: string): string {
+  return displayName || email.split('@')[0] || '';
 }
 
 export function useAccount(): Account {
@@ -43,11 +49,12 @@ export function useAccount(): Account {
       api.opsProperties().catch(() => []),
     ]).then(([me, reg, properties]) => {
       if (!alive) return;
-      const name = me?.display_name?.trim() ?? '';
+      const email = me?.email ?? '';
+      const name = nameOf(me?.display_name?.trim() ?? '', email);
       setState({
         loading: false,
         name, initials: initialsOf(name),
-        email: me?.email ?? '', phone: me?.phone ?? '',
+        email, phone: me?.phone ?? '',
         firmName: reg?.trade_name?.trim() || reg?.legal_name?.trim() || '',
         constitution: reg?.constitution ?? '',
         mayManage: reg?.may_manage ?? false,

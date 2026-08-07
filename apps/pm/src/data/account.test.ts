@@ -58,6 +58,17 @@ describe('useAccount', () => {
     expect(result.current.firmName).toBe('');
   });
 
+  // Registering does not ask for a display name, so most managers have none.
+  // The profile said "Not signed in" above their own email address (#315).
+  it('names a manager by their email when they gave no display name', async () => {
+    mockMe.mockResolvedValue({ party_id: 'p1', display_name: '', email: 'samyak.rout@gmail.com' });
+    const { result } = await renderHook(() => useAccount());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.name).toBe('samyak.rout');
+    expect(result.current.initials).toBe('SR');
+  });
+
   it('names nobody when the build has no API', async () => {
     delete process.env.EXPO_PUBLIC_API_URL;
     const { result } = await renderHook(() => useAccount());
