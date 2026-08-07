@@ -24,7 +24,7 @@ const constitutions: { value: string; label: string; hint: string }[] = [
 ];
 
 export default function Registration() {
-  const { session, refreshRegistration } = useSession();
+  const { session, refreshRegistration, signOut } = useSession();
   const [standing, setStanding] = useState<FirmRegistration | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -273,6 +273,13 @@ export default function Registration() {
         <Pressable onPress={() => void load()} hitSlop={10} style={{ marginTop: space(2) }}>
           <Text style={s.switch}>Refresh</Text>
         </Pressable>
+
+        {/* The longest step of onboarding, with no tab bar behind it: reached
+            under the wrong account there was no way out at all (#310). */}
+        <Text style={s.filedUnder}>Filing under {session?.email ?? 'this account'}</Text>
+        <Pressable onPress={() => void signOut()} hitSlop={10} style={{ marginTop: space(2) }}>
+          <Text style={s.switch}>Sign in as somebody else</Text>
+        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -286,6 +293,7 @@ const s = StyleSheet.create({
   ok: { ...font.small, color: color.inkSoft, marginBottom: space(3) },
   error: { ...font.small, color: color.negative, marginBottom: space(3) },
   switch: { ...font.label, color: color.accent, textAlign: 'center' },
+  filedUnder: { ...font.small, color: color.inkSoft, textAlign: 'center', marginTop: space(4) },
   filed: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space(3) },
   filedText: { ...font.body, color: color.inkStrong },
   doc: { marginBottom: space(4) },
