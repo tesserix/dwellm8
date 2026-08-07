@@ -52,7 +52,7 @@ export default function PropertyScreen() {
                 <ListRow
                   key={u.id}
                   title={u.code}
-                  subtitle={u.tenant ?? 'Vacant'}
+                  subtitle={stateOf(u)}
                   meta={metaFor(u)}
                   right={<StatusPill text={pillFor(u)} tone={u.lease_id ? 'green' : 'amber'} />}
                   last={i === units.length - 1}
@@ -76,9 +76,17 @@ function pillFor(u: OpsUnit): string {
   return u.lease_id ? 'Let' : 'Empty';
 }
 
+// Nobody lives here yet, but the flat is not on offer either — and the list is
+// where it would be offered from (#314).
+function stateOf(u: OpsUnit): string {
+  if (u.tenant) return u.tenant;
+  return u.let_from ? 'Taken, not yet moved in' : 'Vacant';
+}
+
 function metaFor(u: OpsUnit): string {
+  // The pill already carries the date; twice on one row reads as two dates.
   if (u.let_from) {
-    return `${inr(u.rent_amount_minor ?? 0, { noPaise: true })} · from ${u.let_from}`;
+    return `${inr(u.rent_amount_minor ?? 0, { noPaise: true })} · ${u.kind}`;
   }
   if (u.lease_id) {
     return `${inr(u.rent_amount_minor ?? 0, { noPaise: true })} · to ${u.lease_ends ?? '—'}`;
