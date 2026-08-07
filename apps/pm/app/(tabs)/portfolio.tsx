@@ -58,7 +58,7 @@ export default function Portfolio() {
           label="Onboard a new owner"
           icon={<PlusIcon size={19} c="#FFF" />}
           onPress={() => router.push('/onboard' as Href)}
-          style={{ marginHorizontal: space(4), marginTop: space(3) }}
+          style={{ marginHorizontal: space(4), marginBottom: space(3) }}
         />
 
         <SearchBar value={q} onChange={setQ} placeholder="Property, locality or city" />
@@ -92,6 +92,11 @@ export default function Portfolio() {
 }
 
 const s = StyleSheet.create({
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4) },
+  // One rhythm down the screen: every block is space(3) from the next, which
+  // is the gap Card and SearchBar already carry.
+  metrics: {
+    flexDirection: 'row', gap: 10,
+    marginHorizontal: space(4), marginTop: space(4), marginBottom: space(3),
+  },
   empty: { ...font.body, color: color.inkSoft, paddingVertical: space(6), textAlign: 'center' },
 });
