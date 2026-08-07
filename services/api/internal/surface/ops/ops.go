@@ -59,6 +59,7 @@ type Handler struct {
 	settlements *moneyservice.Settlements
 	payments    *moneyservice.Payments
 	listings    *discoveryservice.Listings
+	templates   *propertyservice.Templates
 
 	tds          *tds.Matrix
 	certificates *tdsstore.Certificates

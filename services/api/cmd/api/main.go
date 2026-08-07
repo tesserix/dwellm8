@@ -677,7 +677,8 @@ func run() error {
 		WithSettlements(moneyservice.NewSettlements(
 			moneystore.NewSettlements(pool), moneystore.NewMerchants(pool), providers)).
 		WithRegistrations(identityservice.NewRegistrations(principals)).
-		WithPayments(payments).WithBlob(blobStore).WithListings(listings)
+		WithPayments(payments).WithBlob(blobStore).WithListings(listings).
+		WithTemplates(propertyservice.NewTemplates(propertystore.NewTemplates(pool)))
 	if scanner, err := documentScanner(cfg.DocScanEngine, logger); err != nil {
 		return fmt.Errorf("document scanner: %w", err)
 	} else if scanner != nil {
@@ -707,6 +708,8 @@ func run() error {
 	// The copies behind it — a passport, a TRC, an owner abroad's
 	// self-attestation, #318.
 	opsHandler.PartyDocumentRoutes(authz.NewRegistrar(opsMux, guard))
+	// The agreements the firm issues, and its own revisions of them, #341.
+	opsHandler.TemplateRoutes(authz.NewRegistrar(opsMux, guard))
 	// Where the manager's own rent settles, #269. Provider-agnostic: the
 	// registry decides whether that is Cashfree or anyone else.
 	opsHandler.MerchantRoutes(authz.NewRegistrar(opsMux, guard))

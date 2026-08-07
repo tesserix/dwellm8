@@ -149,6 +149,25 @@ export type OpsUnitRecord = {
   ancillaries: { id: string; code: string; kind: string }[];
 };
 
+/** An instrument the firm issues (GET /v1/ops/document-templates, #341). The
+ * .docx is downloaded, signed on paper and uploaded back — no e-signing. */
+export type OpsDocumentTemplate = {
+  id: string;
+  kind: 'management_agreement' | 'onboarding_checklist' | 'rent_agreement'
+    | 'lease_deed' | 'power_of_attorney';
+  jurisdiction: string;
+  name: string;
+  version: number;
+  is_default: boolean;
+  filename: string;
+  content_type: string;
+  merge_fields: string[];
+  published_at?: string;
+  superseded_at?: string;
+  uploaded_by: string;
+  download_url?: string;
+};
+
 /** One live tenancy and what it owes today (GET /v1/ops/arrears). */
 export type OpsArrear = {
   lease_id: string;
@@ -1042,6 +1061,45 @@ export class DwellmApi {
       listing: out.listing,
       ancillaries: out.ancillaries ?? [],
     };
+  }
+
+  /** What the firm issues today — its own revisions resolved over the platform
+   * library. `history` adds the superseded versions a signed copy is read
+   * against (#341). */
+  async opsDocumentTemplates(opts: { kind?: string; history?: boolean } = {})
+    : Promise<OpsDocumentTemplate[]> {
+    const q = new URLSearchParams();
+    if (opts.kind) q.set('kind', opts.kind);
+    if (opts.history) q.set('history', 'true');
+    const suffix = q.toString() ? `?${q}` : '';
+    const out = await this.request<{ templates: OpsDocumentTemplate[] }>(
+      'GET', `/v1/ops/document-templates${suffix}`);
+    return out.templates ?? [];
+  }
+
+  /** One template, with a short-lived URL to download the .docx behind it. */
+  opsDocumentTemplate(id: string): Promise<OpsDocumentTemplate> {
+    return this.request('GET', `/v1/ops/document-templates/${encodeURIComponent(id)}`);
+  }
+
+  /** Where the firm's edited copy is PUT before it is published. */
+  opsTemplateUploadUrl(req: { filename: string; content_type: string })
+    : Promise<{ upload_url: string; object_path: string }> {
+    return this.request('POST', '/v1/ops/document-templates/upload-url', req);
+  }
+
+  /** Publishes the firm's own version, superseding what it issued before. A
+   * revision may add merge fields; dropping one the live template declares is
+   * refused, because the clause it fills would come out blank. */
+  opsReviseDocumentTemplate(req: {
+    kind: string;
+    name: string;
+    object_path: string;
+    filename: string;
+    content_type: string;
+    merge_fields: string[];
+  }): Promise<OpsDocumentTemplate> {
+    return this.request('POST', '/v1/ops/document-templates', req);
   }
 
   async opsArrears(): Promise<OpsArrear[]> {

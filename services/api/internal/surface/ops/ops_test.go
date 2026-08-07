@@ -71,12 +71,15 @@ func serveWithPool(t *testing.T) (*http.ServeMux, tenancy.PlatformPool) {
 	mux := http.NewServeMux()
 	listings := discoveryservice.NewListings(discoverystore.NewListings(pool),
 		discoverystore.NewPublic(pool), func() effective.Date { return effective.DateOf(time.Now(), time.UTC) }, log)
-	ops.New(
+	h := ops.New(
 		propertyservice.New(propertystore.New(pool)),
 		leaseservice.NewLeases(leasestore.New(pool), log),
 		moneyservice.NewStatements(moneystore.NewLedger(pool), payments, nil),
 		residents, nil, log, nil,
-	).WithListings(listings).Routes(authz.NewRegistrar(mux, &authz.Guard{}))
+	).WithListings(listings).
+		WithTemplates(propertyservice.NewTemplates(propertystore.NewTemplates(pool)))
+	h.Routes(authz.NewRegistrar(mux, &authz.Guard{}))
+	h.TemplateRoutes(authz.NewRegistrar(mux, &authz.Guard{}))
 	return mux, tenancy.NewPlatformPool(plat)
 }
 
