@@ -25,6 +25,9 @@ func New(p tenancy.Pool) *Properties { return &Properties{pool: p} }
 // reads the same to a caller and is meant to.
 var ErrNoProperty = errors.New("property: no such property")
 
+// ErrNoUnit is no such unit, on the same terms.
+var ErrNoUnit = errors.New("property: no such unit")
+
 const propertyColumns = `
 	p.id::text, p.code::text, p.name, p.kind,
 	p.address_line1, coalesce(p.address_line2, ''), p.locality, p.city, p.state_code, p.pin,
@@ -115,6 +118,60 @@ func (s *Properties) Units(ctx context.Context, propertyID string) ([]domain.Uni
 	})
 	if err != nil {
 		return nil, fmt.Errorf("property: listing units of %s: %w", propertyID, err)
+	}
+	return out, nil
+}
+
+// Unit reads one unit, ancillary or not: a parking slot is a unit a manager
+// may open, and refusing it here would make the flat's own allotment
+// unreadable.
+func (s *Properties) Unit(ctx context.Context, id string) (domain.Unit, error) {
+	var u domain.Unit
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `
+			SELECT id::text, property_id::text, code::text, unit_kind, coalesce(floor, 0), occupancy,
+			       coalesce(carpet_area_sqft, 0)::float8, coalesce(builtup_area_sqft, 0)::float8,
+			       coalesce(share_certificate_no, ''), coalesce(electricity_consumer_no, ''),
+			       coalesce(water_connection_no, '')
+			  FROM units
+			 WHERE id = $1::uuid AND state = 'active'`, id,
+		).Scan(&u.ID, &u.PropertyID, &u.Code, &u.Kind, &u.Floor, &u.Occupancy,
+			&u.CarpetSqf, &u.BuiltupSqf, &u.ShareCertificateNo, &u.ElectricityNo, &u.WaterNo)
+	})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return domain.Unit{}, ErrNoUnit
+	case err != nil:
+		return domain.Unit{}, fmt.Errorf("property: reading unit %s: %w", id, err)
+	}
+	return u, nil
+}
+
+// Ancillaries reads what is allotted to a unit — the parking slot, the store
+// room — which the property's unit list deliberately excludes.
+func (s *Properties) Ancillaries(ctx context.Context, unitID string) ([]domain.Unit, error) {
+	var out []domain.Unit
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT id::text, property_id::text, code::text, unit_kind, coalesce(floor, 0), occupancy
+			  FROM units
+			 WHERE parent_unit_id = $1::uuid AND state = 'active'
+			 ORDER BY code`, unitID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var u domain.Unit
+			if err := rows.Scan(&u.ID, &u.PropertyID, &u.Code, &u.Kind, &u.Floor, &u.Occupancy); err != nil {
+				return err
+			}
+			out = append(out, u)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, fmt.Errorf("property: listing what is allotted to %s: %w", unitID, err)
 	}
 	return out, nil
 }

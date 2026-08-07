@@ -677,7 +677,7 @@ func run() error {
 		WithSettlements(moneyservice.NewSettlements(
 			moneystore.NewSettlements(pool), moneystore.NewMerchants(pool), providers)).
 		WithRegistrations(identityservice.NewRegistrations(principals)).
-		WithPayments(payments).WithBlob(blobStore)
+		WithPayments(payments).WithBlob(blobStore).WithListings(listings)
 	if scanner, err := documentScanner(cfg.DocScanEngine, logger); err != nil {
 		return fmt.Errorf("document scanner: %w", err)
 	} else if scanner != nil {

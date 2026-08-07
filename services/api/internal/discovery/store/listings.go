@@ -111,6 +111,24 @@ func (s *Listings) Get(ctx context.Context, id string) (Listing, error) {
 	return l, err
 }
 
+// ForUnit reads the advert on a unit — the live or paused one, and failing
+// that the most recent of whatever else the unit has had. A withdrawn advert
+// still carries the bedroom count and the asking rent, which is more than the
+// register holds about the flat (#338).
+func (s *Listings) ForUnit(ctx context.Context, unitID string) (Listing, error) {
+	var l Listing
+	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
+		return scanListing(tx.QueryRow(ctx, selectListing+`
+			 WHERE unit_id = $1::uuid
+			 ORDER BY (state IN ('live', 'paused')) DESC, created_at DESC
+			 LIMIT 1`, unitID), &l)
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Listing{}, ErrNoListing
+	}
+	return l, err
+}
+
 // List reads the organisation's listings, newest first.
 func (s *Listings) List(ctx context.Context, state string) ([]Listing, error) {
 	var out []Listing

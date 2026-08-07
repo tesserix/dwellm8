@@ -23,12 +23,19 @@ type Property struct {
 }
 
 // Unit is one lettable space in a property, as the register holds it. What is
-// let, to whom and for how much is the lease module's answer, not this one's.
+// let, to whom and for how much is the lease module's answer, not this one's;
+// so is the bedroom count, which lives on the advert (#338).
 type Unit struct {
-	ID        string
-	Code      string
-	Kind      string
-	Floor     int
-	Occupancy string
-	CarpetSqf float64
+	ID         string
+	PropertyID string
+	Code       string
+	Kind       string
+	Floor      int
+	Occupancy  string
+	CarpetSqf  float64
+	// Set on a unit read one at a time; the list read leaves them empty.
+	BuiltupSqf         float64
+	ShareCertificateNo string
+	ElectricityNo      string
+	WaterNo            string
 }

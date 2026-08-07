@@ -21,6 +21,9 @@ type Unit = domain.Unit
 // forbids.
 var ErrNoProperty = store.ErrNoProperty
 
+// ErrNoUnit is re-exported for the same reason.
+var ErrNoUnit = store.ErrNoUnit
+
 // Properties is the module's service.
 type Properties struct{ store *store.Properties }
 
@@ -40,6 +43,16 @@ func (p *Properties) Get(ctx context.Context, id string) (Property, error) {
 // Units returns the property's lettable units.
 func (p *Properties) Units(ctx context.Context, id string) ([]Unit, error) {
 	return p.store.Units(ctx, id)
+}
+
+// Unit reads one unit of the register.
+func (p *Properties) Unit(ctx context.Context, id string) (Unit, error) {
+	return p.store.Unit(ctx, id)
+}
+
+// Ancillaries returns what is allotted to a unit — parking, storage.
+func (p *Properties) Ancillaries(ctx context.Context, unitID string) ([]Unit, error) {
+	return p.store.Ancillaries(ctx, unitID)
 }
 
 // TenantOf returns the organisation id that holds this property.

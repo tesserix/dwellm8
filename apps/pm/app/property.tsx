@@ -55,6 +55,7 @@ export default function PropertyScreen() {
                   subtitle={stateOf(u)}
                   meta={metaFor(u)}
                   right={<StatusPill text={pillFor(u)} tone={u.lease_id ? 'green' : 'amber'} />}
+                  onPress={() => router.push(`/unit?id=${u.id}`)}
                   last={i === units.length - 1}
                 />
               ))}

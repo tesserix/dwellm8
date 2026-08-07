@@ -22,6 +22,7 @@ import (
 	"time"
 
 	communityservice "github.com/tesserix/dwellm8/services/api/internal/community/service"
+	discoveryservice "github.com/tesserix/dwellm8/services/api/internal/discovery/service"
 	"github.com/tesserix/dwellm8/services/api/internal/identity/docscan"
 	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
@@ -57,6 +58,7 @@ type Handler struct {
 	merchants   *moneyservice.Merchants
 	settlements *moneyservice.Settlements
 	payments    *moneyservice.Payments
+	listings    *discoveryservice.Listings
 
 	tds          *tds.Matrix
 	certificates *tdsstore.Certificates
@@ -83,6 +85,8 @@ func (h *Handler) Routes(r *authz.Registrar) {
 		Relation: "can_view", Object: authz.Organisation()}, h.Properties)
 	r.Handle("GET /v1/ops/properties/{id}", authz.Check{
 		Relation: "can_view", Object: authz.Organisation()}, h.Property)
+	r.Handle("GET /v1/ops/units/{id}", authz.Check{
+		Relation: "can_view", Object: authz.Organisation()}, h.Unit)
 	r.Handle("GET /v1/ops/arrears", authz.Check{
 		Relation: "can_view", Object: authz.Organisation()}, h.Arrears)
 	r.Handle("GET /v1/ops/tenancies", authz.Check{

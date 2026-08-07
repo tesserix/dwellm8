@@ -100,6 +100,55 @@ export type OpsUnit = {
 /** A property and its units (GET /v1/ops/properties/{id}). */
 export type OpsPropertyRecord = { property: OpsProperty; units: OpsUnit[] };
 
+/** The flat itself, as the register holds it (GET /v1/ops/units/{id}, #338). */
+export type OpsUnitDetail = {
+  id: string;
+  code: string;
+  kind: string;
+  floor: number;
+  occupancy: string;
+  carpet_area_sqft?: number;
+  builtup_area_sqft?: number;
+  share_certificate_no?: string;
+  electricity_consumer_no?: string;
+  water_connection_no?: string;
+};
+
+/** Who is in the flat and on what terms; absent when nobody is. */
+export type OpsUnitTenancy = {
+  lease_id: string;
+  state: string;
+  tenant?: string;
+  phone?: string;
+  rent_amount_minor: number;
+  due_day?: number;
+  due_amount_minor: number;
+  starts?: string;
+  ends?: string;
+  let_from?: string;
+};
+
+/** The advert on the flat — where the bedroom count lives, the register having none. */
+export type OpsUnitListing = {
+  id: string;
+  state: string;
+  headline?: string;
+  bedrooms?: number;
+  rent_amount_minor: number;
+  deposit_amount_minor?: number;
+  carpet_area_sqft?: number;
+  available_from?: string;
+};
+
+/** One unit's whole record. */
+export type OpsUnitRecord = {
+  unit: OpsUnitDetail;
+  property: OpsProperty;
+  tenancy?: OpsUnitTenancy;
+  listing?: OpsUnitListing;
+  ancillaries: { id: string; code: string; kind: string }[];
+};
+
 /** One live tenancy and what it owes today (GET /v1/ops/arrears). */
 export type OpsArrear = {
   lease_id: string;
@@ -981,6 +1030,18 @@ export class DwellmApi {
     const out = await this.request<Partial<OpsPropertyRecord>>(
       'GET', `/v1/ops/properties/${encodeURIComponent(id)}`);
     return { property: out.property as OpsProperty, units: out.units ?? [] };
+  }
+
+  async opsUnit(id: string): Promise<OpsUnitRecord> {
+    const out = await this.request<Partial<OpsUnitRecord>>(
+      'GET', `/v1/ops/units/${encodeURIComponent(id)}`);
+    return {
+      unit: out.unit as OpsUnitDetail,
+      property: out.property as OpsProperty,
+      tenancy: out.tenancy,
+      listing: out.listing,
+      ancillaries: out.ancillaries ?? [],
+    };
   }
 
   async opsArrears(): Promise<OpsArrear[]> {

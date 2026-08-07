@@ -116,6 +116,12 @@ func (s *Listings) Get(ctx context.Context, id string) (store.Listing, error) {
 	return s.store.Get(ctx, id)
 }
 
+// ForUnit is the advert on one unit, for a surface reading the flat rather
+// than the advert (#338).
+func (s *Listings) ForUnit(ctx context.Context, unitID string) (store.Listing, error) {
+	return s.store.ForUnit(ctx, unitID)
+}
+
 // List is the owner's portfolio of adverts.
 func (s *Listings) List(ctx context.Context, state string) ([]store.Listing, error) {
 	return s.store.List(ctx, state)

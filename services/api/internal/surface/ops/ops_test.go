@@ -8,9 +8,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	discoveryservice "github.com/tesserix/dwellm8/services/api/internal/discovery/service"
+	discoverystore "github.com/tesserix/dwellm8/services/api/internal/discovery/store"
 	identityservice "github.com/tesserix/dwellm8/services/api/internal/identity/service"
 	identitystore "github.com/tesserix/dwellm8/services/api/internal/identity/store"
 	leaseservice "github.com/tesserix/dwellm8/services/api/internal/lease/service"
@@ -18,6 +21,7 @@ import (
 	moneyservice "github.com/tesserix/dwellm8/services/api/internal/money/service"
 	moneystore "github.com/tesserix/dwellm8/services/api/internal/money/store"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/authz"
+	"github.com/tesserix/dwellm8/services/api/internal/platform/effective"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy"
 	"github.com/tesserix/dwellm8/services/api/internal/platform/tenancy/isolationtest"
 	"github.com/tesserix/dwellm8/services/api/internal/surface/ops"
@@ -65,12 +69,14 @@ func serveWithPool(t *testing.T) (*http.ServeMux, tenancy.PlatformPool) {
 	residents := identityservice.NewResidents(identitystore.New(tenancy.NewPlatformPool(plat)), log)
 
 	mux := http.NewServeMux()
+	listings := discoveryservice.NewListings(discoverystore.NewListings(pool),
+		discoverystore.NewPublic(pool), func() effective.Date { return effective.DateOf(time.Now(), time.UTC) }, log)
 	ops.New(
 		propertyservice.New(propertystore.New(pool)),
 		leaseservice.NewLeases(leasestore.New(pool), log),
 		moneyservice.NewStatements(moneystore.NewLedger(pool), payments, nil),
 		residents, nil, log, nil,
-	).Routes(authz.NewRegistrar(mux, &authz.Guard{}))
+	).WithListings(listings).Routes(authz.NewRegistrar(mux, &authz.Guard{}))
 	return mux, tenancy.NewPlatformPool(plat)
 }
 
