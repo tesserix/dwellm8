@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useGlobalSearchParams, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { color, Shell } from '@dwellm8/mobile-shared';
@@ -53,11 +53,16 @@ function Guard({ children }: { children: React.ReactNode }) {
   const { session, identity, restoring, hasFirm, verified, registered } = useSession();
   const segments = useSegments();
   const router = useRouter();
+  const { revisit } = useGlobalSearchParams<{ revisit?: string }>();
 
   useEffect(() => {
     if (restoring || !identity) return;
     const at = segments[0];
-    const gate = at === 'signin' || at === 'verify' || at === 'firm' || at === 'registration';
+    // A registration opened deliberately is not the onboarding gate, so it is
+    // not bounced to the tabs — that is the only way back in to file a RERA
+    // registration taken up later (#359).
+    const gate = at === 'signin' || at === 'verify' || at === 'firm'
+      || (at === 'registration' && !revisit);
     if (!session) {
       if (at !== 'signin') router.replace('/signin');
       return;
@@ -74,7 +79,7 @@ function Guard({ children }: { children: React.ReactNode }) {
     } else if (hasFirm === true && registered !== false && gate) {
       router.replace('/(tabs)');
     }
-  }, [session, identity, restoring, hasFirm, verified, registered, segments, router]);
+  }, [session, identity, restoring, hasFirm, verified, registered, segments, router, revisit]);
 
   if (restoring) {
     return (

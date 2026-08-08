@@ -854,6 +854,8 @@ export type FirmRequirement = {
   label: string;
   why: string;
   expires?: boolean;
+  /** Held only if the firm does the work it covers — never chased for. */
+  optional?: boolean;
 };
 
 export type FirmAuthority = {

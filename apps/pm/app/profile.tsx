@@ -68,6 +68,7 @@ export default function Profile() {
 
         <Card padded={false} style={{ paddingHorizontal: space(4) }}>
           <ListRow left={<UsersIcon size={20} />} title="Switch portfolio" subtitle={me.firmName || 'Choose whose properties you are acting on'} onPress={() => router.push('/switcher')} />
+          <ListRow left={<DocIcon size={20} />} title="Firm registration" subtitle="PAN, TAN, registered office, and RERA if you take up broking" onPress={() => router.push('/registration?revisit=1')} />
           <ListRow left={<BellIcon size={20} />} title="Notifications" subtitle="SLA breaches, failed mandates, owner approvals" onPress={() => {}} />
           <ListRow left={<RefreshIcon size={20} />} title="Offline queue" subtitle="2 items waiting to sync" onPress={() => {}} />
           <ListRow left={<GlobeIcon size={20} />} title="Language" subtitle="English · हिन्दी available" onPress={() => {}} />

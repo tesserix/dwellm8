@@ -8,7 +8,9 @@ import Profile from '../../app/profile';
 
 const mockSignOut = jest.fn();
 
-jest.mock('expo-router', () => ({ useRouter: () => ({ back: jest.fn(), push: jest.fn() }) }));
+const mockPush = jest.fn();
+
+jest.mock('expo-router', () => ({ useRouter: () => ({ back: jest.fn(), push: mockPush }) }));
 
 jest.mock('../auth/session', () => ({
   useSession: () => ({ session: { email: 'samyak.rout@gmail.com' }, signOut: mockSignOut }),
@@ -23,7 +25,10 @@ jest.mock('../data/account', () => ({
 }));
 
 describe('Profile', () => {
-  beforeEach(() => mockSignOut.mockReset());
+  beforeEach(() => {
+    mockSignOut.mockReset();
+    mockPush.mockReset();
+  });
 
   it('does not call a signed-in manager signed out', async () => {
     const { queryByText, getByText } = await render(<Profile />);
@@ -44,5 +49,15 @@ describe('Profile', () => {
 
     fireEvent.press(getByText('Log out'));
     expect(mockSignOut).toHaveBeenCalled();
+  });
+
+  // Onboarding files the registration once and the gate then sealed the screen
+  // off; a manager who later takes up broking needs it back to file a RERA
+  // certificate they did not need on day one (#359).
+  it('opens the registration again, marked as a revisit', async () => {
+    const { getByText } = await render(<Profile />);
+
+    fireEvent.press(getByText('Firm registration'));
+    expect(mockPush).toHaveBeenCalledWith('/registration?revisit=1');
   });
 });

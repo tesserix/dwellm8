@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  AddressLookup, ApiError, Button, Card, ChoiceRow, Field, SectionTitle, StatusPill,
+  AddressLookup, ApiError, Button, Card, ChevronLeft, ChoiceRow, Field, SectionTitle, StatusPill,
   apiFromEnv, color, font, space,
   type AddressSuggestion, type FirmRegistration,
 } from '@dwellm8/mobile-shared';
@@ -9,9 +10,13 @@ import { useSession } from '../src/auth/session';
 
 /**
  * What a managing firm must hold before it may take somebody else's property
- * on: the constitution's own PAN, a registered office, and a RERA s.9 agent
- * registration per state (#282). The server owns the checklist — this screen
- * renders whatever it is told is outstanding rather than restating the rules.
+ * on: the constitution's own PAN and a registered office (#282). The server owns
+ * the checklist — this screen renders whatever it is told is outstanding rather
+ * than restating the rules.
+ *
+ * Reachable again after onboarding, because a manager who later takes up broking
+ * needs somewhere to file the RERA registration they did not need on day one
+ * (#359).
  */
 
 const constitutions: { value: string; label: string; hint: string }[] = [
@@ -25,6 +30,8 @@ const constitutions: { value: string; label: string; hint: string }[] = [
 
 export default function Registration() {
   const { session, refreshRegistration, signOut } = useSession();
+  const router = useRouter();
+  const { revisit } = useLocalSearchParams<{ revisit?: string }>();
   const [standing, setStanding] = useState<FirmRegistration | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -152,6 +159,12 @@ export default function Registration() {
     >
       <ScrollView contentContainerStyle={{ paddingTop: space(12), paddingBottom: space(16) }}>
         <View style={s.hero}>
+          {revisit ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Back"
+              onPress={() => router.back()} hitSlop={10} style={{ marginBottom: space(3) }}>
+              <ChevronLeft size={28} w={2.4} />
+            </Pressable>
+          ) : null}
           <Text style={s.wordmark}>Your firm’s registration</Text>
           <Text style={s.sub}>
             Managing another person’s property for a fee is agency work. These are
@@ -231,8 +244,10 @@ export default function Registration() {
         <Card>
           <SectionTitle>RERA agent registration</SectionTitle>
           <Text style={s.note}>
-            Section 9 registration is per state and expires. File one for every
-            state you take property in.
+            Optional. Section 9 registers an agent who brokers the sale or purchase
+            of property in a registered project — letting, collecting rent and
+            managing do not need it. File one per state if you take that work on,
+            now or later; it expires, so the dates are asked for.
           </Text>
           {(standing?.authorities ?? []).map((a) => (
             <View key={a.id} style={s.filed}>

@@ -118,8 +118,9 @@ type registrationBody struct {
 		ValidTo   string `json:"valid_to"`
 	} `json:"authorities"`
 	Required []struct {
-		Kind    string `json:"kind"`
-		Subject string `json:"subject"`
+		Kind     string `json:"kind"`
+		Subject  string `json:"subject"`
+		Optional bool   `json:"optional"`
 	} `json:"required"`
 	Outstanding []struct {
 		Kind string `json:"kind"`
@@ -141,9 +142,27 @@ func TestAFirmWithNothingFiledIsToldEverythingItNeeds(t *testing.T) {
 	if out.State != "draft" {
 		t.Errorf("a firm that has filed nothing is a draft, got %q", out.State)
 	}
-	if len(out.Required) == 0 || len(out.Outstanding) != len(out.Required) {
-		t.Fatalf("holding nothing, every requirement is outstanding: %d of %d",
-			len(out.Outstanding), len(out.Required))
+	// Everything it must hold is outstanding; RERA, which it need not hold at
+	// all until it takes up broking, is offered rather than chased (#359).
+	must, offered := 0, 0
+	for _, r := range out.Required {
+		if r.Optional {
+			offered++
+		} else {
+			must++
+		}
+	}
+	if must == 0 || offered == 0 {
+		t.Fatalf("want both required and optional lines, got %d and %d", must, offered)
+	}
+	if len(out.Outstanding) != must {
+		t.Fatalf("holding nothing, every required document is outstanding: %d of %d",
+			len(out.Outstanding), must)
+	}
+	for _, o := range out.Outstanding {
+		if o.Kind == "rera_certificate" {
+			t.Error("a letting manager is not chased for a s.9 certificate")
+		}
 	}
 	if out.MayManage {
 		t.Error("a firm holding no registration may not take a mandate")

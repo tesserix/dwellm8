@@ -77,6 +77,10 @@ type Requirement struct {
 	Why     string
 	// Expires marks the kinds that lapse, so the screen asks for a date.
 	Expires bool
+	// Optional is a document the firm may hold rather than must. It is never
+	// outstanding unasked — but once filed it is held to the same rules, because
+	// a lapsed certificate on file reads as a valid one to everybody but us.
+	Optional bool
 }
 
 // Held is what we already have of one kind.
@@ -137,8 +141,9 @@ func common(panSubject Subject, panLabel, panWhy string) []Requirement {
 			Why: "A recent utility bill, the rent agreement or the property tax receipt for the office. Correspondence under the Act goes to this address."},
 		{Kind: BankProof, Subject: OfTheFirm, Label: "Cancelled cheque or bank statement",
 			Why: "Collections settle into this account, and the aggregator will not settle to an account it has not seen named."},
-		{Kind: RERACertificate, Subject: OfTheFirm, Label: "RERA agent registration certificate", Expires: true,
-			Why: "s.9 of the RERA Act 2016. Facilitating a letting for another person without it is an offence, and one certificate is needed per state you work in."},
+		{Kind: RERACertificate, Subject: OfTheFirm, Label: "RERA agent registration certificate",
+			Expires: true, Optional: true,
+			Why: "Only if you also broker sale or purchase in a registered project — that is what s.9 of the RERA Act 2016 registers. Letting, collecting rent and managing do not need it. One certificate per state you broker in."},
 	}
 }
 
@@ -212,9 +217,10 @@ func RequiredDocuments(of Constitution) []Requirement {
 func RequiredFields(of Constitution) []Field {
 	// TAN is universal here and not merely for the large: a manager collecting
 	// rent for an owner deducts TDS under s.194-I, and cannot deduct without one.
+	// RERA is not here: s.9 registers brokering a sale, not letting (#359).
 	fields := []Field{
 		FieldLegalName, FieldConstitution, FieldPAN, FieldTAN,
-		FieldRegisteredOffice, FieldContact, FieldRERANumber,
+		FieldRegisteredOffice, FieldContact,
 	}
 	switch of {
 	case LLP, Company:
@@ -229,6 +235,11 @@ func Outstanding(of Constitution, held map[Kind]Held, on time.Time) []Requiremen
 	var missing []Requirement
 	for _, r := range RequiredDocuments(of) {
 		h, ok := held[r.Kind]
+		// A firm that never claimed an optional registration is not missing it.
+		// One that did is held to it, expiry and all (#359).
+		if r.Optional && !ok {
+			continue
+		}
 		if !ok || !h.Accepted {
 			missing = append(missing, r)
 			continue

@@ -31,32 +31,32 @@ func TestRequiredDocuments(t *testing.T) {
 		{
 			name:        "a sole manager produces their own identity and a licence",
 			of:          Proprietorship,
-			wants:       []Kind{PANCard, AddressProof, BankProof, Photograph, RERACertificate},
+			wants:       []Kind{PANCard, AddressProof, BankProof, Photograph},
 			wantsNot:    []Kind{BoardResolution, MOAAOA, PartnershipDeed, LLPAgreement},
 			wantMinimum: 5,
 		},
 		{
 			name:     "a partnership produces the firm's PAN and the deed behind it",
 			of:       Partnership,
-			wants:    []Kind{PANCard, PartnershipDeed, AuthorityLetter, RERACertificate, BankProof},
+			wants:    []Kind{PANCard, PartnershipDeed, AuthorityLetter, BankProof},
 			wantsNot: []Kind{MOAAOA, LLPAgreement, BoardResolution},
 		},
 		{
 			name:     "an LLP produces its incorporation and its agreement",
 			of:       LLP,
-			wants:    []Kind{PANCard, IncorporationCertificate, LLPAgreement, RERACertificate},
+			wants:    []Kind{PANCard, IncorporationCertificate, LLPAgreement},
 			wantsNot: []Kind{PartnershipDeed, MOAAOA},
 		},
 		{
 			name:     "a company produces incorporation, constitution and the resolution naming its signatory",
 			of:       Company,
-			wants:    []Kind{PANCard, IncorporationCertificate, MOAAOA, BoardResolution, SignatoryID, RERACertificate},
+			wants:    []Kind{PANCard, IncorporationCertificate, MOAAOA, BoardResolution, SignatoryID},
 			wantsNot: []Kind{PartnershipDeed, LLPAgreement},
 		},
 		{
 			name:     "a trust produces its deed and its registration",
 			of:       Trust,
-			wants:    []Kind{PANCard, TrustDeed, RegistrationCertificate, RERACertificate},
+			wants:    []Kind{PANCard, TrustDeed, RegistrationCertificate},
 			wantsNot: []Kind{MOAAOA, PartnershipDeed},
 		},
 	}
@@ -127,6 +127,55 @@ func TestRequiredFields(t *testing.T) {
 	}
 }
 
+// s.9 registers an agent who facilitates the sale or purchase of a plot,
+// apartment or building in a registered project. Letting is not that, so a
+// manager who only finds tenants and collects rent is asked for a certificate
+// no authority would issue them (#359).
+func TestRERAIsNotDemandedOfALettingManager(t *testing.T) {
+	t.Parallel()
+
+	on := time.Date(2026, 8, 8, 0, 0, 0, 0, time.UTC)
+	for _, c := range Constitutions() {
+		if hasField(RequiredFields(c), FieldRERANumber) {
+			t.Errorf("%s cannot be made to type a registration number it need not hold", c)
+		}
+		for _, r := range RequiredDocuments(c) {
+			if r.Kind == RERACertificate && !r.Optional {
+				t.Errorf("%s lets and manages rather than brokers — s.9 does not reach it", c)
+			}
+		}
+		// A firm holding nothing at all is still not chased for one.
+		for _, r := range Outstanding(c, map[Kind]Held{}, on) {
+			if r.Kind == RERACertificate {
+				t.Errorf("%s is asked for a certificate no authority would issue it", c)
+			}
+		}
+	}
+}
+
+// The manager who later takes up broking says so, and from then on it is a
+// registration like any other — including when it lapses (#359).
+func TestAnOfferedRERARegistrationIsThenHeldToItsDates(t *testing.T) {
+	t.Parallel()
+
+	on := time.Date(2026, 8, 8, 0, 0, 0, 0, time.UTC)
+	held := map[Kind]Held{}
+	for _, r := range RequiredDocuments(Proprietorship) {
+		if !r.Optional {
+			held[r.Kind] = Held{Accepted: true}
+		}
+	}
+	if got := Outstanding(Proprietorship, held, on); len(got) != 0 {
+		t.Fatalf("a letting manager is complete without RERA, got %v", got)
+	}
+
+	held[RERACertificate] = Held{Accepted: true, ExpiresOn: on.AddDate(0, 0, -1)}
+	got := Outstanding(Proprietorship, held, on)
+	if len(got) != 1 || got[0].Kind != RERACertificate {
+		t.Fatalf("a lapsed registration on file is outstanding, got %v", got)
+	}
+}
+
 func hasField(fs []Field, want Field) bool {
 	for _, f := range fs {
 		if f == want {
@@ -150,17 +199,17 @@ func TestReadinessRefusesUntilTheChecklistIsMet(t *testing.T) {
 		t.Fatalf("a complete checklist has nothing outstanding, got %v", missing)
 	}
 
-	// An expired RERA certificate is not a held certificate. A firm whose
-	// registration lapsed is unregistered under s.9, whatever it uploaded in 2023.
-	held[RERACertificate] = Held{Accepted: true, ExpiresOn: on.AddDate(0, 0, -1)}
+	// An expired licence is not a held licence. A firm whose state registration
+	// lapsed is unlicensed, whatever it uploaded in 2023.
+	held[ShopsEstablishments] = Held{Accepted: true, ExpiresOn: on.AddDate(0, 0, -1)}
 	missing = Outstanding(Proprietorship, held, on)
-	if len(missing) != 1 || missing[0].Kind != RERACertificate {
-		t.Fatalf("an expired certificate is outstanding, got %v", missing)
+	if len(missing) != 1 || missing[0].Kind != ShopsEstablishments {
+		t.Fatalf("an expired licence is outstanding, got %v", missing)
 	}
 
 	// Uploaded is not accepted: a document nobody has looked at cannot make a
 	// firm active.
-	held[RERACertificate] = Held{Accepted: false}
+	held[ShopsEstablishments] = Held{Accepted: false}
 	if len(Outstanding(Proprietorship, held, on)) != 1 {
 		t.Fatal("an unreviewed document is still outstanding")
 	}
@@ -170,9 +219,15 @@ func TestOutstandingReportsEverythingMissingAtOnce(t *testing.T) {
 	t.Parallel()
 	// One round trip per missing document is how an onboarding takes a week.
 	on := time.Now()
+	want := 0
+	for _, r := range RequiredDocuments(Company) {
+		if !r.Optional {
+			want++
+		}
+	}
 	missing := Outstanding(Company, map[Kind]Held{}, on)
-	if len(missing) != len(RequiredDocuments(Company)) {
-		t.Fatalf("got %d outstanding, want all %d", len(missing), len(RequiredDocuments(Company)))
+	if len(missing) != want {
+		t.Fatalf("got %d outstanding, want all %d", len(missing), want)
 	}
 }
 

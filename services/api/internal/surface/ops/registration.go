@@ -35,11 +35,12 @@ func (h *Handler) RegistrationRoutes(r *authz.Registrar) {
 }
 
 type requirementResponse struct {
-	Kind    string `json:"kind"`
-	Subject string `json:"subject"`
-	Label   string `json:"label"`
-	Why     string `json:"why"`
-	Expires bool   `json:"expires,omitempty"`
+	Kind     string `json:"kind"`
+	Subject  string `json:"subject"`
+	Label    string `json:"label"`
+	Why      string `json:"why"`
+	Expires  bool   `json:"expires,omitempty"`
+	Optional bool   `json:"optional,omitempty"`
 }
 
 type authorityResponse struct {
@@ -118,12 +119,12 @@ func (h *Handler) Registration(w http.ResponseWriter, r *http.Request) {
 	for _, req := range standing.Required {
 		out.Required = append(out.Required, requirementResponse{
 			Kind: string(req.Kind), Subject: string(req.Subject),
-			Label: req.Label, Why: req.Why, Expires: req.Expires})
+			Label: req.Label, Why: req.Why, Expires: req.Expires, Optional: req.Optional})
 	}
 	for _, req := range standing.Outstanding {
 		out.Outstanding = append(out.Outstanding, requirementResponse{
 			Kind: string(req.Kind), Subject: string(req.Subject),
-			Label: req.Label, Why: req.Why, Expires: req.Expires})
+			Label: req.Label, Why: req.Why, Expires: req.Expires, Optional: req.Optional})
 	}
 	for _, f := range standing.Fields {
 		out.Fields = append(out.Fields, string(f))
