@@ -13,7 +13,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.dwellm8.pm"
+      "bundleIdentifier": "app.dwellm8.pm",
+      "entitlements": {
+        "keychain-access-groups": ["$(AppIdentifierPrefix)app.dwellm8.pm"]
+      }
     },
     "android": {
       "package": "app.dwellm8.pm"

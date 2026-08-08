@@ -64,6 +64,23 @@ export class Identity {
     return this.password('signUp', email, password);
   }
 
+  /** resetPassword asks GIP to email a reset link. An address with no account
+   * is not reported back: answering that question would let anyone test whether
+   * a manager banks here. */
+  async resetPassword(email: string): Promise<void> {
+    const res = await fetch(`${identityToolkit}:sendOobCode?key=${this.cfg.apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestType: 'PASSWORD_RESET', email, tenantId: this.cfg.tenantId,
+      }),
+    });
+    if (res.ok) return;
+    const err = refusal(parse(await res.text()));
+    if (err.reason === 'EMAIL_NOT_FOUND') return;
+    throw err;
+  }
+
   /** refresh trades a refresh token for a fresh id token. The refresh token
    * outlives the id token by design — that is the whole point of it. */
   async refresh(refreshToken: string): Promise<Session> {

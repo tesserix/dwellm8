@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import {
-  apiFromEnv, Identity, identityFromEnv, setTokenSource, type Session,
+  apiFromEnv, Identity, identityFromEnv, useAuthSession,
+  type Session, type SessionStorage,
 } from '@dwellm8/mobile-shared';
 
 /**
@@ -14,8 +15,14 @@ import {
  */
 
 const key = 'dwellm8.pm.session';
-// A token about to expire is a token that will expire mid-request.
-const skew = 60_000;
+
+// The keychain, as the shared session wants it. On this surface a manager's
+// token belongs behind the device passcode, not in a web store.
+const keychain: SessionStorage = {
+  get: (k) => SecureStore.getItemAsync(k),
+  set: (k, v) => SecureStore.setItemAsync(k, v),
+  remove: (k) => SecureStore.deleteItemAsync(k),
+};
 
 // Remembered per sign-in, because verification is a fact about the address and
 // never comes undone: a manager who proved it on this device must not be sent
@@ -43,6 +50,8 @@ type SessionState = {
   refreshRegistration: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<Session>;
   signUp: (email: string, password: string) => Promise<Session>;
+  /** Emails a reset link. Resolves whether or not the address has an account. */
+  resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -50,45 +59,9 @@ const Ctx = createContext<SessionState | null>(null);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const identity = useMemo(() => identityFromEnv(), []);
-  const [session, setSession] = useState<Session | null>(null);
-  const [restoring, setRestoring] = useState(true);
-
-  const remember = useCallback(async (s: Session | null) => {
-    setSession(s);
-    if (s) await SecureStore.setItemAsync(key, JSON.stringify(s));
-    else await SecureStore.deleteItemAsync(key);
-  }, []);
-
-  useEffect(() => {
-    let live = true;
-    (async () => {
-      try {
-        const raw = await SecureStore.getItemAsync(key);
-        if (live && raw) setSession(JSON.parse(raw) as Session);
-      } finally {
-        if (live) setRestoring(false);
-      }
-    })();
-    return () => { live = false; };
-  }, []);
-
-  // The client asks for a token per request; this is where it comes from.
-  useEffect(() => {
-    if (!identity) return;
-    setTokenSource(async () => {
-      if (!session) return null;
-      if (session.expiresAt - skew > Date.now()) return session.idToken;
-      try {
-        const fresh = await identity.refresh(session.refreshToken);
-        await remember(fresh);
-        return fresh.idToken;
-      } catch {
-        await remember(null);
-        return null;
-      }
-    });
-    return () => setTokenSource(null);
-  }, [identity, session, remember]);
+  const { session, restoring, signIn, signUp, signOut, resetPassword } = useAuthSession({
+    identity, storage: keychain, key,
+  });
 
   const [hasFirm, setHasFirm] = useState<boolean | null>(null);
 
@@ -162,26 +135,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     refreshVerification,
     registered,
     refreshRegistration,
-    signIn: async (email, password) => {
-      if (!identity) throw new Error('This build has no sign-in configured');
-      const s = await identity.signIn(email.trim(), password);
-      await remember(s);
-      return s;
-    },
-    signUp: async (email, password) => {
-      if (!identity) throw new Error('This build has no sign-in configured');
-      const s = await identity.signUp(email.trim(), password);
-      await remember(s);
-      return s;
-    },
+    signIn,
+    signUp,
+    resetPassword,
     signOut: async () => {
       setHasFirm(null);
       setVerified(null);
       setRegistered(null);
-      await remember(null);
+      await signOut();
     },
   }), [identity, session, restoring, hasFirm, refreshFirm, verified, refreshVerification,
-    registered, refreshRegistration, remember]);
+    registered, refreshRegistration, signIn, signUp, signOut, resetPassword]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

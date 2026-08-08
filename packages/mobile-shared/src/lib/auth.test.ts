@@ -83,6 +83,33 @@ describe('Identity', () => {
       .rejects.toThrow('Requests from referer <empty> are blocked.');
   });
 
+  it('sends a reset link against the surface tenant', async () => {
+    const fetchMock = reply({ email: 'ritika@example.test' });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await new Identity(config).resetPassword('ritika@example.test');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=key-1');
+    expect(JSON.parse(init.body)).toEqual({
+      requestType: 'PASSWORD_RESET', email: 'ritika@example.test',
+      tenantId: 'dwellm8-ops-r8klu',
+    });
+  });
+
+  it('does not say whether an address has an account', async () => {
+    global.fetch = reply({ error: { message: 'EMAIL_NOT_FOUND' } }, 400) as unknown as typeof fetch;
+
+    await expect(new Identity(config).resetPassword('nobody@example.test')).resolves.toBeUndefined();
+  });
+
+  it('still refuses a reset the provider would not accept', async () => {
+    global.fetch = reply({ error: { message: 'INVALID_EMAIL' } }, 400) as unknown as typeof fetch;
+
+    await expect(new Identity(config).resetPassword('not-an-address'))
+      .rejects.toThrow('That does not look like an email address');
+  });
+
   it('exchanges a refresh token for a fresh session', async () => {
     const fetchMock = reply({
       id_token: 'id-2', refresh_token: 'refresh-2', expires_in: '3600', user_id: 'uid-1',

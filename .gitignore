@@ -17,3 +17,7 @@ k8s/secrets.yaml
 # `trap ... EXIT` replaced the previous one, so only the last cleanup fired. Ignoring the
 # pattern means the mistake cannot reach a commit again.
 services/api/**/planted_*.go
+
+# Expo CNG regenerates the native projects from app.json; they are build output.
+apps/*/ios/
+apps/*/android/
