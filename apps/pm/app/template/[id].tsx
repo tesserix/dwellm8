@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { WebView } from 'react-native-webview';
@@ -18,8 +18,10 @@ export default function TemplateScreen() {
   const goBack = useBack('/agreements');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { loading, error, preview, fileUri, linkMinutes, share, reload } = useTemplatePreview(id ?? '');
+  const [unrenderable, setUnrenderable] = useState(false);
   // Android's system WebView cannot render a PDF, so there it opens in a reader.
-  const page = Platform.OS === 'android' ? undefined : fileUri ?? preview?.download_url;
+  const inWebView = Platform.OS !== 'android' && !unrenderable;
+  const page = inWebView ? fileUri ?? preview?.download_url : undefined;
 
   return (
     <>
@@ -39,6 +41,8 @@ export default function TemplateScreen() {
               javaScriptEnabled={false}
               style={s.pdf}
               startInLoadingState
+              onError={() => setUnrenderable(true)}
+              onHttpError={() => setUnrenderable(true)}
               renderLoading={() => <View style={s.waiting}><ActivityIndicator /></View>}
             />
           </Card>
@@ -46,7 +50,16 @@ export default function TemplateScreen() {
 
         {preview ? (
           <>
-            {page ? null : <Button label="Open the preview" tone="secondary" onPress={share} />}
+            {page ? null : (
+              <>
+                {unrenderable ? (
+                  <Text style={s.note}>
+                    This one could not be shown here. Open it in a reader instead.
+                  </Text>
+                ) : null}
+                <Button label="Open the preview" tone="secondary" onPress={share} />
+              </>
+            )}
             <Button label="Send it to be signed" onPress={share} />
             <Card>
               <Text style={s.note}>

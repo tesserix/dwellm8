@@ -111,6 +111,18 @@ it('opens the PDF in a reader on Android rather than showing a blank card', asyn
   expect(mockShare).toHaveBeenCalled();
 });
 
+// A spinner that never stops tells a manager nothing. If the page will not
+// render, say so and leave the reader button, which always works.
+it('says so when the page will not render, rather than spinning forever', async () => {
+  await render(<TemplateScreen />);
+  await fireEvent(screen.getByTestId('pdf'), 'error');
+
+  expect(screen.queryByTestId('pdf')).toBeNull();
+  expect(screen.getByText(/could not be shown here/i)).toBeTruthy();
+  await fireEvent.press(screen.getByText('Open the preview'));
+  expect(mockShare).toHaveBeenCalled();
+});
+
 it('offers a retry when the preview will not print', async () => {
   const reload = jest.fn();
   mockPreview.mockReturnValue({
