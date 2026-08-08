@@ -21,6 +21,8 @@ export type Board = {
   vacant: number;
   onNotice: number;
   allocate: (bedId: string, state: OpsBedState, leaseId?: string) => Promise<void>;
+  /** Put a bed in a room, which is how a new PG's board gets its first (#367). */
+  add: (unitId: string, label: string, rentAmountMinor: number) => Promise<void>;
   reload: () => void;
 };
 
@@ -67,6 +69,13 @@ export function useBeds(propertyId: string): Board {
     setAttempt((n) => n + 1);
   }, [api]);
 
+  const add = useCallback(async (unitId: string, label: string, rentAmountMinor: number) => {
+    if (!label.trim()) throw new Error('A bed needs a label — it is what the warden allocates by.');
+    if (!api) throw new Error('The API is not configured on this build.');
+    await api.opsAddBed(unitId, label.trim(), rentAmountMinor);
+    setAttempt((n) => n + 1);
+  }, [api]);
+
   return {
     loading,
     error,
@@ -76,6 +85,7 @@ export function useBeds(propertyId: string): Board {
     vacant: beds.filter((b) => b.state === 'vacant').length,
     onNotice: beds.filter((b) => b.state === 'notice').length,
     allocate,
+    add,
     reload,
   };
 }

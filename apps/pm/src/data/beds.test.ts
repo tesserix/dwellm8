@@ -6,10 +6,11 @@ import { useBeds } from './beds';
 
 const mockBeds = jest.fn();
 const mockAllocate = jest.fn();
+const mockAddBed = jest.fn();
 
 jest.mock('@dwellm8/mobile-shared', () => ({
   ...jest.requireActual('@dwellm8/mobile-shared'),
-  apiFromEnv: () => ({ opsBeds: mockBeds, opsAllocateBed: mockAllocate }),
+  apiFromEnv: () => ({ opsBeds: mockBeds, opsAllocateBed: mockAllocate, opsAddBed: mockAddBed }),
 }));
 
 beforeEach(() => {
@@ -19,6 +20,7 @@ beforeEach(() => {
     { id: 'b3', label: '10A', room: '10', floor: 2, sharing: 3, rent_amount_minor: 1000000, state: 'notice', lease_id: 'l2' },
   ]);
   mockAllocate.mockReset().mockResolvedValue({});
+  mockAddBed.mockReset().mockResolvedValue({ bed: { id: 'b4', label: '09C' } });
 });
 
 it('counts what is taken and what is free', async () => {
@@ -50,4 +52,21 @@ it('refuses to occupy a bed without the tenancy that pays for it', async () => {
   await waitFor(() => expect(result.current.loading).toBe(false));
   await expect(result.current.allocate('b2', 'occupied')).rejects.toThrow(/tenancy/i);
   expect(mockAllocate).not.toHaveBeenCalled();
+});
+
+// A board with nothing on it is the whole of a new PG, and until now there was
+// no way to put the first bed there (#367).
+it('puts a bed in a room and reads the board again', async () => {
+  const { result } = await renderHook(() => useBeds('p1'));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(async () => { await result.current.add('u1', '09C', 1200000); });
+  expect(mockAddBed).toHaveBeenCalledWith('u1', '09C', 1200000);
+  expect(mockBeds).toHaveBeenCalledTimes(2);
+});
+
+it('refuses a bed with no label, since that is what it is allocated by', async () => {
+  const { result } = await renderHook(() => useBeds('p1'));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await expect(result.current.add('u1', '  ', 1200000)).rejects.toThrow(/label/i);
+  expect(mockAddBed).not.toHaveBeenCalled();
 });

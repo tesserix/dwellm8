@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
- Avatar, BackHeader, Button, Card, color, count, EmptyState, ErrorState, font, inr,
+ Avatar, BackHeader, Button, Card, color, count, EmptyState, ErrorState, Field, font, inr,
   KeyValue, Metric, MetricRow, radius, Screen, space, StatusPill, Toast, useBack,
 } from '@dwellm8/mobile-shared';
 import type { OpsBed } from '@dwellm8/mobile-shared';
 import { useBeds } from '../src/data/beds';
 import { usePortfolio } from '../src/data/portfolio';
+import { usePropertyRecord } from '../src/data/property';
 
 /**
  * Bed allocation for the PG vertical (#299).
@@ -36,14 +37,39 @@ export default function Beds() {
     ? portfolio.rows.find((p) => p.id === params.id)
     : portfolio.rows.find((p) => p.kind === 'coliving');
   const board = useBeds(property?.id ?? '');
+  const record = usePropertyRecord(property?.id);
 
   const [picked, setPicked] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [room, setRoom] = useState<string | null>(null);
+  const [label, setLabel] = useState('');
+  const [rent, setRent] = useState('');
+  const [adding, setAdding] = useState(false);
   const bed = board.beds.find((b) => b.id === picked);
 
   const say = (m: string) => {
     setToast(m);
     setTimeout(() => setToast(null), 2600);
+  };
+
+  const addBed = async () => {
+    if (!room) {
+      say('Pick which room the bed goes in.');
+      return;
+    }
+    setAdding(true);
+    try {
+      await board.add(room, label, Math.round(Number(rent || 0) * 100));
+      // Both fields empty for the next bed: a rent left in the box is typed
+      // over rather than replaced, and lands as a number nobody meant.
+      setLabel('');
+      setRent('');
+      say(`Bed ${label.trim()} is on the register`);
+    } catch (err) {
+      say((err as Error).message);
+    } finally {
+      setAdding(false);
+    }
   };
 
   const move = async (id: string, state: OpsBed['state'], label: string) => {
@@ -138,9 +164,37 @@ export default function Beds() {
             {!board.beds.length ? (
               <EmptyState
                 title="No beds on the register"
-                body="Add the rooms of this building and the beds in them, and the board fills itself."
+                body="Nobody can be allocated a bed the register does not hold. Put the beds in the rooms below and the board fills itself."
               />
             ) : null}
+
+            <Card>
+              <Text style={s.h}>Put a bed in a room</Text>
+              <Text style={s.sub}>A bed is what is let in a PG, so it carries its own rent.</Text>
+              {record.units.length ? (
+                <View style={s.rooms}>
+                  {record.units.map((u) => (
+                    <Pressable
+                      key={u.id}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: room === u.id }}
+                      onPress={() => setRoom(u.id)}
+                      style={[s.chip, room === u.id && s.chipOn]}
+                    >
+                      <Text style={[s.chipInk, room === u.id && s.chipInkOn]}>{u.code}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : (
+                <Text style={s.note}>This building has no rooms on the register yet.</Text>
+              )}
+              <Field label="What the bed is called" value={label} onChange={setLabel}
+                placeholder="Bed — G1-A, upper bunk" autoCapitalize="characters" />
+              <Field label="Rent for this bed" value={rent} onChange={setRent}
+                keyboardType="numeric" placeholder="Rent per month, ₹" />
+              <Button label="Add this bed" onPress={addBed} disabled={adding}
+                style={{ marginTop: space(4) }} />
+            </Card>
 
             {bed ? (
               <Card>
@@ -217,4 +271,12 @@ const s = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 12, height: 12, borderRadius: 4, borderWidth: 1.5 },
   legendText: { ...font.small, color: color.inkSoft },
+  rooms: { flexDirection: 'row', flexWrap: 'wrap', gap: space(2), marginTop: space(3), marginBottom: space(4) },
+  chip: {
+    minHeight: 40, justifyContent: 'center', paddingHorizontal: space(4),
+    borderRadius: radius.pill, borderWidth: 1, borderColor: color.line,
+  },
+  chipOn: { backgroundColor: color.accent, borderColor: color.accent },
+  chipInk: { ...font.small, color: color.inkSoft },
+  chipInkOn: { color: '#FFFFFF', fontWeight: '600' },
 });
