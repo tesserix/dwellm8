@@ -72,6 +72,31 @@ export default function PropertyScreen() {
               />
             </Card>
 
+            {/* A renter asks what the building is like and what is near it long
+                before they ask the rent (#354). */}
+            <Card padded={false} style={{ paddingHorizontal: space(4) }}>
+              <ListRow
+                title="About this property"
+                subtitle={property.about
+                  ? property.about
+                  : 'Nothing written yet — this is what a renter reads first'}
+                right={<StatusPill
+                  text={property.amenities?.length
+                    ? `${property.amenities.length} amenities listed`
+                    : 'To write'}
+                  tone={property.about ? 'green' : 'neutral'}
+                />}
+                onPress={() => router.push(`/describe?id=${property.id}`)}
+              />
+              <ListRow
+                title="What's nearby"
+                subtitle="Schools, transport and hospitals, with the walk you measured"
+                onPress={() => router.push(
+                  `/nearby?id=${property.id}&name=${encodeURIComponent(property.name)}`)}
+                last
+              />
+            </Card>
+
             <View style={s.metrics}>
               <Metric value={String(occupied)} label="let" tone="green" />
               <Metric value={String(vacant)} label="empty" tone="amber" />

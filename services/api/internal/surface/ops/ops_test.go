@@ -85,6 +85,7 @@ func serveWithPool(t *testing.T) (*http.ServeMux, tenancy.PlatformPool) {
 	h.PropertyDocumentRoutes(authz.NewRegistrar(mux, &authz.Guard{}))
 	h.ManagementAgreementRoutes(authz.NewRegistrar(mux, &authz.Guard{}))
 	h.BedRoutes(authz.NewRegistrar(mux, &authz.Guard{}))
+	h.DetailRoutes(authz.NewRegistrar(mux, &authz.Guard{}))
 	h.StaffRoutes(authz.NewRegistrar(mux, &authz.Guard{}))
 	return mux, tenancy.NewPlatformPool(plat)
 }

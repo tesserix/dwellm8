@@ -29,6 +29,15 @@ type unitRecord struct {
 	ShareCertificateNo    string  `json:"share_certificate_no,omitempty"`
 	ElectricityConsumerNo string  `json:"electricity_consumer_no,omitempty"`
 	WaterConnectionNo     string  `json:"water_connection_no,omitempty"`
+	// What the flat is like (#354). The counts are pointers because none
+	// recorded and none present are different answers to a renter.
+	About          string   `json:"about,omitempty"`
+	Features       []string `json:"features,omitempty"`
+	Bathrooms      *int     `json:"bathrooms,omitempty"`
+	Balconies      *int     `json:"balconies,omitempty"`
+	CoveredParking *int     `json:"covered_parking,omitempty"`
+	Facing         string   `json:"facing,omitempty"`
+	Furnishing     string   `json:"furnishing,omitempty"`
 }
 
 // unitTenancy is who is in the flat and on what terms. Absent, not empty, when
@@ -96,10 +105,14 @@ func (h *Handler) Unit(w http.ResponseWriter, r *http.Request) {
 			CarpetAreaSqft: u.CarpetSqf, BuiltupAreaSqft: u.BuiltupSqf,
 			ShareCertificateNo:    u.ShareCertificateNo,
 			ElectricityConsumerNo: u.ElectricityNo, WaterConnectionNo: u.WaterNo,
+			About: u.About, Features: u.Features, Bathrooms: u.Bathrooms,
+			Balconies: u.Balconies, CoveredParking: u.CoveredParking,
+			Facing: u.Facing, Furnishing: u.Furnishing,
 		},
 		"property": propertyResponse{
 			ID: p.ID, Code: p.Code, Name: p.Name, Kind: p.Kind,
 			AddressLine1: p.AddressLine1, Locality: p.Locality, City: p.City, UnitCount: p.UnitCount,
+			About: p.About, Amenities: p.Amenities,
 		},
 	}
 

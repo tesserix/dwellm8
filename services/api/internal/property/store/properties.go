@@ -81,12 +81,12 @@ func (s *Properties) Get(ctx context.Context, id string) (domain.Property, error
 	var p domain.Property
 	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `
-			SELECT `+propertyColumns+`
+			SELECT `+propertyColumns+`, coalesce(p.about, ''), p.amenities
 			  FROM properties p
 			 WHERE p.id = $1::uuid`, id,
 		).Scan(&p.ID, &p.Code, &p.Name, &p.Kind,
 			&p.AddressLine1, &p.AddressLine2, &p.Locality, &p.City, &p.StateCode, &p.Pin,
-			&p.UnitCount)
+			&p.UnitCount, &p.About, &p.Amenities)
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -138,11 +138,15 @@ func (s *Properties) Unit(ctx context.Context, id string) (domain.Unit, error) {
 			SELECT id::text, property_id::text, code::text, unit_kind, coalesce(floor, 0), occupancy,
 			       coalesce(carpet_area_sqft, 0)::float8, coalesce(builtup_area_sqft, 0)::float8,
 			       coalesce(share_certificate_no, ''), coalesce(electricity_consumer_no, ''),
-			       coalesce(water_connection_no, '')
+			       coalesce(water_connection_no, ''),
+			       coalesce(about, ''), features, bathrooms, balconies, covered_parking,
+			       coalesce(facing, ''), coalesce(furnishing, '')
 			  FROM units
 			 WHERE id = $1::uuid AND state = 'active'`, id,
 		).Scan(&u.ID, &u.PropertyID, &u.Code, &u.Kind, &u.Floor, &u.Occupancy,
-			&u.CarpetSqf, &u.BuiltupSqf, &u.ShareCertificateNo, &u.ElectricityNo, &u.WaterNo)
+			&u.CarpetSqf, &u.BuiltupSqf, &u.ShareCertificateNo, &u.ElectricityNo, &u.WaterNo,
+			&u.About, &u.Features, &u.Bathrooms, &u.Balconies, &u.CoveredParking,
+			&u.Facing, &u.Furnishing)
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):

@@ -76,6 +76,55 @@ func (p *Properties) AddUnit(ctx context.Context, propertyID string, d domain.Un
 	return p.store.CreateUnit(ctx, propertyID, d)
 }
 
+// PropertyDetail is what the building is like (#354).
+type PropertyDetail = domain.PropertyDetail
+
+// UnitDetail is what one flat is like.
+type UnitDetail = domain.UnitDetail
+
+// Place is somewhere near a property, and how far it is.
+type Place = domain.Place
+
+// ErrNoPlace is no such place, re-exported on the same terms as ErrNoUnit.
+var ErrNoPlace = store.ErrNoPlace
+
+// ErrNotAllowed is a value outside the schema's vocabulary, re-exported so the
+// surface can call it the manager's typo rather than a server fault.
+var ErrNotAllowed = store.ErrNotAllowed
+
+// ErrPlaceExists is the same place listed twice.
+var ErrPlaceExists = store.ErrPlaceExists
+
+// Describe writes what the building is like.
+func (p *Properties) Describe(ctx context.Context, propertyID string, d PropertyDetail) error {
+	return p.store.SetPropertyDetail(ctx, propertyID, d)
+}
+
+// DescribeUnit writes what one flat is like.
+func (p *Properties) DescribeUnit(ctx context.Context, unitID string, d UnitDetail) error {
+	return p.store.SetUnitDetail(ctx, unitID, d)
+}
+
+// Places returns what is near a property, nearest first.
+func (p *Properties) Places(ctx context.Context, propertyID string) ([]Place, error) {
+	return p.store.Places(ctx, propertyID)
+}
+
+// AddPlace records one place near a property.
+func (p *Properties) AddPlace(ctx context.Context, propertyID string, pl Place) (Place, error) {
+	return p.store.AddPlace(ctx, propertyID, pl)
+}
+
+// CorrectPlace amends a place that was recorded wrongly.
+func (p *Properties) CorrectPlace(ctx context.Context, pl Place) error {
+	return p.store.UpdatePlace(ctx, pl)
+}
+
+// RetirePlace stops a place being listed without erasing that it was.
+func (p *Properties) RetirePlace(ctx context.Context, id string) error {
+	return p.store.RetirePlace(ctx, id)
+}
+
 // Bed is what is let in a hostel or a PG.
 type Bed = domain.Bed
 

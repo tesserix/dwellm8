@@ -113,6 +113,9 @@ type propertyResponse struct {
 	Locality     string `json:"locality"`
 	City         string `json:"city"`
 	UnitCount    int    `json:"unit_count"`
+	// What the building is like (#354) — empty until a manager writes it.
+	About     string   `json:"about,omitempty"`
+	Amenities []string `json:"amenities,omitempty"`
 }
 
 // Properties lists every property this session's organisation holds —
@@ -228,6 +231,7 @@ func (h *Handler) Property(w http.ResponseWriter, r *http.Request) {
 		"property": propertyResponse{
 			ID: p.ID, Code: p.Code, Name: p.Name, Kind: p.Kind,
 			AddressLine1: p.AddressLine1, Locality: p.Locality, City: p.City, UnitCount: p.UnitCount,
+			About: p.About, Amenities: p.Amenities,
 		},
 		"units": out,
 	})

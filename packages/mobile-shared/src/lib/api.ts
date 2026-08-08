@@ -79,6 +79,9 @@ export type OpsProperty = {
   locality: string;
   city: string;
   unit_count: number;
+  /** What the building is like (#354) — empty until a manager writes it. */
+  about?: string;
+  amenities?: string[];
 };
 
 /** One lettable unit on the property record, with its tenancy when it is let. */
@@ -112,6 +115,32 @@ export type OpsUnitDetail = {
   share_certificate_no?: string;
   electricity_consumer_no?: string;
   water_connection_no?: string;
+  about?: string;
+  features?: string[];
+  bathrooms?: number;
+  balconies?: number;
+  covered_parking?: number;
+  facing?: string;
+  furnishing?: string;
+};
+
+/** Somewhere near a property, and how far it is (#354). The distance is what
+ * the manager measured along the road, not a line between two geocodes. */
+export type OpsPlace = {
+  id: string;
+  category: string;
+  name: string;
+  distance_m: number;
+  travel_mode: 'walk' | 'drive' | 'transit';
+  tags: string[];
+  note?: string;
+  position?: number;
+};
+
+/** A place as it is filed; the id comes back from the server. */
+export type OpsPlaceDraft = Omit<OpsPlace, 'id' | 'travel_mode' | 'tags'> & {
+  travel_mode?: OpsPlace['travel_mode'];
+  tags?: string[];
 };
 
 /** Who is in the flat and on what terms; absent when nobody is. */
@@ -1236,6 +1265,38 @@ export class DwellmApi {
   opsAllocateBed(bedId: string, state: OpsBedState, leaseId?: string): Promise<unknown> {
     return this.request('POST', `/v1/ops/beds/${encodeURIComponent(bedId)}/allocation`,
       { state, lease_id: leaseId ?? '' });
+  }
+
+  /** What a manager writes about the building (#354). */
+  opsDescribeProperty(propertyId: string, about: string, amenities: string[]): Promise<unknown> {
+    return this.request('PUT', `/v1/ops/properties/${encodeURIComponent(propertyId)}/detail`,
+      { about, amenities });
+  }
+
+  /** What a manager writes about one flat. */
+  opsDescribeUnit(unitId: string, detail: {
+    about?: string; features?: string[]; bathrooms?: number; balconies?: number;
+    covered_parking?: number; facing?: string; furnishing?: string;
+  }): Promise<unknown> {
+    return this.request('PUT', `/v1/ops/units/${encodeURIComponent(unitId)}/detail`, detail);
+  }
+
+  async opsPlaces(propertyId: string): Promise<OpsPlace[]> {
+    const out = await this.request<{ places: OpsPlace[] }>(
+      'GET', `/v1/ops/properties/${encodeURIComponent(propertyId)}/places`);
+    return out.places ?? [];
+  }
+
+  opsAddPlace(propertyId: string, place: OpsPlaceDraft): Promise<{ place: OpsPlace }> {
+    return this.request('POST', `/v1/ops/properties/${encodeURIComponent(propertyId)}/places`, place);
+  }
+
+  opsCorrectPlace(placeId: string, place: OpsPlaceDraft): Promise<{ place: OpsPlace }> {
+    return this.request('PATCH', `/v1/ops/places/${encodeURIComponent(placeId)}`, place);
+  }
+
+  opsRetirePlace(placeId: string): Promise<unknown> {
+    return this.request('DELETE', `/v1/ops/places/${encodeURIComponent(placeId)}`);
   }
 
   /** The firm's own team: roles, people and who holds what (#353). */

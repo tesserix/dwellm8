@@ -718,6 +718,7 @@ func run() error {
 
 	// The bed board of a hostel or a PG, #299.
 	opsHandler.BedRoutes(authz.NewRegistrar(opsMux, guard))
+	opsHandler.DetailRoutes(authz.NewRegistrar(opsMux, guard))
 	// The sub-managers the firm employs, and what each is responsible for, #353.
 	opsHandler.StaffRoutes(authz.NewRegistrar(opsMux, guard))
 	// Where the manager's own rent settles, #269. Provider-agnostic: the

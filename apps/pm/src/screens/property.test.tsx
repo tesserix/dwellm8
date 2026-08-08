@@ -66,4 +66,30 @@ describe('Property record', () => {
 
     expect(getByText(/deed or a power of attorney is still wanted/)).toBeTruthy();
   });
+
+  // A renter decides on the description and what is near the building long
+  // before anybody shows them a rent (#354).
+  it('offers the description and what is nearby, saying when neither is written', async () => {
+    const { getByText } = await render(<Property />);
+    await waitFor(() => expect(getByText('Ownership')).toBeTruthy());
+
+    expect(getByText('About this property')).toBeTruthy();
+    expect(getByText(/Nothing written yet/)).toBeTruthy();
+    expect(getByText("What's nearby")).toBeTruthy();
+  });
+
+  it('says what is already written about the building', async () => {
+    mockProperty.mockResolvedValue({
+      property: {
+        id: 'p1', name: 'Kadavanthra Heights', locality: 'Kadavanthra', city: 'Kochi',
+        kind: 'building', address_line1: '18 Chandra Nagar Road', unit_count: 2,
+        about: 'A quiet block.', amenities: ['lift', 'gym'],
+      },
+      units: [],
+    });
+    const { getByText } = await render(<Property />);
+    await waitFor(() => expect(getByText('About this property')).toBeTruthy());
+
+    expect(getByText('2 amenities listed')).toBeTruthy();
+  });
 });

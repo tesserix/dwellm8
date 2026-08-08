@@ -50,6 +50,34 @@ export default function UnitScreen() {
               />
             </View>
 
+            {/* What a renter asks about before the rent (#354). */}
+            <SectionTitle>What this flat is like</SectionTitle>
+            <Card>
+              <Text style={s.about}>{unit.about || 'Nothing written yet'}</Text>
+              {unit.bathrooms != null ? <KeyValue k="Bathrooms" v={String(unit.bathrooms)} /> : null}
+              {unit.balconies != null ? <KeyValue k="Balconies" v={String(unit.balconies)} /> : null}
+              {unit.covered_parking != null ? (
+                <KeyValue k="Covered parking" v={String(unit.covered_parking)} />
+              ) : null}
+              {unit.facing ? <KeyValue k="Facing" v={words(unit.facing)} /> : null}
+              {unit.furnishing ? <KeyValue k="Furnishing" v={words(unit.furnishing)} /> : null}
+              {unit.features?.length ? (
+                <KeyValue k="In the flat" v={unit.features.map(words).join(', ')} last />
+              ) : null}
+            </Card>
+            <Card padded={false} style={{ paddingHorizontal: space(4) }}>
+              <ListRow
+                title="Describe this flat"
+                subtitle="Bathrooms, facing, furnishing and what is in it"
+                right={<StatusPill
+                  text={unit.about ? 'Written' : 'To write'}
+                  tone={unit.about ? 'green' : 'neutral'}
+                />}
+                onPress={() => router.push(`/describe?unit=${unit.id}`)}
+                last
+              />
+            </Card>
+
             <SectionTitle>The flat</SectionTitle>
             <Card>
               <KeyValue k="Reference" v={unit.code} />
@@ -146,6 +174,9 @@ export default function UnitScreen() {
   );
 }
 
+// The record stores a vocabulary; a renter reads words.
+const words = (v: string) => v.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+
 const s = StyleSheet.create({
   metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(3) },
   rowBetween: {
@@ -153,6 +184,7 @@ const s = StyleSheet.create({
     marginBottom: space(2),
   },
   name: { ...font.h3, color: color.inkStrong },
+  about: { ...font.body, color: color.ink, marginBottom: space(3) },
   waiting: { paddingVertical: space(6), alignItems: 'center' },
   empty: { ...font.body, color: color.inkSoft, textAlign: 'center', paddingVertical: space(5) },
 });
