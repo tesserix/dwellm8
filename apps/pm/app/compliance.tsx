@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, ListRow, StatusPill, Metric, Button, KeyValue,
-  Toast, ChipRow, ShieldIcon, AlertIcon,
-  color, count, font, inr, inrShort, space, useBack,
+ AlertIcon, BackHeader, Button, Card, ChipRow, color, count, font, inr, inrShort, KeyValue,
+  ListRow, Metric, MetricRow, Screen, ShieldIcon, space, StatusPill, Toast, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { compliance } from '../src/data/mock';
@@ -47,11 +46,11 @@ export default function Compliance() {
         <DemoNote issue={301} />
         {toast ? <Toast text={toast} /> : null}
 
-        <View style={s.metrics}>
+        <MetricRow>
           <Metric value={String(expired)} label="expired" tone="red" />
           <Metric value={String(soon)} label="due within 60 days" tone="amber" />
           <Metric value={inrShort(annual)} label="annual renewal cost" tone="blue" />
-        </View>
+        </MetricRow>
 
         {expired ? (
           <Card style={{ borderWidth: 1.5, borderColor: '#E9BDB7' }}>
@@ -117,7 +116,6 @@ export default function Compliance() {
 }
 
 const s = StyleSheet.create({
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4), marginBottom: space(3) },
   icon: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#F3F7FB', alignItems: 'center', justifyContent: 'center' },
   h: { ...font.h3, color: color.inkStrong, flex: 1 },
   body: { ...font.body, color: color.inkSoft, marginTop: space(2), lineHeight: 21 },

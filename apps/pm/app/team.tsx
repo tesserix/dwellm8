@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  BackHeader, Button, Card, Screen, Avatar, StatusPill, EmptyState, ErrorState,
-  Metric, ProgressBar, Toast, KeyValue, count, color, font, radius, space, useBack,
+ Avatar, BackHeader, Button, Card, color, count, EmptyState, ErrorState, font, KeyValue,
+  Metric, MetricRow, ProgressBar, radius, Screen, space, StatusPill, Toast, useBack,
 } from '@dwellm8/mobile-shared';
 import { useTeam, type Colleague } from '../src/data/team';
 import { usePortfolio } from '../src/data/portfolio';
@@ -60,7 +60,7 @@ export default function Team() {
         {!team.loading && !team.error ? (
           <>
             {team.working.length ? (
-              <View style={s.metrics}>
+              <MetricRow>
                 <Metric value={String(team.working.length)} label="managers" tone="blue" />
                 <Metric
                   value={String(team.working.reduce((n, m) => n + m.held, 0))}
@@ -72,7 +72,7 @@ export default function Team() {
                   label="capacity spare"
                   tone="amber"
                 />
-              </View>
+              </MetricRow>
             ) : null}
 
             {team.working.map((m) => (
@@ -210,10 +210,6 @@ function Person({ m, onPress }: { m: Colleague; onPress: () => void }) {
 
 const s = StyleSheet.create({
   waiting: { paddingVertical: space(8), alignItems: 'center' },
-  metrics: {
-    flexDirection: 'row', gap: 10,
-    marginHorizontal: space(4), marginTop: space(4), marginBottom: space(3),
-  },
   h: { ...font.h3, color: color.inkStrong },
   section: { marginTop: space(5), marginBottom: space(2) },
   sub: { ...font.small, color: color.inkSoft, marginTop: 3, lineHeight: 18 },

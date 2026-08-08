@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, KeyValue, ListRow, Metric, SectionTitle, StatusPill,
-  color, font, inr, space, useBack,
+ BackHeader, Card, color, font, inr, KeyValue, ListRow, Metric, MetricRow, Screen,
+  SectionTitle, space, StatusPill, useBack,
 } from '@dwellm8/mobile-shared';
 import { useUnitRecord } from '../src/data/unit';
 
@@ -32,7 +32,7 @@ export default function UnitScreen() {
 
         {unit ? (
           <>
-            <View style={s.metrics}>
+            <MetricRow>
               <Metric
                 value={bedrooms != null ? `${bedrooms} BHK` : '—'}
                 label={bedrooms != null ? 'as advertised' : 'not advertised yet'}
@@ -48,7 +48,7 @@ export default function UnitScreen() {
                 label={tenancy ? 'rent in force' : 'no tenancy'}
                 tone={tenancy ? 'green' : 'amber'}
               />
-            </View>
+            </MetricRow>
 
             {/* What a renter asks about before the rent (#354). */}
             <SectionTitle>What this flat is like</SectionTitle>
@@ -178,7 +178,6 @@ export default function UnitScreen() {
 const words = (v: string) => v.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
 const s = StyleSheet.create({
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(3) },
   rowBetween: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: space(2),

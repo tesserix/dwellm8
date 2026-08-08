@@ -239,6 +239,14 @@ describe('BackHeader', () => {
     await render(<BackHeader title="Ticket #4021" subtitle="Leaking tap" />);
     expect(screen.getByText('Leaking tap')).toBeTruthy();
   });
+
+  // A bare chevron on a white bar reads as no back button at all, and 32pt is
+  // under the 44pt a thumb needs (#356).
+  it('gives the way back a target a thumb can find', async () => {
+    await render(<BackHeader title="Ticket #4021" onBack={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Back' }))
+      .toHaveStyle({ width: 40, height: 40 });
+  });
 });
 
 describe('Field', () => {

@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  BackHeader, Button, Card, EmptyState, Field, KeyValue, ListRow, Metric, Screen, StatusPill, Toast,
-  color, font, inr, space, useBack, ErrorState,
+ BackHeader, Button, Card, color, EmptyState, ErrorState, Field, font, inr, KeyValue,
+  ListRow, Metric, MetricRow, Screen, space, StatusPill, Toast, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Settlement, Tone } from '@dwellm8/mobile-shared';
 import { releaseSettlement, useSettlements } from '../src/data/settlements';
@@ -61,11 +61,11 @@ export default function Payouts() {
         {error ? <ErrorState error={error} inline /> : null}
 
         {settlements.length ? (
-          <View style={s.metrics}>
+          <MetricRow>
             <Metric value={String(ready.length)} label="ready to release" tone="green" />
             <Metric value={inr(owed, { noPaise: true })} label="net to owners" tone="blue" />
             <Metric value={String(late.length)} label="past their date" tone={late.length ? 'red' : 'neutral'} />
-          </View>
+          </MetricRow>
         ) : null}
 
         {settlements.map((row) => {
@@ -115,6 +115,7 @@ export default function Payouts() {
 
         {!loading && !error && !settlements.length ? (
           <EmptyState
+            full
             title="Nothing owed onward"
             body="When rent is collected it is divided here — the platform's fee, your management fee, any TDS, and the owner's share."
           />
@@ -127,7 +128,6 @@ export default function Payouts() {
 }
 
 const s = StyleSheet.create({
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4), marginBottom: space(3) },
   wait: { paddingVertical: space(6), alignItems: 'center' },
   empty: { ...font.body, color: color.inkSoft, paddingVertical: space(6), textAlign: 'center' },
   failure: { ...font.body, color: color.negative, marginTop: space(2) },

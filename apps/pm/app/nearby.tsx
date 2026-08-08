@@ -124,13 +124,14 @@ export default function NearbyScreen() {
           <Card>
             <Text style={s.empty}>
               Nothing recorded yet. A renter asks which school and how far before they ask the
-              rent — add the ones you would name on a viewing.
+              rent — add below the ones you would name on a viewing.
             </Text>
           </Card>
         ) : null}
 
         <Card>
           <Text style={s.h}>Add a place</Text>
+          <Text style={s.label}>What kind of place</Text>
           <View style={s.kinds}>
             {kinds.map((k) => (
               <Pressable
@@ -170,7 +171,8 @@ const s = StyleSheet.create({
   removeInk: { ...font.small, color: color.negative, fontWeight: '600' },
   empty: { ...font.small, color: color.inkSoft, lineHeight: 20 },
   kinds: { flexDirection: 'row', flexWrap: 'wrap', gap: space(2), marginBottom: space(4) },
-  chip: { paddingHorizontal: space(3), paddingVertical: space(2), borderRadius: radius.pill, borderWidth: 1, borderColor: color.line },
+  // 40pt tall so a chip in an eighteen-chip block is still a tappable target.
+  chip: { minHeight: 40, justifyContent: 'center', paddingHorizontal: space(4), borderRadius: radius.pill, borderWidth: 1, borderColor: color.line },
   chipOn: { backgroundColor: color.accent, borderColor: color.accent },
   chipInk: { ...font.small, color: color.inkSoft },
   chipInkOn: { color: '#FFFFFF', fontWeight: '600' },

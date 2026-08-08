@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, Field, ChoiceRow, Button, ActionBar, KeyValue,
+  BackHeader, Card, Screen, Field, ChoiceRow, Button, ActionBar, EmptyState, KeyValue,
   Toast, StatusPill,
   color, font, inr, space, useBack,
 } from '@dwellm8/mobile-shared';
@@ -42,7 +42,13 @@ export default function RecordReceipt() {
       <>
         <BackHeader title="Record a payment" onBack={goBack} />
         <Screen>
-          <Card><Text style={s.sub}>Open this from a tenancy, so the receipt has one to post against.</Text></Card>
+          <EmptyState
+            full
+            title="No tenancy to post against"
+            body="A receipt belongs to a tenancy. Open one from Collect and record the payment there."
+            action="Find a tenancy"
+            onAct={() => router.push('/(tabs)/collect')}
+          />
         </Screen>
       </>
     );

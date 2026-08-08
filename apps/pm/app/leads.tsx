@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, ChipRow, ListRow, Avatar, StatusPill, Metric,
-  color, font, space, useBack, ErrorState,
+  Avatar, BackHeader, ChipRow, ListRow, Metric, MetricRow, RowCard,
+  Screen, StatusPill, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { fmtDate, useOpsEnquiries } from '../src/data/worklists';
@@ -30,17 +29,23 @@ export default function Leads() {
     <>
       <BackHeader title="Leads" subtitle="Enquiries on your listings" onBack={goBack} />
       <Screen>
-        <View style={s.metrics}>
+        <MetricRow>
           <Metric value={loading ? '…' : String(open)} label="open enquiries" tone="blue" />
           <Metric value={loading ? '…' : String(converted)} label="converted" tone="green" />
-        </View>
+        </MetricRow>
 
         <ChipRow items={[{ label: 'Open' }, { label: 'Settled' }]} value={filter} onChange={setFilter} />
 
-        <Card padded={false} style={{ paddingHorizontal: space(4) }}>
-          {loading ? <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View> : null}
-          {error ? <ErrorState error={error} inline /> : null}
-          {list.map((e, i) => (
+        <RowCard
+          loading={loading}
+          error={error}
+          empty={{
+            title: filter === 'Open' ? 'No enquiries yet' : 'Nothing settled yet',
+            body: filter === 'Open'
+              ? 'Enquiries arrive from the Find app when somebody answers a live listing. Advertise a vacant unit and they land here.'
+              : 'Enquiries you have answered or let go are kept here, so nothing is lost.',
+          }}
+          rows={list.map((e, i) => (
             <ListRow
               key={e.id}
               left={<Avatar initials={(e.headline ?? e.kind).slice(0, 2).toUpperCase()} tone={stateTone[e.state] ?? 'neutral'} />}
@@ -52,18 +57,8 @@ export default function Leads() {
               last={i === list.length - 1}
             />
           ))}
-          {!loading && !error && !list.length ? (
-            <Text style={s.empty}>
-              {filter === 'Open' ? 'No open enquiries — they arrive from the Find app.' : 'Nothing settled yet.'}
-            </Text>
-          ) : null}
-        </Card>
+        />
       </Screen>
     </>
   );
 }
-
-const s = StyleSheet.create({
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4), marginBottom: space(2) },
-  empty: { ...font.body, color: color.inkSoft, paddingVertical: space(6), textAlign: 'center' },
-});

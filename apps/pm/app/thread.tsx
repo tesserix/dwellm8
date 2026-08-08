@@ -32,6 +32,7 @@ function Inbox() {
           <Card><Text style={s.err}>{error}</Text></Card>
         ) : threads.length === 0 ? (
           <EmptyState
+            full
             art={<HouseArt size={160} />}
             title="No conversations yet"
             body="When a tenant messages from the Live app, the thread lands here — on the record."

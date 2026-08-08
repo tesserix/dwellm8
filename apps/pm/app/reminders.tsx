@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, Segmented, SectionTitle, ListRow, StatusPill, Metric,
-  AlertIcon, CalendarIcon, RupeeIcon,
-  color, count, font, inr, inrShort, space, type OpsReminder, useBack,
+ AlertIcon, BackHeader, CalendarIcon, Card, color, count, font, inr, inrShort, ListRow,
+  Metric, MetricRow, RupeeIcon, Screen, SectionTitle, Segmented, space, StatusPill,
+  useBack, type OpsReminder,
 } from '@dwellm8/mobile-shared';
 import { useReminders } from '../src/data/reminders';
 
@@ -55,7 +55,7 @@ export default function Reminders() {
           <Segmented items={Object.keys(windows)} value={tab} onChange={setTab} />
         </View>
 
-        <View style={s.metrics}>
+        <MetricRow>
           <Metric
             value={view.loading ? '…' : inrShort(view.duePaise)}
             label="rent falling due"
@@ -72,7 +72,7 @@ export default function Reminders() {
             label="terms running out"
             tone={view.endingCount ? 'amber' : 'neutral'}
           />
-        </View>
+        </MetricRow>
 
         {view.loading ? (
           <Card><View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View></Card>
@@ -118,6 +118,5 @@ export default function Reminders() {
 }
 
 const s = StyleSheet.create({
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(3), marginBottom: space(1) },
   empty: { ...font.body, color: color.inkSoft, paddingVertical: space(5), textAlign: 'center' },
 });

@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  ActionBar, BackHeader, Button, Card, ChoiceRow, Field, KeyValue, Screen, StatusPill, Toast,
-  color, font, space, useBack, ErrorState,
+  ActionBar, BackHeader, Button, Card, ChoiceRow, Field, KeyValue, Screen, SectionTitle,
+  StatusPill, Toast, color, font, space, useBack, ErrorState,
 } from '@dwellm8/mobile-shared';
 import type { ConnectMerchant, MerchantAccount, Tone } from '@dwellm8/mobile-shared';
 import { connectMerchant, refreshMerchant, useMerchants } from '../src/data/merchant';
@@ -111,30 +111,45 @@ export default function Settlement() {
         ))}
 
         {!loading && !accounts.length ? (
-          <Card>
-            <Text style={s.q}>Connect your account</Text>
-            <Text style={s.sub}>
-              Rent is collected into your own account, not ours. Your aggregator verifies the bank
-              account first — we send them these details once and keep only the last four digits.
-            </Text>
-            <Field label="Business name" value={businessName} onChange={setBusinessName} placeholder="Menon Properties" autoCapitalize="words" />
-            {BUSINESS_TYPES.map((b, i) => (
-              <ChoiceRow
-                key={b.code}
-                label={b.label}
-                hint={b.hint}
-                selected={businessType === b.code}
-                onPress={() => setBusinessType(b.code)}
-                last={i === BUSINESS_TYPES.length - 1}
-              />
-            ))}
-            <Field label="PAN" value={pan} onChange={setPan} placeholder="ABCDE1234F" autoCapitalize="characters" />
-            <Field label="GSTIN — optional" value={gstin} onChange={setGstin} placeholder="29ABCDE1234F1Z5" autoCapitalize="characters" />
-            <Field label="Account holder, as the bank has it" value={holder} onChange={setHolder} placeholder="Menon Properties" autoCapitalize="words" />
-            <Field label="Bank account number" value={accountNumber} onChange={setAccountNumber} placeholder="50100123454321" keyboardType="numeric" />
-            <Field label="IFSC" value={ifsc} onChange={setIfsc} placeholder="HDFC0001234" autoCapitalize="characters" />
-            {failure ? <Text style={s.failure}>{failure}</Text> : null}
-          </Card>
+          <>
+            <Card>
+              <Text style={s.q}>Connect your account</Text>
+              <Text style={s.sub}>
+                Rent is collected into your own account, not ours. Your aggregator verifies the bank
+                account first — we send them these details once and keep only the last four digits.
+              </Text>
+            </Card>
+
+            <SectionTitle>Who you trade as</SectionTitle>
+            <Card>
+              <Field label="Business name" value={businessName} onChange={setBusinessName} placeholder="Menon Properties" autoCapitalize="words" />
+              <Text style={s.legend}>How the business is constituted</Text>
+              {BUSINESS_TYPES.map((b, i) => (
+                <ChoiceRow
+                  key={b.code}
+                  label={b.label}
+                  hint={b.hint}
+                  selected={businessType === b.code}
+                  onPress={() => setBusinessType(b.code)}
+                  last={i === BUSINESS_TYPES.length - 1}
+                />
+              ))}
+            </Card>
+
+            <SectionTitle>Tax</SectionTitle>
+            <Card>
+              <Field label="PAN" value={pan} onChange={setPan} placeholder="ABCDE1234F" autoCapitalize="characters" />
+              <Field label="GSTIN — optional" value={gstin} onChange={setGstin} placeholder="29ABCDE1234F1Z5" autoCapitalize="characters" />
+            </Card>
+
+            <SectionTitle>Where the money lands</SectionTitle>
+            <Card>
+              <Field label="Account holder, as the bank has it" value={holder} onChange={setHolder} placeholder="Menon Properties" autoCapitalize="words" />
+              <Field label="Bank account number" value={accountNumber} onChange={setAccountNumber} placeholder="50100123454321" keyboardType="numeric" />
+              <Field label="IFSC" value={ifsc} onChange={setIfsc} placeholder="HDFC0001234" autoCapitalize="characters" />
+              {failure ? <Text style={s.failure}>{failure}</Text> : null}
+            </Card>
+          </>
         ) : null}
 
         {failure && accounts.length ? <Text style={s.failure}>{failure}</Text> : null}
@@ -154,6 +169,6 @@ const s = StyleSheet.create({
   q: { ...font.h3, color: color.ink, flexShrink: 1 },
   sub: { ...font.body, color: color.inkSoft, marginBottom: space(3) },
   wait: { paddingVertical: space(6), alignItems: 'center' },
-  empty: { ...font.body, color: color.inkSoft, paddingVertical: space(6), textAlign: 'center' },
+  legend: { ...font.small, color: color.inkSoft, marginTop: space(3), marginBottom: space(1) },
   failure: { ...font.body, color: color.negative, marginTop: space(2) },
 });

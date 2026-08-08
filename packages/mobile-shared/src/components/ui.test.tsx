@@ -3,8 +3,10 @@ import { Text } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import {
   ActivityRow, AppHeader, AvatarButton, Badge, Banner, ChipRow, CollapsibleHeader,
-  EmptyState, ErrorState, LinkRow, MoneyRow, ProgressBar, Segmented,
+  EmptyState, ErrorState, LinkRow, MetricRow, MoneyRow, ProgressBar, RowCard, Screen, Segmented,
 } from './ui';
+import { Metric } from './controls';
+import { space } from '../theme/tokens';
 
 describe('AppHeader', () => {
   it('calls onTitlePress when a handler is given', async () => {
@@ -186,5 +188,66 @@ describe('ActivityRow', () => {
   it('shows the meta text only when given', async () => {
     await render(<ActivityRow icon={null} title="Rent paid" meta="2 Aug" />);
     expect(screen.getByText('2 Aug')).toBeTruthy();
+  });
+});
+
+// The metric row's gutters were copy-pasted into eighteen screens, and two of
+// them dropped the horizontal margin, so the third card ran off the edge (#356).
+describe('MetricRow', () => {
+  it('lays the metrics out inside the screen gutters', async () => {
+    await render(
+      <MetricRow>
+        <Metric value="0" label="let" />
+        <Metric value="2" label="empty" />
+        <Metric value="1" label="taken" />
+      </MetricRow>,
+    );
+    expect(screen.getByLabelText('1 taken')).toHaveStyle({ flex: 1 });
+    expect(screen.getByTestId('metric-row')).toHaveStyle({
+      marginHorizontal: space(4), flexDirection: 'row',
+    });
+  });
+});
+
+describe('Screen', () => {
+  it('lets a short screen centre what little it has', async () => {
+    await render(<Screen><Text>Nothing owed onward</Text></Screen>);
+    expect(screen.getByTestId('screen-scroll').props.contentContainerStyle)
+      .toEqual(expect.objectContaining({ flexGrow: 1 }));
+  });
+});
+
+describe('RowCard', () => {
+  const empty = { title: 'Nothing to fix', body: 'Tenants raise repairs from the Live app.' };
+
+  it('shows the rows in a card', async () => {
+    await render(<RowCard rows={[<Text key="a">A-302</Text>]} empty={empty} />);
+    expect(screen.getByText('A-302')).toBeTruthy();
+    expect(screen.queryByTestId('empty-state')).toBeNull();
+  });
+
+  it('says why there is nothing rather than showing a blank card', async () => {
+    await render(<RowCard rows={[]} empty={empty} />);
+    expect(screen.getByText('Nothing to fix')).toBeTruthy();
+    expect(screen.queryByTestId('row-card')).toBeNull();
+  });
+
+  it('keeps the card while loading, so the empty state is not claimed too early', async () => {
+    await render(<RowCard loading rows={[]} empty={empty} />);
+    expect(screen.getByTestId('row-card')).toBeTruthy();
+    expect(screen.queryByTestId('empty-state')).toBeNull();
+  });
+
+  it('shows a failure inside the card instead of calling it empty', async () => {
+    await render(<RowCard error="Your session has expired." rows={[]} empty={empty} />);
+    expect(screen.getByText('Your session has expired.')).toBeTruthy();
+    expect(screen.queryByTestId('empty-state')).toBeNull();
+  });
+});
+
+describe('EmptyState', () => {
+  it('fills the screen it is the whole of', async () => {
+    await render(<EmptyState full title="Nothing owed onward" body="When rent is collected." />);
+    expect(screen.getByTestId('empty-state')).toHaveStyle({ flex: 1, justifyContent: 'center' });
   });
 });

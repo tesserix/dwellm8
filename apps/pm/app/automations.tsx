@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  BackHeader, Button, Card, Screen, KeyValue, StatusPill, SwitchRow, Toast, Metric,
-  apiFromEnv, color, font, inr, space, useBack,
+ apiFromEnv, BackHeader, Button, Card, color, font, inr, KeyValue, Metric, MetricRow,
+  Screen, space, StatusPill, SwitchRow, Toast, useBack,
 } from '@dwellm8/mobile-shared';
 import { refreshWorklists, useOpsApprovals, useOpsAutomations } from '../src/data/worklists';
 
@@ -59,10 +59,10 @@ export default function Automations() {
       <BackHeader title="Automations" subtitle="What runs by itself, and its limits" onBack={goBack} />
       <Screen>
         {toast ? <Toast text={toast} /> : null}
-        <View style={s.metrics}>
+        <MetricRow>
           <Metric value={loading ? '…' : `${enabled}/${automations.length}`} label="running" tone="green" />
           <Metric value={approvals.loading ? '…' : String(awaiting)} label="awaiting approval" tone={awaiting ? 'amber' : 'green'} />
-        </View>
+        </MetricRow>
 
         {awaiting > 0 ? (
           <>
@@ -108,7 +108,6 @@ export default function Automations() {
 }
 
 const s = StyleSheet.create({
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4), marginBottom: space(2) },
   name: { ...font.h3, color: color.inkStrong, marginTop: space(3) },
   sub: { ...font.small, color: color.inkSoft, marginTop: space(2), lineHeight: 18 },
 });

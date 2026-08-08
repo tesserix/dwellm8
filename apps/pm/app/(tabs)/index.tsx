@@ -2,11 +2,10 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  AppHeader, AvatarButton, Card, CollapsibleHeader, Screen, SectionTitle,
-  ProgressBar, StatusPill, Metric, ListRow, Avatar,
-  AlertIcon, BedIcon, BuildingIcon, CalendarIcon, ChartIcon, ChatIcon, ClipboardIcon, DocIcon,
-  KeyIcon, RupeeIcon, ShieldIcon, UsersIcon, WrenchIcon,
-  color, count, font, inr, inrShort, radius, space,
+ AlertIcon, AppHeader, Avatar, AvatarButton, BedIcon, BuildingIcon, CalendarIcon, Card,
+  ChartIcon, ChatIcon, ClipboardIcon, CollapsibleHeader, color, count, DocIcon, font, inr,
+  inrShort, KeyIcon, ListRow, Metric, MetricRow, ProgressBar, radius, RupeeIcon, Screen,
+  SectionTitle, ShieldIcon, space, StatusPill, UsersIcon, WrenchIcon,
 } from '@dwellm8/mobile-shared';
 import { istDate } from '../../src/data/clock';
 import { useOpsTodayData, useOpsWho, useOpsWorklist, type OpsTask } from '../../src/data/source';
@@ -89,7 +88,7 @@ export default function Today() {
             </Text>
           ) : null}
 
-          <View style={s.metrics}>
+          <MetricRow>
             <Metric
               value={inrShort(roster.outstandingPaise)}
               label={`arrears · ${count(roster.arrearsCount, 'tenancy', 'tenancies')}`}
@@ -102,7 +101,7 @@ export default function Today() {
               tone="blue"
               onPress={() => router.push('/payouts')}
             />
-          </View>
+          </MetricRow>
         </Card>
 
         <View style={s.metricRow}>
@@ -241,7 +240,6 @@ const s = StyleSheet.create({
   cardLabel: { ...font.label, color: color.inkSoft },
   big: { fontSize: 34, fontWeight: '800', color: color.inkStrong, letterSpacing: -0.6, marginTop: 6 },
   sub: { ...font.small, color: color.inkSoft, marginTop: 8 },
-  metrics: { flexDirection: 'row', gap: 10, marginTop: space(4) },
 
   metricRow: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginBottom: space(3) },
 

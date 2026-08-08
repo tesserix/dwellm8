@@ -505,7 +505,10 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: space(3), paddingVertical: space(3), backgroundColor: color.headerBar,
   },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  backBtn: {
+    width: 40, height: 40, borderRadius: radius.pill, backgroundColor: '#EEF2F7',
+    alignItems: 'center', justifyContent: 'center',
+  },
   backTitle: { ...font.h3, color: color.inkStrong },
   backSub: { ...font.small, color: color.inkSoft, marginTop: 1 },
 

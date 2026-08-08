@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  AppHeader, AvatarButton, Button, Card, Screen, ListRow, StatusPill, Metric, CalendarIcon,
-  color, font, space, ErrorState,
+  AppHeader, AvatarButton, Button, CalendarIcon, color, ListRow,
+  Metric, MetricRow, RowCard, Screen, space, StatusPill,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { fmtDate, fmtTime, useOpsInspections } from '../../src/data/worklists';
@@ -28,15 +27,19 @@ export default function Inspect() {
         left={<AvatarButton onPress={() => router.push('/profile')} />}
       />
       <Screen>
-        <View style={s.metrics}>
+        <MetricRow>
           <Metric value={loading ? '…' : String(rows.length)} label="slots today" tone="blue" />
           <Metric value={loading ? '…' : String(upcoming)} label="still to run" tone={upcoming ? 'amber' : 'green'} />
-        </View>
+        </MetricRow>
 
-        <Card padded={false} style={{ paddingHorizontal: space(4) }}>
-          {loading ? <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View> : null}
-          {error ? <ErrorState error={error} inline /> : null}
-          {rows.map((v, i) => (
+        <RowCard
+          loading={loading}
+          error={error}
+          empty={{
+            title: 'Nothing to show today',
+            body: 'Viewing slots are published on a listing, and prospects book them from the Find app. Set the times and they appear here.',
+          }}
+          rows={rows.map((v, i) => (
             <ListRow
               key={v.id ?? String(i)}
               left={<CalendarIcon size={22} c={color.accent} />}
@@ -55,13 +58,7 @@ export default function Inspect() {
               last={i === rows.length - 1}
             />
           ))}
-          {!loading && !error && !rows.length ? (
-            <Text style={s.empty}>
-              No inspection slots today. Slots are published on listings; prospects book them from
-              the Find app.
-            </Text>
-          ) : null}
-        </Card>
+        />
 
         <Button
           label="Set viewing times"
@@ -72,8 +69,3 @@ export default function Inspect() {
     </>
   );
 }
-
-const s = StyleSheet.create({
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4), marginBottom: space(2) },
-  empty: { ...font.body, color: color.inkSoft, paddingVertical: space(6), textAlign: 'center' },
-});

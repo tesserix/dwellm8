@@ -1,10 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import {
-  AppHeader, AvatarButton, Button, Card, Screen, SearchBar, ListRow, Metric,
-  BuildingIcon, PlusIcon,
-  color, font, space, ErrorState,
+  AppHeader, AvatarButton, BuildingIcon, Button, color, font, ListRow,
+  Metric, MetricRow, PlusIcon, RowCard, Screen, SearchBar, space,
 } from '@dwellm8/mobile-shared';
 import { usePortfolio } from '../../src/data/portfolio';
 
@@ -41,7 +40,7 @@ export default function Portfolio() {
         left={<AvatarButton onPress={() => router.push('/profile')} />}
       />
       <Screen>
-        <View style={s.metrics}>
+        <MetricRow>
           <Metric
             value={loading ? '…' : String(rows.length)}
             label={rows.length === 1 ? 'property' : 'properties'}
@@ -52,7 +51,7 @@ export default function Portfolio() {
             label={units === 1 ? 'unit managed' : 'units managed'}
             tone="green"
           />
-        </View>
+        </MetricRow>
 
         <Button
           label="Onboard a new owner"
@@ -63,12 +62,14 @@ export default function Portfolio() {
 
         <SearchBar value={q} onChange={setQ} placeholder="Property, locality or city" />
 
-        <Card padded={false} style={{ paddingHorizontal: space(4) }}>
-          {loading ? (
-            <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View>
-          ) : null}
-          {error ? <ErrorState error={error} inline /> : null}
-          {list.map((p, i) => (
+        <RowCard
+          loading={loading}
+          error={error}
+          empty={{
+            title: 'Nothing under this scope',
+            body: "Onboard an owner and their building, or switch portfolios from the Today screen's title.",
+          }}
+          rows={list.map((p, i) => (
             <ListRow
               key={p.id}
               left={<BuildingIcon size={22} c={color.accent} />}
@@ -79,13 +80,7 @@ export default function Portfolio() {
               last={i === list.length - 1}
             />
           ))}
-          {!loading && !error && !list.length ? (
-            <Text style={s.empty}>
-              Nothing under this scope yet — onboard an owner, or switch portfolios from the Today
-              screen's title.
-            </Text>
-          ) : null}
-        </Card>
+        />
       </Screen>
     </>
   );
@@ -94,9 +89,4 @@ export default function Portfolio() {
 const s = StyleSheet.create({
   // One rhythm down the screen: every block is space(3) from the next, which
   // is the gap Card and SearchBar already carry.
-  metrics: {
-    flexDirection: 'row', gap: 10,
-    marginHorizontal: space(4), marginTop: space(4), marginBottom: space(3),
-  },
-  empty: { ...font.body, color: color.inkSoft, paddingVertical: space(6), textAlign: 'center' },
 });

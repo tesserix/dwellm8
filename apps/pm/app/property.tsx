@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, KeyValue, StatusPill, ListRow, Metric,
-  HouseArt, color, font, inr, space, type OpsUnit, useBack,
+ BackHeader, Card, color, font, HouseArt, inr, KeyValue, ListRow, Metric, MetricRow,
+  Screen, space, StatusPill, useBack, type OpsUnit,
 } from '@dwellm8/mobile-shared';
 import { usePropertyRecord } from '../src/data/property';
 import { useOwnershipEvidence } from '../src/data/ownership';
@@ -97,11 +97,11 @@ export default function PropertyScreen() {
               />
             </Card>
 
-            <View style={s.metrics}>
+            <MetricRow>
               <Metric value={String(occupied)} label="let" tone="green" />
               <Metric value={String(vacant)} label="empty" tone="amber" />
               {spokenFor ? <Metric value={String(spokenFor)} label="taken" tone="amber" /> : null}
-            </View>
+            </MetricRow>
 
             <Card padded={false} style={{ paddingHorizontal: space(4) }}>
               <Text style={[s.h, { marginTop: space(4) }]}>Units</Text>
@@ -158,7 +158,6 @@ const s = StyleSheet.create({
   sub: { ...font.small, color: color.inkSoft, marginTop: 3 },
   rent: { ...font.h3, color: color.accent, marginTop: space(3), marginBottom: space(2) },
   h: { ...font.h3, color: color.inkStrong, marginBottom: space(1) },
-  metrics: { flexDirection: 'row', gap: 10, marginBottom: space(3) },
   waiting: { paddingVertical: space(6), alignItems: 'center' },
   empty: { ...font.body, color: color.inkSoft, textAlign: 'center', paddingVertical: space(6) },
 });

@@ -1,9 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, ListRow, StatusPill, EmptyState, CalendarIcon,
-  color, font, space, useBack, ErrorState,
+  BackHeader, CalendarIcon, color, ListRow, RowCard, Screen, StatusPill, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { useOpsListings } from '../src/data/viewings';
@@ -24,12 +22,14 @@ export default function Viewings() {
     <>
       <BackHeader title="Viewing times" subtitle="Set when people can come and see" onBack={goBack} />
       <Screen>
-        <Card padded={false} style={{ paddingHorizontal: space(4) }}>
-          {loading ? (
-            <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View>
-          ) : null}
-          {error ? <ErrorState error={error} inline /> : null}
-          {listings.map((l, i) => (
+        <RowCard
+          loading={loading}
+          error={error}
+          empty={{
+            title: 'No listings yet',
+            body: 'Advertise a vacant unit first. Viewing times are set on the listing people are answering.',
+          }}
+          rows={listings.map((l, i) => (
             <ListRow
               key={l.id}
               left={<CalendarIcon size={22} c={color.accent} />}
@@ -41,18 +41,8 @@ export default function Viewings() {
               last={i === listings.length - 1}
             />
           ))}
-        </Card>
-        {!loading && !error && !listings.length ? (
-          <EmptyState
-            title="No listings yet"
-            body="Advertise a vacant unit first. Viewing times are set on the listing people are answering."
-          />
-        ) : null}
+        />
       </Screen>
     </>
   );
 }
-
-const s = StyleSheet.create({
-  empty: { ...font.body, color: color.inkSoft, paddingVertical: space(6), textAlign: 'center' },
-});

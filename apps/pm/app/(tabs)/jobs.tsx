@@ -1,10 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  AppHeader, AvatarButton, Card, Screen, ChipRow, ListRow, StatusPill, Metric,
-  SearchBar, WrenchIcon,
-  color, font, inr, space, ErrorState,
+  AppHeader, AvatarButton, ChipRow, color, font, inr, ListRow,
+  Metric, MetricRow, RowCard, Screen, SearchBar, StatusPill, WrenchIcon,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { TICKET_STATUS_LABEL, fmtDate, useOpsTickets } from '../../src/data/worklists';
@@ -54,11 +53,11 @@ export default function Jobs() {
         left={<AvatarButton onPress={() => router.push('/profile')} />}
       />
       <Screen>
-        <View style={s.metrics}>
+        <MetricRow>
           <Metric value={loading ? '…' : String(open)} label="open jobs" tone="blue" />
           <Metric value={loading ? '…' : String(unscheduled)} label="not yet scheduled" tone={unscheduled ? 'amber' : 'green'} />
           <Metric value={loading ? '…' : String(unassessed)} label="liability unassessed" tone={unassessed ? 'amber' : 'green'} />
-        </View>
+        </MetricRow>
 
         <ChipRow
           items={[{ label: 'Open' }, { label: 'Unscheduled' }, { label: 'Settled' }]}
@@ -68,12 +67,17 @@ export default function Jobs() {
 
         <SearchBar value={q} onChange={setQ} placeholder="Job, unit or property" />
 
-        <Card padded={false} style={{ paddingHorizontal: space(4) }}>
-          {loading ? (
-            <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View>
-          ) : null}
-          {error ? <ErrorState error={error} inline /> : null}
-          {list.map((t, i) => (
+        <RowCard
+          loading={loading}
+          error={error}
+          empty={{
+            title: filter === 'Settled' ? 'Nothing settled yet' : 'Nothing to fix',
+            body: filter === 'Settled'
+              ? 'Jobs appear here once they are resolved or cancelled, with what they cost and who bore it.'
+              : 'Tenants raise repairs from the Live app. Anything they report lands here for you to schedule.',
+            art: <WrenchIcon size={34} c={color.accent} />,
+          }}
+          rows={list.map((t, i) => (
             <ListRow
               key={t.ticket_id}
               title={t.title}
@@ -96,19 +100,12 @@ export default function Jobs() {
               last={i === list.length - 1}
             />
           ))}
-          {!loading && !error && !list.length ? (
-            <Text style={s.empty}>
-              {filter === 'Settled' ? 'Nothing settled yet.' : 'No open jobs — tenants raise them from the Live app.'}
-            </Text>
-          ) : null}
-        </Card>
+        />
       </Screen>
     </>
   );
 }
 
 const s = StyleSheet.create({
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4) },
   needs: { ...font.small, color: '#B4541B' },
-  empty: { ...font.body, color: color.inkSoft, paddingVertical: space(6), textAlign: 'center' },
 });

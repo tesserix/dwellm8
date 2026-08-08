@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  AppHeader, AvatarButton, Card, Screen, Segmented, SearchBar, ListRow, Avatar,
-  StatusPill, Metric,
-  apiFromEnv, color, font, inr, space, ErrorState,
+  apiFromEnv, AppHeader, Avatar, AvatarButton, Card, color, font, inr, ListRow,
+  Metric, MetricRow, RowCard, Screen, SearchBar, Segmented, space, StatusPill,
 } from '@dwellm8/mobile-shared';
 import type { OpsArrear } from '@dwellm8/mobile-shared';
 
@@ -78,21 +77,25 @@ export default function Collect() {
           <Segmented items={['In arrears', 'Whole roster']} value={tab} onChange={setTab} />
         </View>
 
-        <View style={s.metrics}>
+        <MetricRow>
           <Metric value={loading ? '…' : inr(outstanding, { noPaise: true })} label="outstanding in view" tone={outstanding ? 'red' : 'green'} />
           <Metric value={loading ? '…' : String(inArrears)} label="tenancies in arrears" tone={inArrears ? 'amber' : 'green'} />
-        </View>
+        </MetricRow>
 
         <View style={{ marginTop: space(3) }}>
           <SearchBar value={q} onChange={setQ} placeholder="Unit, property or phone" />
         </View>
 
-        <Card padded={false} style={{ paddingHorizontal: space(4) }}>
-          {loading ? (
-            <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View>
-          ) : null}
-          {error ? <ErrorState error={error} inline /> : null}
-          {list.map((a, i) => (
+        <RowCard
+          loading={loading}
+          error={error}
+          empty={{
+            title: tab === 'In arrears' ? 'Nobody owes anything' : 'No live tenancies yet',
+            body: tab === 'In arrears'
+              ? 'Every tenancy on this portfolio is square. Anyone who falls behind appears here the day they do.'
+              : 'Activate a tenancy and it appears here, with what it owes against what it pays.',
+          }}
+          rows={list.map((a, i) => (
             <ListRow
               key={a.lease_id}
               left={<Avatar initials={a.unit.slice(0, 2).toUpperCase()} tone={a.due_amount_minor > 0 ? 'red' : 'green'} />}
@@ -109,12 +112,7 @@ export default function Collect() {
               last={i === list.length - 1}
             />
           ))}
-          {!loading && !error && !list.length ? (
-            <Text style={s.empty}>
-              {tab === 'In arrears' ? 'Nobody owes anything. Good.' : 'No live tenancies on this portfolio yet.'}
-            </Text>
-          ) : null}
-        </Card>
+        />
 
         <Card>
           <Text style={s.helpTitle}>Recording payments</Text>
@@ -130,8 +128,6 @@ export default function Collect() {
 }
 
 const s = StyleSheet.create({
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(3), marginBottom: space(1) },
-  empty: { ...font.body, color: color.inkSoft, paddingVertical: space(6), textAlign: 'center' },
   helpTitle: { ...font.h3, color: color.inkStrong },
   helpBody: { ...font.body, color: color.inkSoft, marginTop: 6, lineHeight: 21 },
 });

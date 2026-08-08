@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, ListRow, StatusPill, Button, Avatar,
-  Toast, Metric, ShieldIcon,
-  color, font, space, useBack,
+ Avatar, BackHeader, Button, Card, color, font, ListRow, Metric, MetricRow, Screen,
+  ShieldIcon, space, StatusPill, Toast, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { fmtDate, setPassState, useOpsPasses } from '../src/data/worklists';
@@ -60,11 +59,11 @@ export default function Gate() {
       <Screen>
         {toast ? <Toast text={toast} /> : null}
 
-        <View style={s.metrics}>
+        <MetricRow>
           <Metric value={loading ? '…' : String(expected)} label="expected" tone="blue" />
           <Metric value={loading ? '…' : String(atGate)} label="at the gate" tone={atGate ? 'amber' : 'green'} />
           <Metric value={loading ? '…' : String(inside)} label="inside" tone="green" />
-        </View>
+        </MetricRow>
 
         {loading ? (
           <View style={{ paddingVertical: space(8), alignItems: 'center' }}><ActivityIndicator /></View>
@@ -122,7 +121,6 @@ export default function Gate() {
 }
 
 const s = StyleSheet.create({
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4), marginBottom: space(3) },
   h: { ...font.h3, color: color.inkStrong },
   body: { ...font.body, color: color.inkSoft, marginTop: space(2), lineHeight: 21 },
 });

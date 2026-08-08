@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, Metric, StatusPill, Button, Avatar,
-  Toast, KeyValue, EmptyState, ErrorState,
-  color, count, font, inr, radius, space, useBack,
+ Avatar, BackHeader, Button, Card, color, count, EmptyState, ErrorState, font, inr,
+  KeyValue, Metric, MetricRow, radius, Screen, space, StatusPill, Toast, useBack,
 } from '@dwellm8/mobile-shared';
 import type { OpsBed } from '@dwellm8/mobile-shared';
 import { useBeds } from '../src/data/beds';
@@ -71,6 +70,7 @@ export default function Beds() {
         <BackHeader title="Bed allocation" onBack={goBack} />
         <Screen>
           <EmptyState
+            full
             title="No hostel or PG yet"
             body="Beds are allocated in a co-living building. Onboard one and its rooms, and the board appears here."
             action="Onboard a hostel"
@@ -95,11 +95,11 @@ export default function Beds() {
 
         {!board.loading && !board.error ? (
           <>
-            <View style={s.metrics}>
+            <MetricRow>
               <Metric value={String(board.occupied)} label="beds occupied" tone="green" />
               <Metric value={String(board.vacant)} label="vacant now" tone="amber" />
               <Metric value={String(board.onNotice)} label="on notice" tone="red" />
-            </View>
+            </MetricRow>
 
             {board.floors.map((f) => (
               <Card key={f.floor}>
@@ -201,7 +201,6 @@ export default function Beds() {
 
 const s = StyleSheet.create({
   waiting: { paddingVertical: space(8), alignItems: 'center' },
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4), marginBottom: space(3) },
   h: { ...font.h3, color: color.inkStrong },
   sub: { ...font.small, color: color.inkSoft, marginTop: 3, lineHeight: 18 },
   note: { ...font.small, color: color.inkFaint, marginTop: space(3), lineHeight: 18 },

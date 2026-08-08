@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, Segmented, ListRow, StatusPill, Metric, Button,
-  KeyValue, Toast, Field, Avatar, ProgressBar, PlusIcon,
-  color, font, inr, inrShort, space, useBack,
+ Avatar, BackHeader, Button, Card, color, Field, font, inr, inrShort, KeyValue, ListRow,
+  Metric, MetricRow, PlusIcon, ProgressBar, Screen, Segmented, space, StatusPill, Toast,
+  useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { amenities, society, societyDues, societyNotices } from '../src/data/mock';
@@ -38,11 +38,11 @@ export default function Society() {
         <DemoNote issue={300} />
         {toast ? <Toast text={toast} /> : null}
 
-        <View style={s.metrics}>
+        <MetricRow>
           <Metric value={`${society.collectedPct}%`} label="dues collected" tone={society.collectedPct > 85 ? 'green' : 'amber'} />
           <Metric value={String(society.defaulters)} label="flats in arrears" tone="red" />
           <Metric value={inrShort(society.corpusPaise)} label="corpus" tone="blue" />
-        </View>
+        </MetricRow>
 
         <View style={{ marginBottom: space(3) }}>
           <Segmented items={['Dues', 'Notices', 'Amenities']} value={tab} onChange={setTab} />
@@ -135,7 +135,6 @@ export default function Society() {
 }
 
 const s = StyleSheet.create({
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4), marginBottom: space(3) },
   h: { ...font.h3, color: color.inkStrong },
   sub: { ...font.small, color: color.inkSoft, marginTop: 4, marginBottom: space(2) },
   title: { ...font.h3, color: color.inkStrong, marginTop: space(3) },

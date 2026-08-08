@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  BackHeader, Card, Screen, ListRow, StatusPill, Metric, ClipboardIcon,
-  color, count, font, space, useBack, ErrorState,
+  BackHeader, ClipboardIcon, color, count, ListRow, Metric,
+  MetricRow, RowCard, Screen, StatusPill, useBack,
 } from '@dwellm8/mobile-shared';
 import type { Tone } from '@dwellm8/mobile-shared';
 import { useOpsChecklists } from '../src/data/worklists';
@@ -29,15 +28,19 @@ export default function Processes() {
     <>
       <BackHeader title="Processes" subtitle="Move-ins, move-outs, onboardings" onBack={goBack} />
       <Screen>
-        <View style={s.metrics}>
+        <MetricRow>
           <Metric value={loading ? '…' : String(open.length)} label="under way" tone="blue" />
           <Metric value={loading ? '…' : String(late.length)} label="running late" tone={late.length ? 'red' : 'green'} />
-        </View>
+        </MetricRow>
 
-        <Card padded={false} style={{ paddingHorizontal: space(4) }}>
-          {loading ? <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View> : null}
-          {error ? <ErrorState error={error} inline /> : null}
-          {rows.map((c, i) => (
+        <RowCard
+          loading={loading}
+          error={error}
+          empty={{
+            title: 'No processes running',
+            body: 'A move-in or a move-out opens a checklist here, with every step and who it waits on.',
+          }}
+          rows={rows.map((c, i) => (
             <ListRow
               key={c.id}
               left={<ClipboardIcon size={22} c={(c.days_overdue ?? 0) > 0 ? color.negative : color.accent} />}
@@ -49,16 +52,8 @@ export default function Processes() {
               last={i === rows.length - 1}
             />
           ))}
-          {!loading && !error && !rows.length ? (
-            <Text style={s.empty}>No processes yet — a move-in or move-out fires one.</Text>
-          ) : null}
-        </Card>
+        />
       </Screen>
     </>
   );
 }
-
-const s = StyleSheet.create({
-  metrics: { flexDirection: 'row', gap: 10, marginHorizontal: space(4), marginTop: space(4), marginBottom: space(2) },
-  empty: { ...font.body, color: color.inkSoft, paddingVertical: space(6), textAlign: 'center' },
-});

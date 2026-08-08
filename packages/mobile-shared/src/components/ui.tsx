@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, Pressable, ScrollView, ViewStyle, TextStyle, StyleProp,
+  ActivityIndicator, View, Text, StyleSheet, Pressable, ScrollView, ViewStyle, TextStyle, StyleProp,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, font, radius, shadow, space } from '../theme/tokens';
@@ -8,11 +8,17 @@ import { ChevronDown, ChevronRight, UserIcon } from './icons';
 
 /* ---------------------------------------------------------------- canvas */
 
-export function Screen({ children, scroll = true }: { children: React.ReactNode; scroll?: boolean }) {
+export function Screen({ children, scroll = true }: {
+  children: React.ReactNode; scroll?: boolean;
+}) {
+  // flexGrow lets a screen with little on it centre that little, instead of
+  // stacking one card under the header above a field of empty blue.
   const body = scroll ? (
     <ScrollView
-      contentContainerStyle={{ paddingBottom: space(8) }}
+      testID="screen-scroll"
+      contentContainerStyle={{ flexGrow: 1, paddingBottom: space(8) }}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       {children}
     </ScrollView>
@@ -20,6 +26,13 @@ export function Screen({ children, scroll = true }: { children: React.ReactNode;
     <View style={{ flex: 1 }}>{children}</View>
   );
   return <View style={s.canvas}>{body}</View>;
+}
+
+/** The three-across figures a screen opens with, in the screen's own gutters. */
+export function MetricRow({ children, style }: {
+  children: React.ReactNode; style?: StyleProp<ViewStyle>;
+}) {
+  return <View testID="metric-row" style={[s.metricRow, style]}>{children}</View>;
 }
 
 export function AppHeader({
@@ -54,9 +67,13 @@ export const AvatarButton = ({ onPress }: { onPress?: () => void }) => (
 /* ---------------------------------------------------------------- surfaces */
 
 export function Card({
-  children, style, padded = true,
-}: { children: React.ReactNode; style?: StyleProp<ViewStyle>; padded?: boolean }) {
-  return <View style={[s.card, padded && { padding: space(4) }, style]}>{children}</View>;
+  children, style, padded = true, testID,
+}: {
+  children: React.ReactNode; style?: StyleProp<ViewStyle>; padded?: boolean; testID?: string;
+}) {
+  return (
+    <View testID={testID} style={[s.card, padded && { padding: space(4) }, style]}>{children}</View>
+  );
 }
 
 export function SectionTitle({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
@@ -265,10 +282,40 @@ export function BarChart({
 
 /* ---------------------------------------------------------------- states */
 
-export function EmptyState({ title, body, art, action, onAct }:
-  { title: string; body: string; art?: React.ReactNode; action?: string; onAct?: () => void }) {
+/**
+ * A card of rows, or — when there are none to show — the reason there are none.
+ * A blank card reads as a screen that failed to load, so the two are exclusive.
+ */
+export function RowCard({ rows, empty, loading = false, error = null, style }: {
+  rows: React.ReactNode[];
+  empty: { title: string; body: string; art?: React.ReactNode; action?: string; onAct?: () => void };
+  loading?: boolean;
+  error?: string | null;
+  style?: StyleProp<ViewStyle>;
+}) {
+  if (!loading && !error && !rows.length) return <EmptyState {...empty} />;
   return (
-    <Card style={{ alignItems: 'center', paddingVertical: space(7) }}>
+    <Card testID="row-card" padded={false} style={[{ paddingHorizontal: space(4) }, style]}>
+      {loading ? (
+        <View style={{ paddingVertical: space(6), alignItems: 'center' }}><ActivityIndicator /></View>
+      ) : null}
+      {error ? <ErrorState error={error} inline /> : null}
+      {rows}
+    </Card>
+  );
+}
+
+export function EmptyState({ title, body, art, action, onAct, full = false }:
+  { title: string; body: string; art?: React.ReactNode; action?: string; onAct?: () => void;
+    full?: boolean }) {
+  // `full` is for the screen that is nothing but this: it takes the height it
+  // was given and sits in the middle of it, rather than at the top of a void.
+  return (
+    <Card
+      testID="empty-state"
+      style={[{ alignItems: 'center', paddingVertical: space(7) },
+        full && { flex: 1, justifyContent: 'center' }]}
+    >
       {art}
       <Text style={s.emptyTitle}>{title}</Text>
       <Text style={s.emptyBody}>{body}</Text>
@@ -317,6 +364,10 @@ export const Badge = ({ text, tone = 'blue' }: { text: string; tone?: 'blue' | '
 
 const s = StyleSheet.create({
   canvas: { flex: 1, backgroundColor: color.bgTop },
+  metricRow: {
+    flexDirection: 'row', gap: 10,
+    marginHorizontal: space(4), marginTop: space(4), marginBottom: space(3),
+  },
 
   headerSafe: { backgroundColor: color.headerBar },
   header: {
