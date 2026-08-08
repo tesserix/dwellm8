@@ -695,6 +695,11 @@ jobs:
               DELETE FROM checklist_tasks; DELETE FROM checklists;
               ALTER TABLE checklists FORCE ROW LEVEL SECURITY;
               ALTER TABLE checklist_tasks FORCE ROW LEVEL SECURITY;
+              -- A bed names the tenancy in it (#299), and a bed whose tenancy
+              -- has gone is vacant — the CHECK refuses an occupied one without.
+              ALTER TABLE beds NO FORCE ROW LEVEL SECURITY;
+              UPDATE beds SET lease_id = NULL, state = 'vacant' WHERE lease_id IS NOT NULL;
+              ALTER TABLE beds FORCE ROW LEVEL SECURITY;
               DELETE FROM lease_tax_facts; DELETE FROM leases;
               ALTER TABLE tds_obligation_steps FORCE ROW LEVEL SECURITY;
               ALTER TABLE tds_obligations FORCE ROW LEVEL SECURITY;
