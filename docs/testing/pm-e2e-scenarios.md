@@ -12,6 +12,11 @@ next one reads.
 only fire once per sign-in, so a deleted account is a scenario that cannot be
 re-run without re-verifying an inbox.
 
+**Status vocabulary.** `not run` — never exercised. `pass` — seen working, on
+device unless the row says otherwise. `pass — unit` — proved by a test in the
+repo, not yet on device. `#nnn` — failing, with the issue that holds it.
+`blocked: …` — cannot be run, and why.
+
 **Recording a failure.** File the GitHub issue before fixing it, with the screen,
 the request, and the log line that explains it. The issue number goes in the
 Status column so this file is the index of what is known to be broken.
@@ -99,3 +104,113 @@ The nationwide firm: staff, roles, and property that belongs to somebody else.
 | E4 | Sign out and back in | Every gate that was passed stays passed | blocked: signing back in means entering a password, which is the user's to do |
 | E5 | An organisation with nothing in it | Empty states say what to do, not "0" | pass — Collect (both tabs), Jobs (all three), Inspect and the switcher each name what fills them. #313 was this row failing on the roster tab |
 | E6 | A request the server refuses | The server's own words, at the field that caused it | |
+
+## F — Describing what is let
+
+Listing surface: the flat, the block, what is around it, and who asks to see it.
+
+| # | Scenario | Expected | Status |
+|---|----------|----------|--------|
+| F1 | Describe a property — floors, lift, parking, power backup | Saved against the property and read back on reopen | not run |
+| F2 | Describe a flat — bedrooms, bathrooms, facing, furnishing | Only the features the record can hold are offered (#354) | not run |
+| F3 | Describe a flat with nothing filled in | Saves as unknown rather than as zero | not run |
+| F4 | What is nearby — school, metro, hospital with distances | Each entry carries a kind and a distance; order is stable | not run |
+| F5 | Correct a description already saved | The screen names what changed, and offers only fields the record holds (#354) | not run |
+| F6 | Hostel or PG property — allocate beds by floor and room | Beds addressable individually; an allocated bed cannot be double-let | not run |
+| F7 | Bed allocation on a property that is neither hostel nor PG | Says so plainly rather than showing an empty grid | not run |
+| F8 | Set viewing times | Slots stored per property; a past slot cannot be offered | not run |
+| F9 | Two enquiries on one listing | Both appear as leads, newest first, each traceable to its listing | not run |
+| F10 | Book a viewing into a slot | Slot marked taken; the lead's state advances | not run |
+
+## G — Agreements, deeds and documents
+
+| # | Scenario | Expected | Status |
+|---|----------|----------|--------|
+| G1 | Generate the management agreement | PDF renders with the firm's and the owner's real particulars | not run |
+| G2 | Preview an agreement that cannot render | Says so, rather than spinning (fixed 2dfca3a — re-verify) | not run |
+| G3 | Send an agreement to be signed | State moves off draft; the signed copy can be filed against it | not run |
+| G4 | File a signed paper copy | Stored to the private bucket; the agreement reads as executed | not run |
+| G5 | Upload ownership evidence (sale deed, tax receipt, khata) | Ownership reads as proven; a property with none reads as not proven | not run |
+| G6 | Let a unit on a property with no ownership evidence | Warned before the tenancy, not after | not run |
+| G7 | Open a document template and fill it | Placeholders resolve from the record, none left literal | not run |
+| G8 | Applicant pack — download everything filed for one tenancy | One archive, private-bucket links only, no public URL | not run |
+| G9 | A blob upload the signer cannot write | Fails loudly rather than returning a link to nothing (#352) | not run |
+
+## H — Jobs, vendors and inspections
+
+| # | Scenario | Expected | Status |
+|---|----------|----------|--------|
+| H1 | Raise a job against a unit | Appears on Jobs with who bears the cost stated | not run |
+| H2 | Dispatch a vendor | Vendor recorded on the job; the timeline gains the dispatch | not run |
+| H3 | Schedule a visit | Date lands on the job and on the tenant's side | not run |
+| H4 | Job cost above the manager's spend authority | Approval requested rather than the job proceeding (same rule as B8) | not run |
+| H5 | Close a job | Timeline complete; the job leaves the open tile | not run |
+| H6 | Run a move-in inspection | Report queued; summary readable by the owner | not run |
+| H7 | Move-out inspection against the move-in | Differences itemised, and feed the deposit deduction (D5) | not run |
+| H8 | Define a process and run its checklist | Steps tick in order; a half-done run resumes where it stopped | not run |
+
+## I — Compliance, society and what runs by itself
+
+| # | Scenario | Expected | Status |
+|---|----------|----------|--------|
+| I1 | Compliance register with a lapsed certificate | Names the certificate, the days lapsed, and who owns it | not run |
+| I2 | Add a certificate with an expiry ahead | Falls out of the lapsed list; reminder scheduled | not run |
+| I3 | Society maintenance due | Amount and month stated; payable from the right book | not run |
+| I4 | Post a society notice | Reaches residents of that property only | not run |
+| I5 | Reminders list | Each reminder names its subject and its date, none orphaned | not run |
+| I6 | Automations — what runs by itself, and its limits | Every automation states its cap; none can be enabled without one | not run |
+
+## J — Team, roles and delegation
+
+| # | Scenario | Expected | Status |
+|---|----------|----------|--------|
+| J1 | Hire a manager with terms and a spend cap | Staff row; the cap is the one enforced in H4 | not run |
+| J2 | Assign properties to that manager | They see those and no others (same rule as B7) | not run |
+| J3 | Roles — what each role may do | The list matches what the API enforces, not a longer one | not run |
+| J4 | Rota — move-ins, move-outs, who covers | Hours per person add up; no double-booking | not run |
+| J5 | Mark somebody as no longer with the firm | Access ends at once; their history stays readable | not run |
+| J6 | Switcher between own book and each mandate | `X-Dwellm8-Grant` set only under a grant (same rule as B5) | not run |
+
+## K — Money surfaces
+
+| # | Scenario | Expected | Status |
+|---|----------|----------|--------|
+| K1 | Where rent settles — own account, own aggregator | Recorded against this organisation only (same rule as A15) | not run |
+| K2 | Payout run for one owner | Rent less fee and TDS, the split shown before it is released | not run |
+| K3 | Tax on rent — the two questions before a tenancy starts | Category decides the rate; an unanswerable owner blocks the tenancy | not run |
+| K4 | Receipt an offline payment twice with the same reference | The second returns the first payment, not a duplicate | not run |
+| K5 | Arrear screen for a tenancy behind on rent | Position, receipts and what is owed agree with the ledger | not run |
+| K6 | Message a tenant in arrears | What was said is on record against the tenancy | not run |
+
+## L — Retirement and closure (#356)
+
+Deactivating rather than deleting: the row stops being usable, its history stays.
+
+| # | Scenario | Expected | Status |
+|---|----------|----------|--------|
+| L1 | End a tenancy | Tenancy closed with its date; the unit becomes lettable again | blocked: no PM screen calls the retire endpoints yet |
+| L2 | Retire a unit with a live tenancy | Refused, naming the tenancy | blocked, as L1 |
+| L3 | Retire a property with no live tenancies | Property unreachable from the portfolio; receipts still readable | blocked, as L1 |
+| L4 | Retire an owner with a live mandate | Refused until the mandate is revoked | blocked, as L1 |
+| L5 | Close the firm's account | Every book becomes read-only; nothing is deleted | blocked, as L1 |
+| L6 | Sign in after closure | Told the account is closed, not shown an empty app | blocked, as L1 |
+
+## M — The way in (shared across every Dwellm8 app)
+
+`packages/mobile-shared` — the same screen and the same session hook serve PM,
+`live`, and anything after them. A row here failing fails every app at once.
+
+| # | Scenario | Expected | Status |
+|---|----------|----------|--------|
+| M1 | Sign in with the right password | Session stored in the keychain; the app opens past the gate | not run |
+| M2 | Sign in with a wrong password | The provider's own refusal, at the form | pass — unit (`SignIn.test.tsx`) |
+| M3 | Password under six characters | Button stays disabled; nothing is sent | pass — unit |
+| M4 | Forgot password with a known address | Reset mail arrives; the link sets a new password | not run — needs an inbox |
+| M5 | Forgot password with an address that has no account | Same neutral answer as M4; no enumeration oracle | pass — unit + `auth.test.ts` |
+| M6 | Forgot password with the field empty | Asks for the address rather than sending nothing | pass — unit |
+| M7 | Reset offered while creating an account | It is not | pass — unit |
+| M8 | A build with no GIP tenant configured | Says so plainly instead of failing at the first request | pass — unit |
+| M9 | Relaunch after signing in | Restored from the keychain, no sign-in screen | not run |
+| M10 | Token a minute from expiry | Refreshed before the request, not after a 401 | pass — `session.test.ts` |
+| M11 | Sign out | Keychain cleared; a relaunch lands on sign-in | not run |
+| M12 | Sign in on a device with no keychain entitlement | Regression guard for the entitlement lost at prebuild | fixed — `app.json` carries it |
