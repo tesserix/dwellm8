@@ -232,6 +232,24 @@ func TestAPlaceIsCorrectedAndThenRetired(t *testing.T) {
 		}
 	}
 
+	// A correction names what changed. Re-measuring the walk must not cost the
+	// place its name, its kind or its tags.
+	w = callWith(t, mux, isolationtest.OrgOwner, http.MethodPatch,
+		"/v1/ops/places/"+made.Place.ID, `{"distance_m":950}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("correcting the distance alone: %d %s", w.Code, w.Body.String())
+	}
+	w = call(t, mux, isolationtest.OrgOwner, http.MethodGet, "/v1/ops/properties/"+property+"/places")
+	decode(t, w, &out)
+	for _, p := range out.Places {
+		if p.ID != made.Place.ID {
+			continue
+		}
+		if p.DistanceM != 950 || p.Name != name || p.Category != "metro" {
+			t.Errorf("after correcting the distance: %+v", p)
+		}
+	}
+
 	w = call(t, mux, isolationtest.OrgOwner, http.MethodDelete, "/v1/ops/places/"+made.Place.ID)
 	if w.Code != http.StatusNoContent {
 		t.Fatalf("retiring: %d %s", w.Code, w.Body.String())

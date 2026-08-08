@@ -206,15 +206,23 @@ func (h *Handler) AddPlace(w http.ResponseWriter, r *http.Request) {
 // CorrectPlace amends a place recorded wrongly — usually the distance.
 func (h *Handler) CorrectPlace(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	p, ok := h.readPlace(w, r)
-	if !ok {
+	var req placeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "that was not a place")
 		return
 	}
+	p := req.place()
 	p.ID = id
-	if p.TravelMode == "" {
-		p.TravelMode = "walk"
+	if p.Category == "" && p.Name == "" && p.DistanceM == 0 &&
+		p.TravelMode == "" && p.Tags == nil && p.Note == "" && p.Position == 0 {
+		writeError(w, http.StatusUnprocessableEntity, "say what about this place changed")
+		return
 	}
-	err := h.properties.CorrectPlace(r.Context(), p)
+	if p.DistanceM < 0 {
+		writeError(w, http.StatusUnprocessableEntity, "say how far it is, in metres")
+		return
+	}
+	corrected, err := h.properties.CorrectPlace(r.Context(), p)
 	switch {
 	case errors.Is(err, propertyservice.ErrNoPlace):
 		writeError(w, http.StatusNotFound, "no such place")
@@ -227,7 +235,7 @@ func (h *Handler) CorrectPlace(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("correcting a place", "place", id, "error", err)
 		writeError(w, http.StatusInternalServerError, "could not correct the place")
 	default:
-		writeJSON(w, http.StatusOK, map[string]any{"place": asPlace(p)})
+		writeJSON(w, http.StatusOK, map[string]any{"place": asPlace(corrected)})
 	}
 }
 
@@ -247,7 +255,12 @@ func (h *Handler) RetirePlace(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// A nil list is one the caller did not mention, which a correction reads as
+// "leave the tags alone" — so it stays nil rather than becoming an empty list.
 func trimmed(in []string) []string {
+	if in == nil {
+		return nil
+	}
 	out := make([]string, 0, len(in))
 	for _, s := range in {
 		if s = strings.TrimSpace(s); s != "" {

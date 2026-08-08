@@ -1291,7 +1291,8 @@ export class DwellmApi {
     return this.request('POST', `/v1/ops/properties/${encodeURIComponent(propertyId)}/places`, place);
   }
 
-  opsCorrectPlace(placeId: string, place: OpsPlaceDraft): Promise<{ place: OpsPlace }> {
+  // A correction names only what changed; the rest of the place stays as it is.
+  opsCorrectPlace(placeId: string, place: Partial<OpsPlaceDraft>): Promise<{ place: OpsPlace }> {
     return this.request('PATCH', `/v1/ops/places/${encodeURIComponent(placeId)}`, place);
   }
 

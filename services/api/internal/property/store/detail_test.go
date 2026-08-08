@@ -196,10 +196,13 @@ func TestPropertyPlaces(t *testing.T) {
 			t.Fatalf("adding: %v", err)
 		}
 
-		added.DistanceM = 800
-		added.TravelMode = "walk"
-		if err := s.UpdatePlace(ctx, added); err != nil {
+		// Only the distance is named, so the name and kind must survive it.
+		fixed, err := s.UpdatePlace(ctx, domain.Place{ID: added.ID, DistanceM: 800})
+		if err != nil {
 			t.Fatalf("correcting: %v", err)
+		}
+		if fixed.Name != added.Name || fixed.Category != added.Category {
+			t.Errorf("correcting the distance changed the place: %+v", fixed)
 		}
 
 		got, err := s.Places(ctx, property)

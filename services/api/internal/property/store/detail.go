@@ -156,36 +156,46 @@ func (s *Properties) AddPlace(ctx context.Context, propertyID string, p domain.P
 	return p, nil
 }
 
-// UpdatePlace corrects a place that was recorded wrongly.
-func (s *Properties) UpdatePlace(ctx context.Context, p domain.Place) error {
+// UpdatePlace corrects a place that was recorded wrongly. A correction names
+// what changed: anything left out keeps the value the row already holds, so
+// re-measuring the walk does not cost the school its name.
+func (s *Properties) UpdatePlace(ctx context.Context, p domain.Place) (domain.Place, error) {
+	var out domain.Place
 	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, `
+		err := tx.QueryRow(ctx, `
 			UPDATE property_places
-			   SET category = $2, name = btrim($3), distance_m = $4, travel_mode = $5,
-			       tags = $6::text[], note = nullif(btrim($7), ''), position = $8, updated_at = now()
-			 WHERE id = $1::uuid AND state = 'active'`,
-			p.ID, p.Category, p.Name, p.DistanceM, p.TravelMode, nonNil(p.Tags), p.Note, p.Position)
-		if err != nil {
-			return err
-		}
-		if tag.RowsAffected() == 0 {
+			   SET category    = coalesce(nullif($2, ''), category),
+			       name        = coalesce(nullif(btrim($3), ''), name),
+			       distance_m  = coalesce(nullif($4, 0), distance_m),
+			       travel_mode = coalesce(nullif($5, ''), travel_mode),
+			       tags        = coalesce($6::text[], tags),
+			       note        = coalesce(nullif(btrim($7), ''), note),
+			       position    = coalesce(nullif($8, 0), position),
+			       updated_at  = now()
+			 WHERE id = $1::uuid AND state = 'active'
+			RETURNING id::text, category, name, distance_m, travel_mode, tags,
+			          coalesce(note, ''), position`,
+			p.ID, p.Category, p.Name, p.DistanceM, p.TravelMode, p.Tags, p.Note, p.Position,
+		).Scan(&out.ID, &out.Category, &out.Name, &out.DistanceM, &out.TravelMode,
+			&out.Tags, &out.Note, &out.Position)
+		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNoPlace
 		}
-		return nil
+		return err
 	})
 	if err != nil {
 		if errors.Is(err, ErrNoPlace) {
-			return err
+			return domain.Place{}, err
 		}
 		if isCheck(err) {
-			return ErrNotAllowed
+			return domain.Place{}, ErrNotAllowed
 		}
 		if isUnique(err, "property_places_once") {
-			return ErrPlaceExists
+			return domain.Place{}, ErrPlaceExists
 		}
-		return fmt.Errorf("property: correcting place %s: %w", p.ID, err)
+		return domain.Place{}, fmt.Errorf("property: correcting place %s: %w", p.ID, err)
 	}
-	return nil
+	return out, nil
 }
 
 // RetirePlace stops a place being listed. Nothing here is deleted: that the

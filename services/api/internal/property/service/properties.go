@@ -116,7 +116,7 @@ func (p *Properties) AddPlace(ctx context.Context, propertyID string, pl Place) 
 }
 
 // CorrectPlace amends a place that was recorded wrongly.
-func (p *Properties) CorrectPlace(ctx context.Context, pl Place) error {
+func (p *Properties) CorrectPlace(ctx context.Context, pl Place) (Place, error) {
 	return p.store.UpdatePlace(ctx, pl)
 }
 

@@ -51,12 +51,11 @@ export const amenityVocabulary = [
 ];
 
 export const featureVocabulary = [
-  'modular_kitchen', 'wardrobes', 'false_ceiling', 'chimney', 'geyser',
-  'air_conditioning', 'piped_gas', 'water_purifier', 'washing_machine_point',
-  'dishwasher_point', 'study', 'servant_room', 'pooja_room', 'store_room',
-  'utility_area', 'private_terrace', 'garden_access', 'attached_bathroom',
-  'western_toilet', 'wooden_flooring', 'vitrified_flooring', 'marble_flooring',
-  'power_backup_point', 'internet_ready', 'pet_friendly',
+  'modular_kitchen', 'chimney', 'wardrobes', 'false_ceiling', 'air_conditioning',
+  'geyser', 'piped_gas', 'water_purifier', 'washing_machine', 'refrigerator',
+  'microwave', 'sofa', 'beds', 'dining_table', 'study', 'servant_room',
+  'store_room', 'pooja_room', 'private_terrace', 'garden', 'balcony_covered',
+  'inverter', 'internet', 'pet_friendly', 'wheelchair_access',
 ];
 
 export const facings = ['north', 'south', 'east', 'west',

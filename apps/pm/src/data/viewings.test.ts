@@ -121,7 +121,7 @@ describe('useListingViewings', () => {
   it('reads the series and the times they produced together', async () => {
     mockListingSchedules.mockResolvedValue([saturdays]);
     mockListingSlots.mockResolvedValue([
-      { id: 'v1', starts_at: '2026-08-08T04:30:00Z', duration_mins: 30, remaining: 4, state: 'open' },
+      { id: 'v1', starts_at: '2099-08-08T04:30:00Z', duration_mins: 30, remaining: 4, state: 'open' },
     ]);
     const { result } = await renderHook(() => useListingViewings('l1'));
 

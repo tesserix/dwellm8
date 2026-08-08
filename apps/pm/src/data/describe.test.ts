@@ -1,5 +1,5 @@
 import { renderHook, waitFor, act } from '@testing-library/react-native';
-import { usePropertyDescription, useUnitDescription } from './describe';
+import { usePropertyDescription, useUnitDescription, featureVocabulary } from './describe';
 
 // What the manager writes about a building and about a flat (#354). It is read
 // back from the record, never held only in the screen.
@@ -108,4 +108,17 @@ it('a count that is not a number is refused before the server sees it', async ()
   await act(async () => { result.current.setBathrooms('two'); });
   await expect(result.current.save()).rejects.toThrow(/number/i);
   expect(mockDescribeUnit).not.toHaveBeenCalled();
+});
+
+// Every chip the screen offers has to be a value units_features_known accepts,
+// or the manager taps it and the save comes back 422 (#354).
+it('offers only the features the record holds', () => {
+  expect([...featureVocabulary].sort()).toEqual([
+    'air_conditioning', 'balcony_covered', 'beds', 'chimney', 'dining_table',
+    'false_ceiling', 'garden', 'geyser', 'internet', 'inverter',
+    'microwave', 'modular_kitchen', 'pet_friendly', 'piped_gas',
+    'pooja_room', 'private_terrace', 'refrigerator', 'servant_room', 'sofa',
+    'store_room', 'study', 'wardrobes', 'washing_machine', 'water_purifier',
+    'wheelchair_access',
+  ].sort());
 });
