@@ -1,4 +1,6 @@
-import { apiFromEnv, ApiError, DwellmApi, setTokenSource } from './api';
+import {
+  apiFromEnv, ApiError, DwellmApi, getActingGrant, onActingGrantChange, setActingGrant, setTokenSource,
+} from './api';
 
 // The one HTTP client every app talks through. What matters here is the
 // contract every screen relies on without re-checking it: the right path and
@@ -724,5 +726,33 @@ describe('DwellmApi — taking things off the book (#356)', () => {
 
     await expect(new DwellmApi({ baseUrl }).opsRetireUnit('u1', ''))
       .rejects.toThrow('a home somebody is living in cannot be retired');
+  });
+});
+
+// A screen reading /v1/ops/ is reading one owner's rows. When the open book
+// changes, whatever is on screen belongs to the last one (#364).
+describe('setActingGrant — telling the screens the book changed', () => {
+  afterEach(() => setActingGrant(null));
+
+  it('tells every subscriber which book is open now', () => {
+    const heard: (string | null)[] = [];
+    const stop = onActingGrantChange(() => heard.push(getActingGrant()));
+
+    setActingGrant('grant-1');
+    setActingGrant(null);
+    expect(heard).toEqual(['grant-1', null]);
+
+    stop();
+    setActingGrant('grant-2');
+    expect(heard).toEqual(['grant-1', null]);
+  });
+
+  it('says nothing when the book has not changed', () => {
+    setActingGrant('grant-1');
+    const heard = jest.fn();
+    const stop = onActingGrantChange(heard);
+    setActingGrant('grant-1');
+    stop();
+    expect(heard).not.toHaveBeenCalled();
   });
 });

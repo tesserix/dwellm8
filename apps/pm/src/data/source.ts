@@ -15,7 +15,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { apiFromEnv, type DwellmApi, type OpsToday } from '@dwellm8/mobile-shared';
+import {
+  apiFromEnv, onActingGrantChange, type DwellmApi, type OpsToday,
+} from '@dwellm8/mobile-shared';
 import * as demo from './mock';
 
 export type Mode = 'live' | 'demo';
@@ -91,9 +93,18 @@ async function loadLive(api: DwellmApi): Promise<OpsTodayData> {
   };
 }
 
+/** Bumped when the switcher opens another owner's books: every figure below
+ * belongs to the book it was read from, so it has to be read again (#364). */
+function useOpenBook(): number {
+  const [book, setBook] = useState(0);
+  useEffect(() => onActingGrantChange(() => setBook((n) => n + 1)), []);
+  return book;
+}
+
 /** useOpsTodayData is what the Today screen's headline card reads. */
 export function useOpsTodayData(): OpsTodayData {
   const api = useMemo(() => apiFromEnv(), []);
+  const book = useOpenBook();
   const [attempt, setAttempt] = useState(0);
   const reload = useCallback(() => setAttempt((n) => n + 1), []);
   const [state, setState] = useState<OpsTodayData>(
@@ -110,7 +121,7 @@ export function useOpsTodayData(): OpsTodayData {
         if (alive) setState({ ...liveNothingYet, loading: false, error: err.message });
       });
     return () => { alive = false; };
-  }, [api, attempt]);
+  }, [api, attempt, book]);
 
   return useMemo(() => ({ ...state, reload }), [state, reload]);
 }
@@ -196,6 +207,7 @@ const inrRough = (minor: number) => `₹${Math.round(minor / 100).toLocaleString
 
 export function useOpsWorklist(): OpsWorklist {
   const api = useMemo(() => apiFromEnv(), []);
+  const book = useOpenBook();
   const [state, setState] = useState<OpsWorklist>(
     api ? { mode: 'live', loading: true, tasks: [] } : { mode: 'demo', loading: false, tasks: demoTasks },
   );
@@ -207,7 +219,7 @@ export function useOpsWorklist(): OpsWorklist {
       .then((tasks) => { if (alive) setState({ mode: 'live', loading: false, tasks }); })
       .catch(() => { if (alive) setState({ mode: 'live', loading: false, tasks: [] }); });
     return () => { alive = false; };
-  }, [api]);
+  }, [api, book]);
 
   return state;
 }

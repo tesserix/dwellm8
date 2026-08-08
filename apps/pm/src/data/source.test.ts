@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
-import { useOpsTodayData } from './source';
+import { useOpsTodayData, useOpsWorklist } from './source';
 
 // The Today screen's numbers. What matters here is what a manager is shown
 // when the server does not answer: demonstration figures on a real firm's
@@ -7,12 +7,25 @@ import { useOpsTodayData } from './source';
 
 const mockOpsToday = jest.fn();
 const mockOpsTickets = jest.fn();
+const mockOpsArrears = jest.fn();
+const mockOpsApprovals = jest.fn();
+const mockGrantListeners = new Set<() => void>();
 
 jest.mock('@dwellm8/mobile-shared', () => ({
   apiFromEnv: () => (process.env.EXPO_PUBLIC_API_URL
-    ? { opsToday: mockOpsToday, opsTickets: mockOpsTickets, opsRegistration: jest.fn(), me: jest.fn() }
+    ? {
+      opsToday: mockOpsToday, opsTickets: mockOpsTickets, opsArrears: mockOpsArrears,
+      opsApprovals: mockOpsApprovals, opsRegistration: jest.fn(), me: jest.fn(),
+    }
     : null),
+  onActingGrantChange: (fn: () => void) => {
+    mockGrantListeners.add(fn);
+    return () => { mockGrantListeners.delete(fn); };
+  },
 }));
+
+/** What the switcher does: the open book changes under every mounted screen. */
+const openAnotherBook = () => mockGrantListeners.forEach((l) => l());
 
 const live = {
   as_of: '2026-08-07', active_tenancies: 0, rent_roll_amount_minor: 0,
@@ -96,5 +109,48 @@ describe('useOpsTodayData — recovering', () => {
     await act(async () => result.current.reload());
     await waitFor(() => expect(result.current.billedPaise).toBe(990000));
     expect(result.current.error).toBeUndefined();
+  });
+});
+
+// A manager switches from their own books to an owner's and the screen keeps
+// the figures it already had. The zeros read as an owner with nothing owed;
+// the other direction puts one owner's arrears under another's name (#364).
+describe('the open book changing', () => {
+  beforeEach(() => {
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.example.test';
+    mockOpsToday.mockReset();
+    mockOpsTickets.mockReset().mockResolvedValue([]);
+    mockOpsArrears.mockReset().mockResolvedValue([]);
+    mockOpsApprovals.mockReset().mockResolvedValue([]);
+  });
+
+  it('reads the roster again when another owner’s books are opened', async () => {
+    mockOpsToday.mockResolvedValue(live);
+    const { result } = await renderHook(() => useOpsTodayData());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.billedPaise).toBe(0);
+
+    mockOpsToday.mockResolvedValue({
+      ...live, rent_roll_amount_minor: 3200000, active_tenancies: 1,
+    });
+    await act(async () => openAnotherBook());
+
+    await waitFor(() => expect(result.current.billedPaise).toBe(3200000));
+    expect(result.current.activeTenancies).toBe(1);
+  });
+
+  it('reads the worklist again too, so no task is filed under the wrong owner', async () => {
+    const { result } = await renderHook(() => useOpsWorklist());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.tasks).toHaveLength(0);
+
+    mockOpsArrears.mockResolvedValue([{
+      lease_id: 'l-1', due_amount_minor: 3200000, property: 'Nair Gardens',
+      unit: '301', as_of: '2026-08-08',
+    }]);
+    await act(async () => openAnotherBook());
+
+    await waitFor(() => expect(result.current.tasks).toHaveLength(1));
+    expect(result.current.tasks[0].where).toBe('Nair Gardens · 301');
   });
 });

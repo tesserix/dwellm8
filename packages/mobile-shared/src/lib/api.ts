@@ -1136,9 +1136,19 @@ export class ApiError extends Error {
  * the firm's own books; a grant id opens the grantor's rows and nothing
  * else. Module-level because apiFromEnv() builds a client per hook. */
 let actingGrant: string | null = null;
+const grantListeners = new Set<() => void>();
 
 export function setActingGrant(grantId: string | null): void {
+  if (actingGrant === grantId) return;
   actingGrant = grantId;
+  grantListeners.forEach((l) => l());
+}
+
+/** Subscribe to the open book changing. Whatever a screen is showing belongs
+ * to the book it was read from, so it must be read again (#364). */
+export function onActingGrantChange(fn: () => void): () => void {
+  grantListeners.add(fn);
+  return () => { grantListeners.delete(fn); };
 }
 
 export function getActingGrant(): string | null {
