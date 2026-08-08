@@ -36,8 +36,7 @@ export default function TemplateScreen() {
           <Card padded={false} style={s.paper}>
             <WebView
               source={{ uri: page }}
-              allowFileAccess
-              allowFileAccessFromFileURLs
+              javaScriptEnabled={false}
               style={s.pdf}
               startInLoadingState
               renderLoading={() => <View style={s.waiting}><ActivityIndicator /></View>}

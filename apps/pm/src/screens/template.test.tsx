@@ -60,6 +60,20 @@ it('shows the instrument as a PDF, not as a file to download', async () => {
     .toBe('file:///cache/rent-agreement-preview.pdf');
 });
 
+// A file:// document that may read other file:// URLs can read everything else
+// in the cache directory. Rendering a PDF needs neither that nor script at all,
+// and the default read scope is the one file in source.uri.
+it('grants the page no access beyond the PDF itself', async () => {
+  await render(<TemplateScreen />);
+
+  const web = screen.getByTestId('pdf').props;
+  expect(web.allowFileAccessFromFileURLs).toBeFalsy();
+  expect(web.allowUniversalAccessFromFileURLs).toBeFalsy();
+  expect(web.allowFileAccess).toBeFalsy();
+  expect(web.allowingReadAccessToURL).toBeUndefined();
+  expect(web.javaScriptEnabled).toBe(false);
+});
+
 it('falls back to the signed link when the file could not be written', async () => {
   mockPreview.mockReturnValue({ ...ready, fileUri: undefined });
   await render(<TemplateScreen />);
