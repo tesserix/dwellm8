@@ -78,6 +78,8 @@ export type OpsProperty = {
   address_line1: string;
   locality: string;
   city: string;
+  /** Two letters, and what a listing is filed under (#370). */
+  state_code?: string;
   unit_count: number;
   /** What the building is like (#354) — empty until a manager writes it. */
   about?: string;
@@ -447,6 +449,30 @@ export type OpsListing = {
   id: string; property_id: string; unit_id: string; state: string;
   headline: string; locality: string; city: string;
   rent_minor: number; published_at?: string; bedrooms?: number;
+};
+
+/** What a manager fills in to advertise a vacant unit (POST /v1/listings).
+ * Every cost is stated or explicitly nil: the API refuses to publish until
+ * costs_confirmed, so a renter is never quoted a rent that grows later. */
+export type ListingDraft = {
+  property_id: string;
+  unit_id: string;
+  headline: string;
+  locality: string;
+  city: string;
+  state_code: string;
+  rent_minor: number;
+  deposit_minor: number;
+  maintenance_minor?: number;
+  parking_minor?: number;
+  other_monthly_minor?: number;
+  one_time_minor?: number;
+  costs_confirmed: boolean;
+  bedrooms?: number;
+  carpet_area_sqft?: number;
+  available_from?: string;
+  lister_kind?: 'owner' | 'agent';
+  agent_registration?: string;
 };
 
 /** A recurring viewing time on a listing (#330). */
@@ -1748,6 +1774,23 @@ export class DwellmApi {
     const out = await this.request<{ inspections?: OpsInspection[] }>(
       'GET', `/v1/inspections${on ? `?on=${on}` : ''}`);
     return out.inspections ?? [];
+  }
+
+  /* --------------------------------------- advertising a unit (#370) */
+
+  createListing(draft: ListingDraft): Promise<{ id: string; state: string }> {
+    return this.request('POST', '/v1/listings', draft);
+  }
+
+  /** Live on the public site. The disclosure and claims gates refuse here. */
+  publishListing(id: string): Promise<unknown> {
+    return this.request('POST', `/v1/listings/${encodeURIComponent(id)}/publish`, {});
+  }
+
+  /** Off the market. A draft refused at publication cannot be amended, so it
+   * is withdrawn rather than left where nobody can fix it or see it. */
+  withdrawListing(id: string): Promise<unknown> {
+    return this.request('POST', `/v1/listings/${encodeURIComponent(id)}/withdraw`, {});
   }
 
   /* --------------------------------------- viewing times (#330, #333) */

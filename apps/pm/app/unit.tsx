@@ -138,6 +138,16 @@ export default function UnitScreen() {
               <>
                 <SectionTitle>Who is in it</SectionTitle>
                 <Card><Text style={s.empty}>Nobody. This flat is free to let.</Text></Card>
+                {!listing ? (
+                  <Card padded={false} style={{ paddingHorizontal: space(4) }}>
+                    <ListRow
+                      title="Advertise this flat"
+                      subtitle="Rent, deposit and every other cost, then it is on the market"
+                      onPress={() => router.push(`/advertise?unit=${unit.id}`)}
+                      last
+                    />
+                  </Card>
+                ) : null}
               </>
             )}
 

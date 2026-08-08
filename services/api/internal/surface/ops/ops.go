@@ -112,6 +112,9 @@ type propertyResponse struct {
 	AddressLine1 string `json:"address_line1"`
 	Locality     string `json:"locality"`
 	City         string `json:"city"`
+	// A listing is filed under the two-letter state, and this is where it
+	// already is — retyping it is how one lands in the wrong state (#370).
+	StateCode string `json:"state_code,omitempty"`
 	UnitCount    int    `json:"unit_count"`
 	// What the building is like (#354) — empty until a manager writes it.
 	About     string   `json:"about,omitempty"`
@@ -132,7 +135,8 @@ func (h *Handler) Properties(w http.ResponseWriter, r *http.Request) {
 	for _, p := range props {
 		out = append(out, propertyResponse{
 			ID: p.ID, Code: p.Code, Name: p.Name, Kind: p.Kind,
-			AddressLine1: p.AddressLine1, Locality: p.Locality, City: p.City, UnitCount: p.UnitCount,
+			AddressLine1: p.AddressLine1, Locality: p.Locality, City: p.City,
+			StateCode: p.StateCode, UnitCount: p.UnitCount,
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"properties": out})
@@ -230,7 +234,8 @@ func (h *Handler) Property(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"property": propertyResponse{
 			ID: p.ID, Code: p.Code, Name: p.Name, Kind: p.Kind,
-			AddressLine1: p.AddressLine1, Locality: p.Locality, City: p.City, UnitCount: p.UnitCount,
+			AddressLine1: p.AddressLine1, Locality: p.Locality, City: p.City,
+			StateCode: p.StateCode, UnitCount: p.UnitCount,
 			About: p.About, Amenities: p.Amenities,
 		},
 		"units": out,

@@ -756,3 +756,51 @@ describe('setActingGrant — telling the screens the book changed', () => {
     expect(heard).not.toHaveBeenCalled();
   });
 });
+
+// Putting a flat on the market. The API has had the whole funnel since #142;
+// until #370 no app could reach the two calls that start it.
+describe('DwellmApi — advertising a vacant flat', () => {
+  const baseUrl = 'https://api.example.test';
+
+  it('createListing posts the draft, money in minor units', async () => {
+    const fetchMock = mockFetch({ id: 'lst-1', state: 'draft' }, 201);
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).createListing({
+      property_id: 'p1', unit_id: 'u1', headline: 'Two bedrooms off the park',
+      locality: 'Indiranagar', city: 'Bengaluru', state_code: 'KA',
+      rent_minor: 3200000, deposit_minor: 9600000, costs_confirmed: true,
+      bedrooms: 2, available_from: '2026-09-01',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/listings`,
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body))
+      .toMatchObject({ unit_id: 'u1', rent_minor: 3200000, costs_confirmed: true });
+    expect(out.id).toBe('lst-1');
+  });
+
+  it('publishListing puts the draft on the market', async () => {
+    const fetchMock = mockFetch({});
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await new DwellmApi({ baseUrl }).publishListing('lst-1');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/listings/lst-1/publish`,
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('carries the API refusal through, so the gate reads as itself', async () => {
+    global.fetch = mockFetch(
+      { error: 'every cost component must be supplied or explicitly marked not applicable' },
+      422,
+    ) as unknown as typeof fetch;
+
+    await expect(new DwellmApi({ baseUrl }).publishListing('lst-1'))
+      .rejects.toThrow(/every cost component/);
+  });
+});

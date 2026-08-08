@@ -111,7 +111,8 @@ func (h *Handler) Unit(w http.ResponseWriter, r *http.Request) {
 		},
 		"property": propertyResponse{
 			ID: p.ID, Code: p.Code, Name: p.Name, Kind: p.Kind,
-			AddressLine1: p.AddressLine1, Locality: p.Locality, City: p.City, UnitCount: p.UnitCount,
+			AddressLine1: p.AddressLine1, Locality: p.Locality, City: p.City,
+			StateCode: p.StateCode, UnitCount: p.UnitCount,
 			About: p.About, Amenities: p.Amenities,
 		},
 	}

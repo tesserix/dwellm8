@@ -457,3 +457,27 @@ func TestOpsRefusesWithNoOrganisationInContext(t *testing.T) {
 			w.Code, w.Body.String())
 	}
 }
+
+// A listing is filed under a two-letter state, and the property already knows
+// which one — asking a manager to retype it is how a listing lands in the
+// wrong state (#370).
+func TestPortfolioCarriesTheStateAListingIsFiledUnder(t *testing.T) {
+	mux := serve(t)
+
+	w := call(t, mux, isolationtest.OrgOwner, http.MethodGet, "/v1/ops/properties")
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET properties: %d %s", w.Code, w.Body.String())
+	}
+	var out struct {
+		Properties []struct {
+			StateCode string `json:"state_code"`
+		} `json:"properties"`
+	}
+	decode(t, w, &out)
+	if len(out.Properties) == 0 {
+		t.Fatal("the fixture's property should be visible")
+	}
+	if out.Properties[0].StateCode == "" {
+		t.Error("a property on the portfolio carries its state code")
+	}
+}
