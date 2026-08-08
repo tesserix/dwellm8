@@ -53,19 +53,6 @@ describe('useDocumentTemplates', () => {
     expect(result.current.ownRevisions).toEqual(['rent_agreement']);
   });
 
-  // The download URL is short-lived, so it is fetched at the moment of the tap
-  // rather than held on a list that may have been open for an hour.
-  it('fetches the download link when one is asked for', async () => {
-    const { result } = await renderHook(() => useDocumentTemplates());
-    await waitFor(() => expect(result.current.loading).toBe(false));
-
-    let url: string | undefined;
-    await act(async () => { url = await result.current.download('t1'); });
-
-    expect(mockOne).toHaveBeenCalledWith('t1');
-    expect(url).toBe('https://signed/pma.docx');
-  });
-
   it('reports a failure rather than an empty library', async () => {
     mockList.mockRejectedValue(new Error('could not read the templates'));
     const { result } = await renderHook(() => useDocumentTemplates());

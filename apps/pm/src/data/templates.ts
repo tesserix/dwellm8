@@ -17,8 +17,6 @@ export type TemplateLibrary = {
   templates: OpsDocumentTemplate[];
   /** The instruments this firm has replaced with its own version. */
   ownRevisions: string[];
-  /** A short-lived link to the .docx, fetched at the moment of the tap. */
-  download: (id: string) => Promise<string | undefined>;
   /** Ask again — what failed once on a phone is usually the network (#343). */
   reload: () => void;
 };
@@ -49,17 +47,11 @@ export function useDocumentTemplates(opts: { kind?: string; history?: boolean } 
     return () => { alive = false; };
   }, [api, kind, history, attempt]);
 
-  const download = useCallback(async (id: string) => {
-    if (!api) return undefined;
-    const one = await api.opsDocumentTemplate(id);
-    return one.download_url;
-  }, [api]);
-
   const ownRevisions = useMemo(
     () => state.templates.filter((t) => !t.is_default).map((t) => t.kind),
     [state.templates]);
 
   const reload = useCallback(() => setAttempt((n) => n + 1), []);
 
-  return { ...state, ownRevisions, download, reload };
+  return { ...state, ownRevisions, reload };
 }
