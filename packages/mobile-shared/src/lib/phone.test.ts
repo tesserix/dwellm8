@@ -21,6 +21,13 @@ describe('e164', () => {
     expect(e164('98450')).toBe('98450');
     expect(e164('')).toBe('');
   });
+
+  // A number mined out of a sentence is not the number anyone meant (#363).
+  it('will not read a number out of text that is not one', () => {
+    const typo = '9845012345Panampilly Nagar';
+    expect(e164(typo)).toBe(typo);
+    expect(isE164(e164(typo))).toBe(false);
+  });
 });
 
 describe('isE164', () => {

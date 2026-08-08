@@ -17,9 +17,12 @@ export function isE164(v: string): boolean {
  * number already carrying its country code keeps it. Anything else is returned
  * untouched, for `isE164` to refuse where the reason can be shown.
  */
+/** Spaces, brackets and dashes are how a number is written down; letters are not. */
+const written = /^\+?[\d\s()\-.]+$/;
+
 export function e164(v: string): string {
   const trimmed = v.trim();
-  if (!trimmed) return trimmed;
+  if (!trimmed || !written.test(trimmed)) return trimmed;
 
   const digits = trimmed.replace(/[^\d]/g, '');
   const plus = trimmed.startsWith('+');
