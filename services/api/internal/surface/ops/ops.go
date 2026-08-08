@@ -115,7 +115,7 @@ type propertyResponse struct {
 	// A listing is filed under the two-letter state, and this is where it
 	// already is — retyping it is how one lands in the wrong state (#370).
 	StateCode string `json:"state_code,omitempty"`
-	UnitCount    int    `json:"unit_count"`
+	UnitCount int    `json:"unit_count"`
 	// What the building is like (#354) — empty until a manager writes it.
 	About     string   `json:"about,omitempty"`
 	Amenities []string `json:"amenities,omitempty"`
