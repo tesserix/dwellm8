@@ -202,15 +202,15 @@ Deactivating rather than deleting: the row stops being usable, its history stays
 
 | # | Scenario | Expected | Status |
 |---|----------|----------|--------|
-| M1 | Sign in with the right password | Session stored in the keychain; the app opens past the gate | not run |
+| M1 | Sign in with the right password | Session stored in the keychain; the app opens past the gate | blocked: no password for the test account until the M4 link is opened |
 | M2 | Sign in with a wrong password | The provider's own refusal, at the form | pass — unit (`SignIn.test.tsx`) |
 | M3 | Password under six characters | Button stays disabled; nothing is sent | pass — unit |
-| M4 | Forgot password with a known address | Reset mail arrives; the link sets a new password | not run — needs an inbox |
-| M5 | Forgot password with an address that has no account | Same neutral answer as M4; no enumeration oracle | pass — unit + `auth.test.ts` |
-| M6 | Forgot password with the field empty | Asks for the address rather than sending nothing | pass — unit |
-| M7 | Reset offered while creating an account | It is not | pass — unit |
+| M4 | Forgot password with a known address | Reset mail arrives; the link sets a new password | part pass — sent live to `samyak.rout@gmail.com` 2026-08-08, GIP accepted; the link itself is the user's to open |
+| M5 | Forgot password with an address that has no account | Same neutral answer as M4; no enumeration oracle | pass — on device against live GIP, and unit |
+| M6 | Forgot password with the field empty | Asks for the address rather than sending nothing | pass — on device, and unit |
+| M7 | Reset offered while creating an account | It is not | pass — on device, and unit |
 | M8 | A build with no GIP tenant configured | Says so plainly instead of failing at the first request | pass — unit |
-| M9 | Relaunch after signing in | Restored from the keychain, no sign-in screen | not run |
+| M9 | Relaunch after signing in | Restored from the keychain, no sign-in screen | not run — waits on M1 |
 | M10 | Token a minute from expiry | Refreshed before the request, not after a 401 | pass — `session.test.ts` |
 | M11 | Sign out | Keychain cleared; a relaunch lands on sign-in | not run |
 | M12 | Sign in on a device with no keychain entitlement | Regression guard for the entitlement lost at prebuild | fixed — `app.json` carries it |
