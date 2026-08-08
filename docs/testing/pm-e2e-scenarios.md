@@ -111,7 +111,7 @@ Listing surface: the flat, the block, what is around it, and who asks to see it.
 
 | # | Scenario | Expected | Status |
 |---|----------|----------|--------|
-| F1 | Describe a property — floors, lift, parking, power backup | Saved against the property and read back on reopen | not run |
+| F1 | Describe a property — floors, lift, parking, power backup | Saved against the property and read back on reopen | part pass — the paragraph and the amenities round-trip live on KVH (lift, power backup and visitor parking read back; an amenity the vocabulary lacks is refused 422 in the manager's own words). Floors could be recorded nowhere: `floors` sits on `blocks`, which a standalone building has none of, and no screen ever asked a unit for its floor, so all three flats read as floor 0 — the ground floor, which 201 is not (#358, fixed; device run waits on the deploy) |
 | F2 | Describe a flat — bedrooms, bathrooms, facing, furnishing | Only the features the record can hold are offered (#354) | not run |
 | F3 | Describe a flat with nothing filled in | Saves as unknown rather than as zero | not run |
 | F4 | What is nearby — school, metro, hospital with distances | Each entry carries a kind and a distance; order is stable | not run |
@@ -188,7 +188,7 @@ Deactivating rather than deleting: the row stops being usable, its history stays
 
 | # | Scenario | Expected | Status |
 |---|----------|----------|--------|
-| L1 | End a tenancy | Tenancy closed with its date; the unit becomes lettable again | blocked: no PM screen calls the retire endpoints yet |
+| L1 | End a tenancy | Tenancy closed with its date; the unit becomes lettable again | blocked: no PM screen calls the retire endpoints yet. The endpoints and their store are written and tested (`ops/retire.go`), and land with the schema in tesserix-k8s PR 195 |
 | L2 | Retire a unit with a live tenancy | Refused, naming the tenancy | blocked, as L1 |
 | L3 | Retire a property with no live tenancies | Property unreachable from the portfolio; receipts still readable | blocked, as L1 |
 | L4 | Retire an owner with a live mandate | Refused until the mandate is revoked | blocked, as L1 |
@@ -202,7 +202,7 @@ Deactivating rather than deleting: the row stops being usable, its history stays
 
 | # | Scenario | Expected | Status |
 |---|----------|----------|--------|
-| M1 | Sign in with the right password | Session stored in the keychain; the app opens past the gate | blocked: no password for the test account until the M4 link is opened |
+| M1 | Sign in with the right password | Session stored in the keychain; the app opens past the gate | blocked: no password for the test account until the M4 link is opened. This one row blocks every device run in this file — the app parks on Sign in and nothing past it can be driven |
 | M2 | Sign in with a wrong password | The provider's own refusal, at the form | pass — unit (`SignIn.test.tsx`) |
 | M3 | Password under six characters | Button stays disabled; nothing is sent | pass — unit |
 | M4 | Forgot password with a known address | Reset mail arrives; the link sets a new password | part pass — sent live to `samyak.rout@gmail.com` 2026-08-08, GIP accepted; the link itself is the user's to open |
