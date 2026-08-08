@@ -12,6 +12,12 @@ next one reads.
 only fire once per sign-in, so a deleted account is a scenario that cannot be
 re-run without re-verifying an inbox.
 
+**Fresh run, 2026-08-08.** Every tenant row was purged from the live database —
+the platform organisation and the seeded reference tables were kept — and the A
+rows re-driven from nothing as **Samyak PM Firm** under
+`samyak.rout+pmfirm@gmail.com`. The gates that only fire once per sign-in are
+therefore live again, so A3, A4, A5 and A7 are now runnable on device.
+
 **Status vocabulary.** `not run` — never exercised. `pass` — seen working, on
 device unless the row says otherwise. `pass — unit` — proved by a test in the
 repo, not yet on device. `#nnn` — failing, with the issue that holds it.
@@ -42,8 +48,9 @@ The owner-operator: their own flats, their own Cashfree account, no delegation.
 | A6 | Right code | Gate passes to Name your firm | pass |
 | A7 | Relaunch the app after verifying | Opens past the code screen, offline as well | |
 | A8 | Name the firm | Organisation minted; gate passes to registration | pass |
-| A9 | File statutory details as a sole proprietor | Own PAN asked for, not an entity PAN; state and PIN validated | pass — #286 |
-| A10 | Save with a malformed PAN / GSTIN / PIN | Refused per field, at the field | pass — #287 |
+| A9 | File statutory details as a sole proprietor | Own PAN asked for, not an entity PAN; state and PIN validated | pass — #286. RERA is offered, not demanded: s.9 registers brokering a sale, not letting (#359) |
+| A10 | Save with a malformed PAN / GSTIN / PIN | Refused per field, at the field | pass — #287. One field per save: the handler names the first refusal and returns, so a bad TAN hides a bad PAN until the TAN is fixed |
+| A10c | Open the registration again after onboarding | Reachable from the profile, with a way back; RERA fileable later | pass — #359 |
 | A10a | Search for the registered office | Picking a match fills line, locality, city, state code and PIN | pass |
 | A10b | Search while the geocoder is down | "unavailable", and the fields stay typeable by hand | pass — #285 |
 | A11 | Add a property, "It's mine" | Property owned by the firm; `grant_id` empty on every later call | pass — property `KVH` minted under the firm, no grant |

@@ -16,6 +16,7 @@ export * from './components/SignIn';
 export * from './lib/money';
 export * from './lib/words';
 export * from './lib/nav';
+export * from './lib/phone';
 export * from './lib/tds';
 export * from './lib/api';
 export * from './lib/auth';

@@ -255,3 +255,65 @@ describe('Onboard — where the manager lands afterwards', () => {
     expect(getActingGrant()).toBe('grant-9');
   });
 });
+
+// Ten digits is how a mobile is read off a phone in India; E.164 is what the
+// schema's CHECK wants. The wizard closed that gap only after the property was
+// already committed, so the refusal arrived with half the record made (#360).
+describe('Onboard — mobile numbers', () => {
+  const onboard = jest.fn();
+
+  beforeEach(() => {
+    onboard.mockReset().mockResolvedValue({ owner_party_id: 'party-1', owner_org_id: 'org-1' });
+    mockApi = {
+      opsPortfolios: async () => [],
+      opsOnboardOwner: onboard,
+      searchAddresses: async () => [],
+    };
+  });
+
+  it('sends both numbers with their country code, however they were typed', async () => {
+    await render(<Onboard />);
+    await fill("Owner's name", 'Anjali Menon');
+    await fill('Mobile number', '9999000001');
+    await next();
+    await next();
+
+    await fill('Property name', 'Menon Palm Court');
+    await fill('Address', 'Panampilly Nagar Avenue');
+    await fill('Locality', 'Panampilly Nagar');
+    await fill('City', 'Ernakulam');
+    await fill(/State code/i, 'KL');
+    await fill(/PIN code/i, '682036');
+    await next();
+
+    await fill('Unit codes', 'G1');
+    await fill(/Carpet area/i, '1150');
+    await next();
+
+    await fireEvent(screen.getByLabelText('Set up the first tenancy'), 'valueChange', true);
+    await fill("Tenant's name", 'Rahul Varghese');
+    await fill("Tenant's mobile", '99450 12345');
+    await fill(/Which unit/i, 'G1');
+    await fill(/Monthly rent/i, '38000');
+    await fill(/Deposit/i, '114000');
+    await next();
+
+    await waitFor(() => expect(screen.getByText('One look before it becomes the record.')).toBeTruthy());
+    await fireEvent.press(screen.getByLabelText('Make it real'));
+
+    await waitFor(() => expect(onboard).toHaveBeenCalled());
+    const sent = onboard.mock.calls[0][0];
+    expect(sent.owner.phone).toBe('+919999000001');
+    expect(sent.tenancy.tenant.phone).toBe('+919945012345');
+  });
+
+  it('refuses a number it cannot make into one, before anything is created', async () => {
+    await render(<Onboard />);
+    await fill("Owner's name", 'Anjali Menon');
+    await fill('Mobile number', '99990');
+
+    await next();
+    expect(screen.queryByLabelText('Property name')).toBeNull();
+    expect(screen.getByText(/ten digits/i)).toBeTruthy();
+  });
+});

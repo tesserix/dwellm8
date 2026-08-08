@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import {
   ActionBar, AddressLookup, BackHeader, Button, Card, ChoiceRow, Field, HouseArt, KeyValue,
   Screen, StatusPill, SwitchRow, Toast,
-  apiFromEnv, color, font, inr, radius, setActingGrant, space,
+  apiFromEnv, color, e164, font, inr, isE164, radius, setActingGrant, space,
   type AddressSuggestion, useBack,
 } from '@dwellm8/mobile-shared';
 import type { OpsPortfolio, OwnerOnboarded, TaxProfile } from '@dwellm8/mobile-shared';
@@ -45,6 +45,11 @@ const copyNames: Partial<Record<Copy['kind'], string>> = {
 const STEPS = ['The owner', 'Who they are', 'The place', 'The units', 'Moving in', 'The once-over'] as const;
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
+
+// Said at the field rather than by the server, which only sees the number after
+// the property it belongs to has been created (#360).
+const badPhone = (v: string) =>
+  !v.trim() || isE164(e164(v)) ? undefined : 'Ten digits for an Indian mobile, or the country code and the number';
 const plusMonthsIso = (months: number) => {
   const d = new Date();
   d.setMonth(d.getMonth() + months);
@@ -188,14 +193,16 @@ export default function Onboard() {
   // already furnished (#319).
   const taxAction = taxProfileAction(ident, onFile);
 
+  // A number the server would refuse is refused here, where the field it came
+  // from is still on the screen and nothing has been created yet (#360).
   const stepReady = [
-    existing !== null || (ownerName.trim().length > 1 && phone.trim().length >= 10),
+    existing !== null || (ownerName.trim().length > 1 && isE164(e164(phone))),
     identityReady(ident) && taxAction.kind !== 'needs-pan',
     propName.trim().length > 1 && addressLine1.trim().length > 1
       && locality.trim().length > 1 && city.trim().length > 1
       && /^[A-Z]{2}$/.test(stateCode.trim().toUpperCase()) && /^[1-9][0-9]{5}$/.test(pin.trim()),
     unitList.length > 0 && Number(carpetArea) > 0,
-    !withTenant || (tenantName.trim().length > 1 && tenantPhone.trim().length >= 10
+    !withTenant || (tenantName.trim().length > 1 && isE164(e164(tenantPhone))
       && unitList.includes(tenantUnit.trim()) && Number(rent) > 0),
     true,
   ][step];
@@ -209,7 +216,7 @@ export default function Onboard() {
         owner: existing
           ? { org_id: existing.owner_org_id }
           : {
-            name: ownerName.trim(), phone: phone.trim(),
+            name: ownerName.trim(), phone: e164(phone),
             email: email.trim() || undefined, self: mine || undefined,
           },
         property: {
@@ -222,7 +229,7 @@ export default function Onboard() {
         units: unitList.map((code) => ({ code, kind: 'flat', carpet_area_sqft: Number(carpetArea) })),
         tenancy: withTenant ? {
           unit_code: tenantUnit.trim(),
-          tenant: { name: tenantName.trim(), phone: tenantPhone.trim() },
+          tenant: { name: tenantName.trim(), phone: e164(tenantPhone) },
           start_on: startOn.trim(), end_on: endOn.trim() || undefined,
           rent_amount_minor: Math.round(Number(rent) * 100),
           deposit_amount_minor: Math.round(Number(deposit || 0) * 100),
@@ -372,6 +379,7 @@ export default function Onboard() {
                 <Field
                   label={mine ? 'Your mobile number' : 'Mobile number'}
                   value={phone} onChange={setPhone} placeholder="+919886021745" keyboardType="phone-pad"
+                  error={badPhone(phone)}
                 />
                 <Field label="Email — optional, they can add it later" value={email} onChange={setEmail} placeholder="meera@example.in" keyboardType="email-address" />
               </>
@@ -571,7 +579,7 @@ export default function Onboard() {
             {withTenant ? (
               <>
                 <Field label="Tenant's name" value={tenantName} onChange={setTenantName} placeholder="Arjun Rao" />
-                <Field label="Tenant's mobile" value={tenantPhone} onChange={setTenantPhone} placeholder="+91 99450 12345" keyboardType="phone-pad" />
+                <Field label="Tenant's mobile" value={tenantPhone} onChange={setTenantPhone} placeholder="+91 99450 12345" keyboardType="phone-pad" error={badPhone(tenantPhone)} />
                 <Field label={`Which unit? (${unitList.join(', ') || 'add units first'})`} value={tenantUnit} onChange={setTenantUnit} placeholder={unitList[0] ?? '101'} />
                 <Field label="Monthly rent, ₹" value={rent} onChange={setRent} placeholder="42000" keyboardType="numeric" />
                 <Field label="Deposit, ₹" value={deposit} onChange={setDeposit} placeholder="126000" keyboardType="numeric" />
