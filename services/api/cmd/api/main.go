@@ -677,6 +677,7 @@ func run() error {
 		WithSettlements(moneyservice.NewSettlements(
 			moneystore.NewSettlements(pool), moneystore.NewMerchants(pool), providers)).
 		WithRegistrations(identityservice.NewRegistrations(principals)).
+		WithStaff(identityservice.NewStaff(principals, logger)).
 		WithPayments(payments).WithBlob(blobStore).WithListings(listings).
 		WithTemplates(propertyservice.NewTemplates(propertystore.NewTemplates(pool)))
 	if scanner, err := documentScanner(cfg.DocScanEngine, logger); err != nil {
@@ -717,6 +718,8 @@ func run() error {
 
 	// The bed board of a hostel or a PG, #299.
 	opsHandler.BedRoutes(authz.NewRegistrar(opsMux, guard))
+	// The sub-managers the firm employs, and what each is responsible for, #353.
+	opsHandler.StaffRoutes(authz.NewRegistrar(opsMux, guard))
 	// Where the manager's own rent settles, #269. Provider-agnostic: the
 	// registry decides whether that is Cashfree or anyone else.
 	opsHandler.MerchantRoutes(authz.NewRegistrar(opsMux, guard))

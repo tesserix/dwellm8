@@ -64,6 +64,7 @@ type Handler struct {
 	tds          *tds.Matrix
 	certificates *tdsstore.Certificates
 
+	staff         *identityservice.Staff
 	registrations *identityservice.Registrations
 	scanner       *docscan.Scanner
 	blob          *blob.Store

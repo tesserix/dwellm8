@@ -577,3 +577,109 @@ describe('apiFromEnv — which token the client actually sends', () => {
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer tok_captured');
   });
 });
+
+describe('DwellmApi — the firm’s own team (#353)', () => {
+  const baseUrl = 'https://api.example.test';
+
+  it('opsTeam reads roles, people and who holds what in one call', async () => {
+    const fetchMock = mockFetch({
+      roles: [{ id: 'r1', name: 'Field Executive', permissions: ['property.read'], property_limit: 6 }],
+      team: [{ id: 's1', full_name: 'Asha Nair', state: 'active', property_limit: 6, held: 2 }],
+      assignments: [{ id: 'a1', staff_id: 's1', property_id: 'p1', property_name: 'Menon Residency' }],
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsTeam();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/ops/staff`, expect.objectContaining({ method: 'GET' }));
+    expect(out.team[0].full_name).toBe('Asha Nair');
+    expect(out.team[0].held).toBe(2);
+    expect(out.assignments[0].property_name).toBe('Menon Residency');
+  });
+
+  it('opsTeam gives empty lists rather than undefined when the firm has nobody', async () => {
+    global.fetch = mockFetch({}) as unknown as typeof fetch;
+    const out = await new DwellmApi({ baseUrl }).opsTeam();
+    expect(out).toEqual({ roles: [], team: [], assignments: [] });
+  });
+
+  it('opsEmployStaff sends the PAN once and reads back only the mask', async () => {
+    const fetchMock = mockFetch({
+      member: { id: 's1', full_name: 'Asha Nair', pan_masked: 'XXXXXX234F', state: 'active' },
+    }, 201);
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsEmployStaff({
+      full_name: 'Asha Nair', phone: '+919876500001', role_id: 'r1',
+      employment_type: 'full_time', joined_on: '2026-01-05',
+      pan: 'ABCDE1234F', salary_minor: 4500000, pay_frequency: 'monthly',
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${baseUrl}/v1/ops/staff`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body).pan).toBe('ABCDE1234F');
+    expect(out.pan_masked).toBe('XXXXXX234F');
+  });
+
+  it('opsSaveStaffRole names a job and the load it carries', async () => {
+    const fetchMock = mockFetch({ role: { id: 'r1', name: 'Field Executive', property_limit: 6 } }, 201);
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await new DwellmApi({ baseUrl }).opsSaveStaffRole({
+      name: 'Field Executive', permissions: ['property.read'], property_limit: 6,
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(`${baseUrl}/v1/ops/staff/roles`);
+    expect(out.property_limit).toBe(6);
+  });
+
+  it('opsUpdateStaff dates an exit rather than deleting the record', async () => {
+    const fetchMock = mockFetch({ updated: true });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await new DwellmApi({ baseUrl }).opsUpdateStaff('s1', { state: 'exited', exited_on: '2026-03-31' });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${baseUrl}/v1/ops/staff/s1`);
+    expect(init.method).toBe('PATCH');
+    expect(JSON.parse(init.body).exited_on).toBe('2026-03-31');
+  });
+
+  it('opsAssignProperty and opsReleaseAssignment move one building', async () => {
+    const fetchMock = mockFetch({ assignment: { id: 'a1', staff_id: 's1', property_id: 'p1' } }, 201);
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const api = new DwellmApi({ baseUrl });
+
+    await api.opsAssignProperty('s1', 'p1');
+    expect(fetchMock.mock.calls[0][0]).toBe(`${baseUrl}/v1/ops/staff/s1/assignments`);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).property_id).toBe('p1');
+
+    global.fetch = mockFetch({ released: true }) as unknown as typeof fetch;
+    await api.opsReleaseAssignment('a1');
+    expect((global.fetch as jest.Mock).mock.calls[0][0])
+      .toBe(`${baseUrl}/v1/ops/staff/assignments/a1`);
+    expect((global.fetch as jest.Mock).mock.calls[0][1].method).toBe('DELETE');
+  });
+
+  it('the rota is read and written as a whole week', async () => {
+    const week = [{ weekday: 1, starts_at: '09:00', ends_at: '18:00' }];
+    const fetchMock = mockFetch({ shifts: week });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const api = new DwellmApi({ baseUrl });
+
+    const got = await api.opsRota('s1');
+    expect(fetchMock.mock.calls[0][0]).toBe(`${baseUrl}/v1/ops/staff/s1/shifts`);
+    expect(got).toEqual(week);
+
+    await api.opsSetRota('s1', week);
+    expect(fetchMock.mock.calls[1][1].method).toBe('PUT');
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).shifts).toEqual(week);
+  });
+
+  it('an empty rota comes back as an empty week, not undefined', async () => {
+    global.fetch = mockFetch({}) as unknown as typeof fetch;
+    expect(await new DwellmApi({ baseUrl }).opsRota('s1')).toEqual([]);
+  });
+});

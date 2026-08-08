@@ -209,6 +209,7 @@ export default function Today() {
           <Quick icon={<BuildingIcon size={22} />} label="Society" onPress={() => router.push('/society')} />
           <Quick icon={<ShieldIcon size={22} />} label="Compliance" onPress={() => router.push('/compliance')} />
           <Quick icon={<BuildingIcon size={22} />} label="Agreements" onPress={() => router.push('/agreements')} />
+          <Quick icon={<UsersIcon size={22} />} label="The team" onPress={() => router.push('/team')} />
         </View>
 
         <View style={s.footNote}>

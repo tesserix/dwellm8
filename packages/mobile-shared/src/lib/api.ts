@@ -182,6 +182,85 @@ export type OpsBed = {
   lease_id?: string;
 };
 
+/** A job the firm defines, and how many buildings it carries (#353). */
+export type OpsStaffRole = {
+  id: string;
+  name: string;
+  permissions: string[];
+  property_limit: number;
+  people?: number;
+};
+
+/** The employment record of a sub-manager. The PAN is only ever the mask —
+ * the number is not held, so it cannot come back (ADR-0013). */
+export type OpsStaffMember = {
+  id: string;
+  party_id?: string;
+  role_id?: string;
+  role_name?: string;
+  full_name: string;
+  employee_code?: string;
+  designation?: string;
+  email?: string;
+  phone?: string;
+  employment_type?: string;
+  joined_on?: string;
+  exited_on?: string;
+  pan_masked?: string;
+  salary_minor?: number;
+  salary_currency?: string;
+  pay_frequency?: string;
+  emergency_name?: string;
+  emergency_phone?: string;
+  state: string;
+  /** What this person may carry, and what they carry today. */
+  property_limit: number;
+  held: number;
+};
+
+export type OpsStaffAssignment = {
+  id: string;
+  staff_id: string;
+  staff_name?: string;
+  property_id: string;
+  property_name?: string;
+  valid_from?: string;
+};
+
+/** One block of a working week. Overnight cover is two shifts, one per day. */
+export type OpsStaffShift = {
+  weekday: number;
+  starts_at: string;
+  ends_at: string;
+};
+
+export type OpsTeam = {
+  roles: OpsStaffRole[];
+  team: OpsStaffMember[];
+  assignments: OpsStaffAssignment[];
+};
+
+/** What the firm types once when it employs somebody. */
+export type OpsEmployStaffRequest = {
+  full_name: string;
+  role_id?: string;
+  party_id?: string;
+  employee_code?: string;
+  designation?: string;
+  email?: string;
+  phone?: string;
+  employment_type?: string;
+  joined_on?: string;
+  pan?: string;
+  salary_minor?: number;
+  salary_currency?: string;
+  pay_frequency?: string;
+  emergency_name?: string;
+  emergency_phone?: string;
+  state?: string;
+  property_limit?: number;
+};
+
 /** An instrument the firm issues (GET /v1/ops/document-templates, #341). The
  * .docx is downloaded, signed on paper and uploaded back — no e-signing. */
 export type OpsDocumentTemplate = {
@@ -1157,6 +1236,55 @@ export class DwellmApi {
   opsAllocateBed(bedId: string, state: OpsBedState, leaseId?: string): Promise<unknown> {
     return this.request('POST', `/v1/ops/beds/${encodeURIComponent(bedId)}/allocation`,
       { state, lease_id: leaseId ?? '' });
+  }
+
+  /** The firm's own team: roles, people and who holds what (#353). */
+  async opsTeam(): Promise<OpsTeam> {
+    const out = await this.request<Partial<OpsTeam>>('GET', '/v1/ops/staff');
+    return {
+      roles: out.roles ?? [],
+      team: out.team ?? [],
+      assignments: out.assignments ?? [],
+    };
+  }
+
+  /** Puts a sub-manager on the payroll. The PAN is sent once and masked there. */
+  async opsEmployStaff(req: OpsEmployStaffRequest): Promise<OpsStaffMember> {
+    const out = await this.request<{ member: OpsStaffMember }>('POST', '/v1/ops/staff', req);
+    return out.member;
+  }
+
+  async opsSaveStaffRole(role: Omit<OpsStaffRole, 'id' | 'people'>): Promise<OpsStaffRole> {
+    const out = await this.request<{ role: OpsStaffRole }>('POST', '/v1/ops/staff/roles', role);
+    return out.role;
+  }
+
+  /** Somebody who leaves is dated out, never deleted. */
+  opsUpdateStaff(id: string, change: { state?: string; exited_on?: string; property_limit?: number })
+    : Promise<unknown> {
+    return this.request('PATCH', `/v1/ops/staff/${encodeURIComponent(id)}`, change);
+  }
+
+  async opsAssignProperty(staffId: string, propertyId: string): Promise<OpsStaffAssignment> {
+    const out = await this.request<{ assignment: OpsStaffAssignment }>(
+      'POST', `/v1/ops/staff/${encodeURIComponent(staffId)}/assignments`,
+      { property_id: propertyId });
+    return out.assignment;
+  }
+
+  opsReleaseAssignment(id: string): Promise<unknown> {
+    return this.request('DELETE', `/v1/ops/staff/assignments/${encodeURIComponent(id)}`);
+  }
+
+  async opsRota(staffId: string): Promise<OpsStaffShift[]> {
+    const out = await this.request<{ shifts: OpsStaffShift[] }>(
+      'GET', `/v1/ops/staff/${encodeURIComponent(staffId)}/shifts`);
+    return out.shifts ?? [];
+  }
+
+  /** A rota is edited as a week: what is sent is what the week becomes. */
+  opsSetRota(staffId: string, shifts: OpsStaffShift[]): Promise<unknown> {
+    return this.request('PUT', `/v1/ops/staff/${encodeURIComponent(staffId)}/shifts`, { shifts });
   }
 
   /** The paperwork behind a property, and what it proves about the right to
