@@ -1,11 +1,12 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import {
   AddressLookup, Avatar, BackHeader, Button, ChoiceRow, DangerAction, Field, KeyValue, ListRow, Metric,
   PhotoStrip, SearchBar, StatusPill, SwitchRow, SyncBadge, Timeline, Toast,
   toneColor, TriState,
 } from './controls';
+import { color } from '../theme/tokens';
 
 // These components are shared by every worklist app (Ops, Pro, Admin) and
 // appear hundreds of times a day, so a defect here reaches every app at once.
@@ -225,6 +226,19 @@ describe('Toast', () => {
   it('renders its text', async () => {
     await render(<Toast text="Saved" />);
     expect(screen.getByText('Saved')).toBeTruthy();
+  });
+
+  // A refusal dressed as a success tells a manager the opposite of what happened (#362).
+  it('does not congratulate the reader on a refusal', async () => {
+    await render(<Toast text="That is not a mobile number" tone="bad" />);
+    const bad = screen.getByRole('alert');
+    expect(StyleSheet.flatten(bad.props.style).backgroundColor).toBe(color.negative);
+
+  });
+
+  it('still announces an outcome as one', async () => {
+    await render(<Toast text="Saved" />);
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });
 

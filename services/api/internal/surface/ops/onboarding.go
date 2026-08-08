@@ -243,6 +243,16 @@ func (h *Handler) OnboardOwner(w http.ResponseWriter, r *http.Request) {
 // firm already acts for, named by organisation, or a new one reserved against
 // the number that will claim their first Own sign-in.
 func (h *Handler) resolveOwner(r *http.Request, firmOrgID string, req onboardOwnerRequest) (identityservice.OwnerOnboarded, error) {
+	// The solo manager's second property: their own books already hold the
+	// owner, so there is no identity to reserve and no number to reserve it
+	// against (#361).
+	if req.Owner.OrgID == firmOrgID && req.Owner.Phone == "" {
+		party, err := h.owners.OwnerParty(r.Context(), firmOrgID)
+		if err != nil {
+			return identityservice.OwnerOnboarded{}, err
+		}
+		return identityservice.OwnerOnboarded{OrgID: firmOrgID, PartyID: party}, nil
+	}
 	if req.Owner.Self || req.Owner.OrgID == firmOrgID {
 		return h.owners.PreOnboard(r.Context(), identityservice.OwnerOnboarding{
 			FirmOrgID: firmOrgID, SelfOwned: true,

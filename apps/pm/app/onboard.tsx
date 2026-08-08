@@ -147,6 +147,7 @@ export default function Onboard() {
       .catch(() => setOnFile(null));
   }, [existing?.owner_party_id]);
 
+  // Everything this wizard has to announce is a refusal or a shortfall (#362).
   const say = (m: string) => {
     setToast(m);
     setTimeout(() => setToast(null), 3200);
@@ -324,7 +325,7 @@ export default function Onboard() {
     <>
       <BackHeader title="Onboard an owner" subtitle={STEPS[step]} onBack={() => (step > 0 ? setStep(step - 1) : router.back())} />
       <Screen>
-        {toast ? <Toast text={toast} /> : null}
+        {toast ? <Toast text={toast} tone="bad" /> : null}
 
         <View style={s.dots}>
           {STEPS.map((label, i) => (

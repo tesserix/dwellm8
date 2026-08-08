@@ -408,3 +408,45 @@ func TestTheSoloManagerOnboardsTheirOwnProperty(t *testing.T) {
 		t.Errorf("the switcher = %+v; want my own books in it", list.Portfolios)
 	}
 }
+
+// The second flat the solo manager owns: the wizard offers their own books in
+// the list of owners, and picking them sends the organisation and no phone —
+// there is nothing left to reserve. #361.
+func TestTheSoloManagerOnboardsASecondPropertyTheyOwn(t *testing.T) {
+	mux := serveOnboarding(t)
+
+	mine := func(code, name string) onboarded {
+		t.Helper()
+		w := post(t, mux, isolationtest.OrgFirm, "/v1/ops/onboardings", map[string]any{
+			"owner":    map[string]any{"org_id": isolationtest.OrgFirm.String()},
+			"property": fullProperty(code, name),
+			"units":    []map[string]any{{"code": "A1", "kind": "flat", "carpet_area_sqft": 900}},
+		})
+		if w.Code != http.StatusCreated {
+			t.Fatalf("onboarding a property I own: %d %s", w.Code, w.Body.String())
+		}
+		var out onboarded
+		decode(t, w, &out)
+		return out
+	}
+
+	two := mine(fmt.Sprintf("MMB%05d", rand.IntN(100000)), "Menon Heights")
+	if two.OwnerOrgID != isolationtest.OrgFirm.String() {
+		t.Errorf("my flat landed in %s, not my own books", two.OwnerOrgID)
+	}
+	if two.OwnerPartyID == "" {
+		t.Error("no party for the rent to be credited to")
+	}
+	if two.GrantID != "" {
+		t.Errorf("a mandate %s was minted over my own property", two.GrantID)
+	}
+	if two.PropertyID == "" || len(two.UnitIDs) != 1 {
+		t.Errorf("the property and its unit should land: %+v", two)
+	}
+
+	// Every flat I own is credited to the same me, however many I onboard.
+	three := mine(fmt.Sprintf("MMC%05d", rand.IntN(100000)), "Menon Court")
+	if three.OwnerPartyID != two.OwnerPartyID {
+		t.Errorf("the third flat is credited to %s, not %s", three.OwnerPartyID, two.OwnerPartyID)
+	}
+}

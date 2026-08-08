@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, font, radius, shadow, space } from '../theme/tokens';
-import { CheckIcon, ChevronLeft, ChevronRight, SearchIcon } from './icons';
+import { AlertIcon, CheckIcon, ChevronLeft, ChevronRight, SearchIcon } from './icons';
 import type { AddressSuggestion } from '../lib/api';
 
 /**
@@ -487,10 +487,16 @@ export function PhotoStrip({ count, onAdd }: { count: number; onAdd?: () => void
   );
 }
 
-export function Toast({ text }: { text: string }) {
+/** A refusal is announced as one, not with the tick that means it worked (#362). */
+export function Toast({ text, tone = 'good' }: { text: string; tone?: 'good' | 'bad' }) {
+  const bad = tone === 'bad';
   return (
-    <View style={s.toast}>
-      <CheckIcon size={17} c="#FFF" w={2.4} />
+    <View
+      accessible={bad}
+      accessibilityRole={bad ? 'alert' : undefined}
+      style={[s.toast, bad && s.toastBad]}
+    >
+      {bad ? <AlertIcon size={17} c="#FFF" w={2.4} /> : <CheckIcon size={17} c="#FFF" w={2.4} />}
       <Text style={s.toastText}>{text}</Text>
     </View>
   );
@@ -617,6 +623,7 @@ const s = StyleSheet.create({
     paddingHorizontal: space(4), paddingVertical: space(3),
     marginHorizontal: space(4), marginBottom: space(2),
   },
+  toastBad: { backgroundColor: color.negative },
   toastText: { ...font.label, color: '#FFF' },
 
   sync: {

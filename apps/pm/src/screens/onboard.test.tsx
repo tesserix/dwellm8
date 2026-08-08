@@ -317,3 +317,43 @@ describe('Onboard — mobile numbers', () => {
     expect(screen.getByText(/ten digits/i)).toBeTruthy();
   });
 });
+
+// A refusal in the same green as a success reads as though it worked (#362).
+describe('Onboard — how a refusal reads', () => {
+  const onboard = jest.fn();
+
+  beforeEach(() => {
+    onboard.mockReset().mockRejectedValue(new Error('the tenancy was refused'));
+    mockApi = {
+      opsPortfolios: async () => [],
+      opsOnboardOwner: onboard,
+      searchAddresses: async () => [],
+    };
+  });
+
+  it('announces what was refused as a refusal', async () => {
+    await render(<Onboard />);
+    await fill("Owner's name", 'Anjali Menon');
+    await fill('Mobile number', '9999000001');
+    await next();
+    await next();
+
+    await fill('Property name', 'Menon Palm Court');
+    await fill('Address', 'Panampilly Nagar Avenue');
+    await fill('Locality', 'Panampilly Nagar');
+    await fill('City', 'Ernakulam');
+    await fill(/State code/i, 'KL');
+    await fill(/PIN code/i, '682036');
+    await next();
+
+    await fill('Unit codes', 'G1');
+    await fill(/Carpet area/i, '1150');
+    await next();
+    await next();
+
+    await fireEvent.press(screen.getByLabelText('Make it real'));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(screen.getByText('the tenancy was refused')).toBeTruthy();
+  });
+});
