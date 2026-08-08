@@ -1,6 +1,6 @@
 import React from 'react';
 import { Platform } from 'react-native';
-import { render, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, render, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import TemplateScreen from '../../app/template/[id]';
 
 // The instrument a manager tapped, previewed as a PDF and shared to be signed
@@ -121,6 +121,36 @@ it('says so when the page will not render, rather than spinning forever', async 
   expect(screen.getByText(/could not be shown here/i)).toBeTruthy();
   await fireEvent.press(screen.getByText('Open the preview'));
   expect(mockShare).toHaveBeenCalled();
+});
+
+// iOS hands a file:// PDF to the system previewer instead of drawing it, so
+// nothing ever errors and the card spins for ever (#373). Time it out.
+it('falls back to the reader when the page never finishes loading', async () => {
+  jest.useFakeTimers();
+  try {
+    await render(<TemplateScreen />);
+    expect(screen.getByTestId('pdf')).toBeTruthy();
+
+    await act(async () => { jest.advanceTimersByTime(4000); });
+
+    expect(screen.queryByTestId('pdf')).toBeNull();
+    expect(screen.getByText(/could not be shown here/i)).toBeTruthy();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+it('keeps the page once it has loaded', async () => {
+  jest.useFakeTimers();
+  try {
+    await render(<TemplateScreen />);
+    await act(async () => { fireEvent(screen.getByTestId('pdf'), 'loadEnd'); });
+    await act(async () => { jest.advanceTimersByTime(4000); });
+
+    expect(screen.getByTestId('pdf')).toBeTruthy();
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 it('offers a retry when the preview will not print', async () => {

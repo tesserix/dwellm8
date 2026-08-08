@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { WebView } from 'react-native-webview';
@@ -19,9 +19,18 @@ export default function TemplateScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { loading, error, preview, fileUri, linkMinutes, share, reload } = useTemplatePreview(id ?? '');
   const [unrenderable, setUnrenderable] = useState(false);
+  const [drawn, setDrawn] = useState(false);
   // Android's system WebView cannot render a PDF, so there it opens in a reader.
   const inWebView = Platform.OS !== 'android' && !unrenderable;
   const page = inWebView ? fileUri ?? preview?.download_url : undefined;
+
+  // iOS hands a file:// PDF to the system previewer rather than drawing it, so
+  // nothing errors and the card would spin for ever (#373).
+  useEffect(() => {
+    if (!page || drawn) return;
+    const t = setTimeout(() => setUnrenderable(true), settleMs);
+    return () => clearTimeout(t);
+  }, [page, drawn]);
 
   return (
     <>
@@ -43,6 +52,7 @@ export default function TemplateScreen() {
               startInLoadingState
               onError={() => setUnrenderable(true)}
               onHttpError={() => setUnrenderable(true)}
+              onLoadEnd={() => setDrawn(true)}
               renderLoading={() => <View style={s.waiting}><ActivityIndicator /></View>}
             />
           </Card>
@@ -82,6 +92,10 @@ export default function TemplateScreen() {
     </>
   );
 }
+
+// Long enough for a lease deed over a slow connection, short enough that nobody
+// waits on a card that is never going to draw.
+const settleMs = 3500;
 
 const s = StyleSheet.create({
   waiting: { paddingVertical: space(8), alignItems: 'center' },

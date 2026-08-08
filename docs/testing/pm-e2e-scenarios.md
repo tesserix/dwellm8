@@ -136,9 +136,9 @@ Listing surface: the flat, the block, what is around it, and who asks to see it.
 
 | # | Scenario | Expected | Status |
 |---|----------|----------|--------|
-| G1 | Generate the management agreement | PDF renders with the firm's and the owner's real particulars | not run |
-| G2 | Preview an agreement that cannot render | Says so, rather than spinning (fixed 2dfca3a — re-verify) | not run |
-| G3 | Send an agreement to be signed | State moves off draft; the signed copy can be filed against it | not run |
+| G1 | Generate the management agreement | PDF renders with the firm's and the owner's real particulars | fail — #372. The PDF prints and reads well, but every particular in it is a rule of underscores: the firm's name and RERA registration, the owner's name and PAN, the property, the fee percentage and the repair limit are all on the record and none of them reaches the instrument. `merge_fields` is declared on the template and nothing fills it |
+| G2 | Preview an agreement that cannot render | Says so, rather than spinning (fixed 2dfca3a — re-verify) | pass — #373, after a fix. It did not say so, it spun: on iOS the file:// PDF is handed to the system previewer, so the WebView never errors and the card spun for ever. The screen test passed because it fired a synthetic `error` the device never sends. Now the card gives the page 3.5 s to draw and otherwise says "This one could not be shown here. Open it in a reader instead" over the reader button. Verified on the device: opening the agreement bounces out to Preview, and coming back shows the message and both buttons, not a spinner |
+| G3 | Send an agreement to be signed | State moves off draft; the signed copy can be filed against it | part pass — the share sheet hands over the PDF itself (5 KB, Copy / Markup / Print / Save to Files), so it can be sent to whoever signs it. But no agreement record is created: there is no state to move off draft and nothing for a signed copy to be filed against. Signing is on paper by design (#341, #350), and #372 is what would give it particulars worth signing |
 | G4 | File a signed paper copy | Stored to the private bucket; the agreement reads as executed | not run |
 | G5 | Upload ownership evidence (sale deed, tax receipt, khata) | Ownership reads as proven; a property with none reads as not proven | not run |
 | G6 | Let a unit on a property with no ownership evidence | Warned before the tenancy, not after | not run |
