@@ -10,6 +10,8 @@ const mockUnit = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
   useLocalSearchParams: () => ({ id: 'u1' }),
+  // The real one runs on focus, which for a mounted screen is once, in an effect.
+  useFocusEffect: (fn: () => void) => require('react').useEffect(fn, [fn]),
 }));
 
 jest.mock('@dwellm8/mobile-shared', () => ({

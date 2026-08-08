@@ -76,7 +76,7 @@ The nationwide firm: staff, roles, and property that belongs to somebody else.
 | B2 | File firm registration (LLP) | Entity PAN and TAN asked for; RERA agent registration accepted | |
 | B3 | Add a property for "Somebody new" | Owner created; mandate granted; header shows whose book is open | |
 | B4 | Add a second property for the same owner | One owner row, `property_count` 2 — not a duplicate owner | |
-| B5 | Switch between own books and the mandate | `X-Dwellm8-Grant` set only under the grant; own rows unreachable from it | |
+| B5 | Switch between own books and the mandate | `X-Dwellm8-Grant` set only under the grant; own rows unreachable from it | part pass 2026-08-08, on A's own mandate rather than B's — the mandate's rows are unreachable without the grant, but the firm's own property stays on the list under the mandate (#365) |
 | B6 | Onboard a tenant under the mandate | Tenancy belongs to the owner's book, not the firm's | |
 | B7 | Hire a manager and assign properties | Staff row; that manager sees those properties and no others | |
 | B8 | Spend authority below a job's cost | Approval requested rather than the job proceeding | |
@@ -121,11 +121,11 @@ Listing surface: the flat, the block, what is around it, and who asks to see it.
 
 | # | Scenario | Expected | Status |
 |---|----------|----------|--------|
-| F1 | Describe a property — floors, lift, parking, power backup | Saved against the property and read back on reopen | part pass — the paragraph and the amenities round-trip live on KVH (lift, power backup and visitor parking read back; an amenity the vocabulary lacks is refused 422 in the manager's own words). Floors could be recorded nowhere: `floors` sits on `blocks`, which a standalone building has none of, and no screen ever asked a unit for its floor, so all three flats read as floor 0 — the ground floor, which 201 is not (#358, fixed; device run waits on the deploy) |
-| F2 | Describe a flat — bedrooms, bathrooms, facing, furnishing | Only the features the record can hold are offered (#354) | not run |
-| F3 | Describe a flat with nothing filled in | Saves as unknown rather than as zero | not run |
-| F4 | What is nearby — school, metro, hospital with distances | Each entry carries a kind and a distance; order is stable | not run |
-| F5 | Correct a description already saved | The screen names what changed, and offers only fields the record holds (#354) | not run |
+| F1 | Describe a property — floors, lift, parking, power backup | Saved against the property and read back on reopen | pass — re-run 2026-08-08 on Samyak Residency: the paragraph and lift, power backup, visitor parking and intercom all read back after a reopen. Floors are a unit's now, and #358 is live — flat 101 reads floor 1 where every flat used to read 0 |
+| F2 | Describe a flat — bedrooms, bathrooms, facing, furnishing | Only the features the record can hold are offered (#354) | pass — 101 carries floor, bathrooms, balconies, covered parking, facing, furnishing and its fittings, and reads them all back. Only what the record holds is offered; there is no bedroom count here, which is the advert's |
+| F3 | Describe a flat with nothing filled in | Saves as unknown rather than as zero | pass — 102 saved untouched still reads `Not recorded`, and the screen says so before you save: "Left blank means not recorded, which is not the same as none. The ground floor is 0, a basement is -1" |
+| F4 | What is nearby — school, metro, hospital with distances | Each entry carries a kind and a distance; order is stable | pass — a school at 600 m and a metro at 1.2 km, each under its kind, each read back after a reopen. Walking minutes are derived, not asked for |
+| F5 | Correct a description already saved | The screen names what changed, and offers only fields the record holds (#354) | pass — #366. Bathrooms corrected from 2 to 3 landed, but the flat behind the editor went on saying "Nothing written yet" until the property was left and re-entered |
 | F6 | Hostel or PG property — allocate beds by floor and room | Beds addressable individually; an allocated bed cannot be double-let | not run |
 | F7 | Bed allocation on a property that is neither hostel nor PG | Says so plainly rather than showing an empty grid | not run |
 | F8 | Set viewing times | Slots stored per property; a past slot cannot be offered | not run |

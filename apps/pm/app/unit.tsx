@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import {
  BackHeader, Card, color, font, inr, KeyValue, ListRow, Metric, MetricRow, Screen,
   SectionTitle, space, StatusPill, useBack,
@@ -16,8 +16,12 @@ export default function UnitScreen() {
   const router = useRouter();
   const goBack = useBack('/(tabs)');
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { loading, error, unit, property, tenancy, listing, ancillaries, bedrooms } =
+  const { loading, error, unit, property, tenancy, listing, ancillaries, bedrooms, reload } =
     useUnitRecord(id);
+
+  // The description is written on a screen pushed over this one, so coming
+  // back has to read the flat again or it denies the work landed (#366).
+  useFocusEffect(useCallback(() => { reload(); }, [reload]));
 
   return (
     <>

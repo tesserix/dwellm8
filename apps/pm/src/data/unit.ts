@@ -7,7 +7,7 @@
  * says so rather than guessing one.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFromEnv } from '@dwellm8/mobile-shared';
 import type {
   OpsProperty, OpsUnitDetail, OpsUnitListing, OpsUnitTenancy,
@@ -22,13 +22,19 @@ export type UnitView = {
   listing?: OpsUnitListing;
   ancillaries: { id: string; code: string; kind: string }[];
   bedrooms?: number;
+  /** Read the flat again — what the screen was editing may have changed (#366). */
+  reload: () => void;
 };
 
-const nothing: UnitView = { loading: false, ancillaries: [] };
+type UnitState = Omit<UnitView, 'reload'>;
+
+const nothing: UnitState = { loading: false, ancillaries: [] };
 
 export function useUnitRecord(id: string | undefined): UnitView {
   const api = useMemo(() => apiFromEnv(), []);
-  const [state, setState] = useState<UnitView>({ ...nothing, loading: Boolean(api && id) });
+  const [attempt, setAttempt] = useState(0);
+  const reload = useCallback(() => setAttempt((n) => n + 1), []);
+  const [state, setState] = useState<UnitState>({ ...nothing, loading: Boolean(api && id) });
 
   useEffect(() => {
     if (!api) {
@@ -40,7 +46,7 @@ export function useUnitRecord(id: string | undefined): UnitView {
       return;
     }
     let alive = true;
-    setState({ ...nothing, loading: true });
+    setState((prev) => ({ ...prev, loading: true, error: undefined }));
     api.opsUnit(id)
       .then((r) => {
         if (!alive) return;
@@ -56,7 +62,7 @@ export function useUnitRecord(id: string | undefined): UnitView {
       })
       .catch((err: Error) => { if (alive) setState({ ...nothing, error: err.message }); });
     return () => { alive = false; };
-  }, [api, id]);
+  }, [api, id, attempt]);
 
-  return state;
+  return useMemo(() => ({ ...state, reload }), [state, reload]);
 }

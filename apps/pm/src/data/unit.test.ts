@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useUnitRecord } from './unit';
 
 // The flat a manager opens from the property record (#338). Bedrooms come from
@@ -72,5 +72,26 @@ describe('useUnitRecord', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(mockUnit).not.toHaveBeenCalled();
     expect(result.current.error).toBeTruthy();
+  });
+});
+
+// A manager writes the description, saves it, and comes back to the flat. The
+// screen it returns to is the one that says whether the work landed (#366).
+describe('useUnitRecord — coming back to the flat', () => {
+  beforeEach(() => {
+    process.env.EXPO_PUBLIC_API_URL = 'https://api.example.test';
+    mockUnit.mockReset();
+  });
+
+  it('reads the flat again on demand, so a saved description is on it', async () => {
+    mockUnit.mockResolvedValue({ ...record, listing: undefined });
+    const { result } = await renderHook(() => useUnitRecord('u1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.listing).toBeUndefined();
+
+    mockUnit.mockResolvedValue(record);
+    await act(async () => result.current.reload());
+
+    await waitFor(() => expect(result.current.listing?.bedrooms).toBe(2));
   });
 });
