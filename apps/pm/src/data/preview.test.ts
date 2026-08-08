@@ -55,6 +55,28 @@ describe('useTemplatePreview', () => {
     expect(result.current.preview?.download_url).toBe('https://signed.example/rent.pdf');
   });
 
+  // The PDF arrives in the response, so the page a manager reads is the file on
+  // their own phone. Nothing to leak, and nothing that stops working in ten
+  // minutes while they are still reading it.
+  it('previews from the phone rather than from the link', async () => {
+    const { result } = await renderHook(() => useTemplatePreview('t1'));
+
+    await waitFor(() => expect(result.current.fileUri).toBe(
+      'file:///cache/rent-agreement-preview.pdf'));
+    expect(mockWrite).toHaveBeenCalledWith(
+      'file:///cache/rent-agreement-preview.pdf', 'JVBERi0xLjQK', { encoding: 'base64' });
+  });
+
+  // The bucket the link points at is not something the app needs to read.
+  it('still previews when the server could not mint a link', async () => {
+    mockPreview.mockResolvedValue({ ...preview, download_url: undefined });
+    const { result } = await renderHook(() => useTemplatePreview('t1'));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.fileUri).toBe('file:///cache/rent-agreement-preview.pdf');
+    expect(result.current.error).toBeUndefined();
+  });
+
   // The link is a bearer credential for one document. Saying how long it lives
   // is the difference between sharing it and pasting it into a group chat.
   it('says how long the shared link lives', async () => {

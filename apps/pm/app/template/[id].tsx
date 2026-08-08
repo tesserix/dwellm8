@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import {
@@ -17,7 +17,9 @@ import { useTemplatePreview } from '../../src/data/preview';
 export default function TemplateScreen() {
   const goBack = useBack('/agreements');
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { loading, error, preview, linkMinutes, share, reload } = useTemplatePreview(id ?? '');
+  const { loading, error, preview, fileUri, linkMinutes, share, reload } = useTemplatePreview(id ?? '');
+  // Android's system WebView cannot render a PDF, so there it opens in a reader.
+  const page = Platform.OS === 'android' ? undefined : fileUri ?? preview?.download_url;
 
   return (
     <>
@@ -30,10 +32,12 @@ export default function TemplateScreen() {
         {loading ? <View style={s.waiting}><ActivityIndicator /></View> : null}
         {error ? <ErrorState error={error} onRetry={reload} /> : null}
 
-        {preview?.download_url ? (
+        {page ? (
           <Card padded={false} style={s.paper}>
             <WebView
-              source={{ uri: preview.download_url }}
+              source={{ uri: page }}
+              allowFileAccess
+              allowFileAccessFromFileURLs
               style={s.pdf}
               startInLoadingState
               renderLoading={() => <View style={s.waiting}><ActivityIndicator /></View>}
@@ -43,12 +47,18 @@ export default function TemplateScreen() {
 
         {preview ? (
           <>
+            {page ? null : <Button label="Open the preview" tone="secondary" onPress={share} />}
             <Button label="Send it to be signed" onPress={share} />
             <Card>
               <Text style={s.note}>
-                The link this shares is signed for whoever opens it and stops working after{' '}
-                {linkMinutes} minutes, so send the file itself to anyone who needs to keep it.
+                This sends the PDF itself, so whoever has to sign it keeps their own copy.
               </Text>
+              {preview.download_url ? (
+                <Text style={s.note}>
+                  The link behind it is signed for whoever opens it and stops working after{' '}
+                  {linkMinutes} minutes.
+                </Text>
+              ) : null}
               <Text style={s.note}>
                 Both parties sign the printed copy. Upload the signed scan against the property so
                 it sits beside the deed.
