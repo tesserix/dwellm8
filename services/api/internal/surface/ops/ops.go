@@ -145,7 +145,7 @@ type unitResponse struct {
 	ID        string `json:"id"`
 	Code      string `json:"code"`
 	Kind      string `json:"kind"`
-	Floor     int    `json:"floor"`
+	Floor     *int   `json:"floor,omitempty"`
 	Occupancy string `json:"occupancy"`
 	LeaseID   string `json:"lease_id,omitempty"`
 	Tenant    string `json:"tenant,omitempty"`

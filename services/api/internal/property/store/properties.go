@@ -104,11 +104,11 @@ func (s *Properties) Units(ctx context.Context, propertyID string) ([]domain.Uni
 	var out []domain.Unit
 	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-			SELECT id::text, code::text, unit_kind, coalesce(floor, 0), occupancy,
+			SELECT id::text, code::text, unit_kind, floor, occupancy,
 			       coalesce(carpet_area_sqft, 0)::float8
 			  FROM units
 			 WHERE property_id = $1::uuid AND is_ancillary = false AND state = 'active'
-			 ORDER BY floor, code`, propertyID)
+			 ORDER BY floor NULLS LAST, code`, propertyID)
 		if err != nil {
 			return err
 		}
@@ -135,7 +135,7 @@ func (s *Properties) Unit(ctx context.Context, id string) (domain.Unit, error) {
 	var u domain.Unit
 	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `
-			SELECT id::text, property_id::text, code::text, unit_kind, coalesce(floor, 0), occupancy,
+			SELECT id::text, property_id::text, code::text, unit_kind, floor, occupancy,
 			       coalesce(carpet_area_sqft, 0)::float8, coalesce(builtup_area_sqft, 0)::float8,
 			       coalesce(share_certificate_no, ''), coalesce(electricity_consumer_no, ''),
 			       coalesce(water_connection_no, ''),
@@ -163,7 +163,7 @@ func (s *Properties) Ancillaries(ctx context.Context, unitID string) ([]domain.U
 	var out []domain.Unit
 	err := tenancy.Scoped(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-			SELECT id::text, property_id::text, code::text, unit_kind, coalesce(floor, 0), occupancy
+			SELECT id::text, property_id::text, code::text, unit_kind, floor, occupancy
 			  FROM units
 			 WHERE parent_unit_id = $1::uuid AND state = 'active'
 			 ORDER BY code`, unitID)

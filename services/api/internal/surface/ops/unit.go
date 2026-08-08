@@ -22,7 +22,7 @@ type unitRecord struct {
 	ID                    string  `json:"id"`
 	Code                  string  `json:"code"`
 	Kind                  string  `json:"kind"`
-	Floor                 int     `json:"floor"`
+	Floor                 *int    `json:"floor,omitempty"`
 	Occupancy             string  `json:"occupancy"`
 	CarpetAreaSqft        float64 `json:"carpet_area_sqft,omitempty"`
 	BuiltupAreaSqft       float64 `json:"builtup_area_sqft,omitempty"`

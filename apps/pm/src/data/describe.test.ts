@@ -101,6 +101,45 @@ it('saving the flat sends the counts as numbers, and nothing for a blank one', a
   expect(mockDescribeUnit.mock.calls[0][1].balconies).toBeUndefined();
 });
 
+// A flat nobody has told us about is not on the ground floor (#358).
+it('reads the floor back, and sends the one the manager enters', async () => {
+  const { result } = await renderHook(() => useUnitDescription('u1'));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.floor).toBe('3');
+
+  await act(async () => { result.current.setFloor('0'); });
+  await act(async () => { await result.current.save(); });
+
+  expect(mockDescribeUnit.mock.calls[0][1].floor).toBe(0);
+});
+
+it('a floor left blank is sent as unrecorded, not as the ground floor', async () => {
+  mockUnit.mockResolvedValue({
+    unit: { id: 'u1', code: '3B', kind: 'flat', occupancy: 'vacant' },
+    property: { id: 'prop-1', name: 'Kadavanthra Heights' },
+    ancillaries: [],
+  });
+  const { result } = await renderHook(() => useUnitDescription('u1'));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.floor).toBe('');
+
+  await act(async () => { await result.current.save(); });
+  expect(mockDescribeUnit.mock.calls[0][1].floor).toBeUndefined();
+});
+
+// A basement is a floor; the counts beside it are not allowed to be negative.
+it('takes a basement floor and still refuses a negative count', async () => {
+  const { result } = await renderHook(() => useUnitDescription('u1'));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+
+  await act(async () => { result.current.setFloor('-1'); });
+  await act(async () => { await result.current.save(); });
+  expect(mockDescribeUnit.mock.calls[0][1].floor).toBe(-1);
+
+  await act(async () => { result.current.setBathrooms('-1'); });
+  await expect(result.current.save()).rejects.toThrow(/number/i);
+});
+
 it('a count that is not a number is refused before the server sees it', async () => {
   const { result } = await renderHook(() => useUnitDescription('u1'));
   await waitFor(() => expect(result.current.loading).toBe(false));

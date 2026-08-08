@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import ReceiptScreen from '../../app/receipt';
 
 // A screen reached without the thing it acts on is a dead end unless it hands
-// the manager the way back to one (#356).
+// the manager the way back to one (#357).
 
 const mockPush = jest.fn();
 

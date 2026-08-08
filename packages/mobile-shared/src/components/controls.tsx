@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, Pressable, TextInput, Switch, StyleProp, ViewStyle,
+  Alert, View, Text, StyleSheet, Pressable, TextInput, Switch, StyleProp, ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, font, radius, shadow, space } from '../theme/tokens';
@@ -63,6 +63,27 @@ export function Button({
       </Text>
     </Pressable>
   );
+}
+
+/**
+ * The way out of a record (#356). Retiring a building or a bed is not
+ * reversible from the app, so it is never one tap: the question names what is
+ * going and what survives it, and only the destructive choice acts.
+ */
+export function DangerAction({ label, title, body, confirm, onConfirm, disabled = false }: {
+  label: string;
+  title: string;
+  body: string;
+  confirm: string;
+  onConfirm: () => void;
+  disabled?: boolean;
+}) {
+  const ask = () =>
+    Alert.alert(title, body, [
+      { text: 'Keep it', style: 'cancel' },
+      { text: confirm, style: 'destructive', onPress: onConfirm },
+    ]);
+  return <Button label={label} tone="danger" onPress={ask} disabled={disabled} />;
 }
 
 /** The bar that carries the one decision on a detail screen. */
@@ -198,7 +219,7 @@ export function Field({
   onChange: (v: string) => void;
   placeholder?: string;
   multiline?: boolean;
-  keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'email-address';
+  keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'email-address' | 'numbers-and-punctuation';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   // Correction is opt-in: a name, a unit code and a PIN are data, and iOS
   // rewrote "Kavita" to "Kabila" on the way into the onboarding wizard.

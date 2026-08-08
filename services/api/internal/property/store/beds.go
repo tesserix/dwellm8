@@ -19,9 +19,10 @@ func (s *Properties) Beds(ctx context.Context, propertyID string) ([]domain.Bed,
 			SELECT b.id::text, b.label::text, u.id::text, u.code::text,
 			       coalesce(u.floor, 0), b.rent_amount_minor, b.state,
 			       coalesce(b.lease_id::text, ''),
-			       (SELECT count(*) FROM beds sib WHERE sib.unit_id = b.unit_id)
+			       (SELECT count(*) FROM beds sib
+			         WHERE sib.unit_id = b.unit_id AND sib.state <> 'retired')
 			  FROM beds b JOIN units u ON u.id = b.unit_id
-			 WHERE b.property_id = $1::uuid
+			 WHERE b.property_id = $1::uuid AND b.state <> 'retired'
 			 ORDER BY u.floor, u.code, b.label`, propertyID)
 		if err != nil {
 			return err

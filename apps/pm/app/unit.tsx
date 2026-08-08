@@ -82,7 +82,7 @@ export default function UnitScreen() {
             <Card>
               <KeyValue k="Reference" v={unit.code} />
               <KeyValue k="Kind" v={unit.kind} />
-              <KeyValue k="Floor" v={String(unit.floor)} />
+              <KeyValue k="Floor" v={floorOf(unit.floor)} />
               <KeyValue k="Occupancy" v={unit.occupancy.replace(/_/g, ' ')} />
               {unit.builtup_area_sqft ? (
                 <KeyValue k="Built-up area" v={`${Math.round(unit.builtup_area_sqft)} sq ft`} />
@@ -176,6 +176,10 @@ export default function UnitScreen() {
 
 // The record stores a vocabulary; a renter reads words.
 const words = (v: string) => v.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+
+// A flat nobody has told us about is not on the ground floor (#358).
+const floorOf = (f?: number) =>
+  f === undefined ? 'Not recorded' : f === 0 ? 'Ground' : String(f);
 
 const s = StyleSheet.create({
   rowBetween: {

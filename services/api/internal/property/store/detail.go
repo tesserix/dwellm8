@@ -31,6 +31,16 @@ func isCheck(err error) bool {
 	return errors.As(err, &pg) && pg.Code == "23514"
 }
 
+// checkMessage is what the guard said, so the manager reads the rule rather
+// than a status code.
+func checkMessage(err error) string {
+	var pg *pgconn.PgError
+	if errors.As(err, &pg) {
+		return pg.Message
+	}
+	return err.Error()
+}
+
 // SetPropertyDetail writes what the building is like. The amenity vocabulary
 // is a CHECK in the schema, so an unknown one comes back as an error rather
 // than as a filter that never matches.
@@ -67,10 +77,11 @@ func (s *Properties) SetUnitDetail(ctx context.Context, unitID string, d domain.
 		tag, err := tx.Exec(ctx, `
 			UPDATE units
 			   SET about = nullif(btrim($2), ''), features = $3::text[],
-			       bathrooms = $4, balconies = $5, covered_parking = $6,
-			       facing = nullif($7, ''), furnishing = nullif($8, ''), updated_at = now()
+			       floor = $4,
+			       bathrooms = $5, balconies = $6, covered_parking = $7,
+			       facing = nullif($8, ''), furnishing = nullif($9, ''), updated_at = now()
 			 WHERE id = $1::uuid AND state = 'active'`,
-			unitID, d.About, nonNil(d.Features),
+			unitID, d.About, nonNil(d.Features), d.Floor,
 			d.Bathrooms, d.Balconies, d.CoveredParking, d.Facing, d.Furnishing)
 		if err != nil {
 			return err

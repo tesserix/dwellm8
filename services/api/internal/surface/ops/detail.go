@@ -63,6 +63,7 @@ func (h *Handler) DescribeProperty(w http.ResponseWriter, r *http.Request) {
 type unitDetailRequest struct {
 	About          string   `json:"about"`
 	Features       []string `json:"features"`
+	Floor          *int     `json:"floor"`
 	Bathrooms      *int     `json:"bathrooms"`
 	Balconies      *int     `json:"balconies"`
 	CoveredParking *int     `json:"covered_parking"`
@@ -79,7 +80,7 @@ func (h *Handler) DescribeUnit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err := h.properties.DescribeUnit(r.Context(), id, propertyservice.UnitDetail{
-		About: strings.TrimSpace(req.About), Features: trimmed(req.Features),
+		About: strings.TrimSpace(req.About), Features: trimmed(req.Features), Floor: req.Floor,
 		Bathrooms: req.Bathrooms, Balconies: req.Balconies, CoveredParking: req.CoveredParking,
 		Facing: strings.TrimSpace(req.Facing), Furnishing: strings.TrimSpace(req.Furnishing),
 	})

@@ -89,7 +89,7 @@ export type OpsUnit = {
   id: string;
   code: string;
   kind: string;
-  floor: number;
+  floor?: number;
   occupancy: string;
   lease_id?: string;
   tenant?: string;
@@ -108,7 +108,7 @@ export type OpsUnitDetail = {
   id: string;
   code: string;
   kind: string;
-  floor: number;
+  floor?: number;
   occupancy: string;
   carpet_area_sqft?: number;
   builtup_area_sqft?: number;
@@ -1094,6 +1094,12 @@ export type ApiConfig = {
   getToken?: () => Promise<string | null>;
 };
 
+// Why something was retired, on the query string: a DELETE carries no body.
+function why(reason: string): string {
+  const r = reason.trim();
+  return r ? `?reason=${encodeURIComponent(r)}` : '';
+}
+
 /** ApiError carries the status and the server's own message, which is written
  * to be shown to a person rather than parsed. */
 // What the status means to somebody standing in a corridor, for the case where
@@ -1275,7 +1281,8 @@ export class DwellmApi {
 
   /** What a manager writes about one flat. */
   opsDescribeUnit(unitId: string, detail: {
-    about?: string; features?: string[]; bathrooms?: number; balconies?: number;
+    about?: string; features?: string[]; floor?: number;
+    bathrooms?: number; balconies?: number;
     covered_parking?: number; facing?: string; furnishing?: string;
   }): Promise<unknown> {
     return this.request('PUT', `/v1/ops/units/${encodeURIComponent(unitId)}/detail`, detail);
@@ -1298,6 +1305,34 @@ export class DwellmApi {
 
   opsRetirePlace(placeId: string): Promise<unknown> {
     return this.request('DELETE', `/v1/ops/places/${encodeURIComponent(placeId)}`);
+  }
+
+  /**
+   * Taking things off the book (#356). Nothing is deleted — the record stays
+   * readable and leaves the lists — and the server refuses, in words, to
+   * retire anything somebody is still living in.
+   */
+  opsRetireProperty(propertyId: string, reason: string): Promise<unknown> {
+    return this.request('DELETE',
+      `/v1/ops/properties/${encodeURIComponent(propertyId)}${why(reason)}`);
+  }
+
+  opsRetireUnit(unitId: string, reason: string): Promise<unknown> {
+    return this.request('DELETE', `/v1/ops/units/${encodeURIComponent(unitId)}${why(reason)}`);
+  }
+
+  opsRetireBed(bedId: string, reason: string): Promise<unknown> {
+    return this.request('DELETE', `/v1/ops/beds/${encodeURIComponent(bedId)}${why(reason)}`);
+  }
+
+  /** Stopping managing for an owner. They keep everything; the firm loses its keys. */
+  opsResignMandate(grantId: string): Promise<unknown> {
+    return this.request('DELETE', `/v1/ops/portfolios/${encodeURIComponent(grantId)}`);
+  }
+
+  /** Closing the firm's own account, once there is nothing left on its book. */
+  opsCloseFirm(reason: string): Promise<unknown> {
+    return this.request('POST', `/v1/ops/firm/closure${why(reason)}`);
   }
 
   /** The firm's own team: roles, people and who holds what (#353). */

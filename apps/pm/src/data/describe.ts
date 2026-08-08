@@ -25,12 +25,14 @@ export type UnitDescription = {
   name?: string;
   about: string;
   features: string[];
+  floor: string;
   bathrooms: string;
   balconies: string;
   coveredParking: string;
   facing: string;
   furnishing: string;
   setAbout: (s: string) => void;
+  setFloor: (s: string) => void;
   setBathrooms: (s: string) => void;
   setBalconies: (s: string) => void;
   setCoveredParking: (s: string) => void;
@@ -70,10 +72,17 @@ function switched(held: string[], value: string): string[] {
 // A blank count is "not recorded", which is not the same as none — the record
 // holds nothing rather than a zero somebody would read as no bathroom.
 function counted(label: string, raw: string): number | undefined {
+  const n = whole(label, raw);
+  if (n !== undefined && n < 0) throw new Error(`${label} has to be a number.`);
+  return n;
+}
+
+// A floor may be below ground — a basement is a floor, and 0 is the ground one.
+function whole(label: string, raw: string): number | undefined {
   const s = raw.trim();
   if (!s) return undefined;
   const n = Number(s);
-  if (!Number.isInteger(n) || n < 0) throw new Error(`${label} has to be a number.`);
+  if (!Number.isInteger(n)) throw new Error(`${label} has to be a number.`);
   return n;
 }
 
@@ -125,6 +134,7 @@ export function useUnitDescription(id: string | undefined): UnitDescription {
   const [name, setName] = useState<string | undefined>();
   const [about, setAbout] = useState('');
   const [features, setFeatures] = useState<string[]>([]);
+  const [floor, setFloor] = useState('');
   const [bathrooms, setBathrooms] = useState('');
   const [balconies, setBalconies] = useState('');
   const [coveredParking, setCoveredParking] = useState('');
@@ -144,6 +154,7 @@ export function useUnitDescription(id: string | undefined): UnitDescription {
         setName(unit.code);
         setAbout(unit.about ?? '');
         setFeatures(unit.features ?? []);
+        setFloor(unit.floor === undefined ? '' : String(unit.floor));
         setBathrooms(unit.bathrooms === undefined ? '' : String(unit.bathrooms));
         setBalconies(unit.balconies === undefined ? '' : String(unit.balconies));
         setCoveredParking(unit.covered_parking === undefined ? '' : String(unit.covered_parking));
@@ -161,18 +172,19 @@ export function useUnitDescription(id: string | undefined): UnitDescription {
     await api.opsDescribeUnit(id, {
       about: about.trim(),
       features,
+      floor: whole('Floor', floor),
       bathrooms: counted('Bathrooms', bathrooms),
       balconies: counted('Balconies', balconies),
       covered_parking: counted('Covered parking', coveredParking),
       facing,
       furnishing,
     });
-  }, [api, id, about, features, bathrooms, balconies, coveredParking, facing, furnishing]);
+  }, [api, id, about, features, floor, bathrooms, balconies, coveredParking, facing, furnishing]);
 
   return {
     loading, error, name, about, features,
-    bathrooms, balconies, coveredParking, facing, furnishing,
-    setAbout, setBathrooms, setBalconies, setCoveredParking, setFacing, setFurnishing,
+    floor, bathrooms, balconies, coveredParking, facing, furnishing,
+    setAbout, setFloor, setBathrooms, setBalconies, setCoveredParking, setFacing, setFurnishing,
     toggle: useCallback((f: string) => setFeatures((held) => switched(held, f)), []),
     save,
   };

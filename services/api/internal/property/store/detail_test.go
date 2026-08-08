@@ -89,6 +89,40 @@ func TestUnitDetail(t *testing.T) {
 		}
 	})
 
+	// The ground floor is an answer; no answer is not the ground floor (#358).
+	t.Run("the floor reads back, and one left out stays unrecorded", func(t *testing.T) {
+		flat := isolationtest.UnitSibling
+		seeded := 1
+		t.Cleanup(func() {
+			_ = s.SetUnitDetail(ctx, flat, domain.UnitDetail{Floor: &seeded})
+		})
+
+		for _, want := range []int{2, 0} {
+			floor := want
+			if err := s.SetUnitDetail(ctx, flat, domain.UnitDetail{Floor: &floor}); err != nil {
+				t.Fatalf("setting floor %d: %v", want, err)
+			}
+			got, err := s.Unit(ctx, flat)
+			if err != nil {
+				t.Fatalf("reading back floor %d: %v", want, err)
+			}
+			if got.Floor == nil || *got.Floor != want {
+				t.Errorf("floor = %v, want %d", got.Floor, want)
+			}
+		}
+
+		if err := s.SetUnitDetail(ctx, flat, domain.UnitDetail{About: "Over the car park."}); err != nil {
+			t.Fatalf("describing a flat without a floor: %v", err)
+		}
+		got, err := s.Unit(ctx, flat)
+		if err != nil {
+			t.Fatalf("reading a unit with no floor: %v", err)
+		}
+		if got.Floor != nil {
+			t.Errorf("floor = %d, want unrecorded", *got.Floor)
+		}
+	})
+
 	t.Run("a furnishing that is not one of the three is refused", func(t *testing.T) {
 		err := s.SetUnitDetail(ctx, isolationtest.UnitGrantedB, domain.UnitDetail{
 			Furnishing: "mostly",

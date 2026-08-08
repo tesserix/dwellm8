@@ -1,7 +1,8 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import {
-  AddressLookup, Avatar, BackHeader, Button, ChoiceRow, Field, KeyValue, ListRow, Metric,
+  AddressLookup, Avatar, BackHeader, Button, ChoiceRow, DangerAction, Field, KeyValue, ListRow, Metric,
   PhotoStrip, SearchBar, StatusPill, SwitchRow, SyncBadge, Timeline, Toast,
   toneColor, TriState,
 } from './controls';
@@ -241,7 +242,7 @@ describe('BackHeader', () => {
   });
 
   // A bare chevron on a white bar reads as no back button at all, and 32pt is
-  // under the 44pt a thumb needs (#356).
+  // under the 44pt a thumb needs (#357).
   it('gives the way back a target a thumb can find', async () => {
     await render(<BackHeader title="Ticket #4021" onBack={() => {}} />);
     expect(screen.getByRole('button', { name: 'Back' }))
@@ -332,5 +333,49 @@ describe('AddressLookup', () => {
     await render(<AddressLookup search={jest.fn().mockResolvedValue([])} onPick={jest.fn()} />);
     await fireEvent.changeText(screen.getByLabelText('Search for the address'), 'zzzzzzzz');
     await waitFor(() => expect(screen.getByText(/no match/i)).toBeTruthy());
+  });
+});
+
+describe('DangerAction', () => {
+  // Nothing irreversible-looking may happen on one tap, and the question has to
+  // name what is going — "Are you sure?" tells a manager nothing (#356).
+  it('asks before it acts, naming the thing', async () => {
+    const spy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const onConfirm = jest.fn();
+
+    await render(
+      <DangerAction
+        label="Retire this building"
+        title="Retire Kadavanthra Heights?"
+        body="It leaves your lists. Its tenancies, ledger and documents stay readable."
+        confirm="Retire"
+        onConfirm={onConfirm}
+      />,
+    );
+    await fireEvent.press(screen.getByRole('button', { name: 'Retire this building' }));
+
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledWith(
+      'Retire Kadavanthra Heights?',
+      'It leaves your lists. Its tenancies, ledger and documents stay readable.',
+      expect.arrayContaining([expect.objectContaining({ text: 'Retire', style: 'destructive' })]),
+    );
+    spy.mockRestore();
+  });
+
+  it('acts only when the destructive choice is taken', async () => {
+    const onConfirm = jest.fn();
+    const spy = jest.spyOn(Alert, 'alert').mockImplementation((_t, _b, buttons) => {
+      buttons?.find((b) => b.style === 'destructive')?.onPress?.();
+    });
+
+    await render(
+      <DangerAction label="Retire this bed" title="Retire B-2?" body="" confirm="Retire"
+        onConfirm={onConfirm} />,
+    );
+    await fireEvent.press(screen.getByRole('button', { name: 'Retire this bed' }));
+
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
   });
 });

@@ -101,10 +101,13 @@ export default function DescribeScreen() {
             {unit ? (
               <>
                 <Card>
-                  <Text style={s.h}>How many</Text>
+                  <Text style={s.h}>Where it is, and how many</Text>
                   <Text style={s.note}>
-                    Left blank means not recorded, which is not the same as none.
+                    Left blank means not recorded, which is not the same as none. The
+                    ground floor is 0, a basement is -1.
                   </Text>
+                  <Field label="Floor" value={flat.floor} onChange={flat.setFloor}
+                    keyboardType="numbers-and-punctuation" />
                   <Field label="Bathrooms" value={flat.bathrooms} onChange={flat.setBathrooms}
                     keyboardType="numeric" />
                   <Field label="Balconies" value={flat.balconies} onChange={flat.setBalconies}

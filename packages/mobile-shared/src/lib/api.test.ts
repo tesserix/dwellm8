@@ -683,3 +683,46 @@ describe('DwellmApi — the firm’s own team (#353)', () => {
     expect(await new DwellmApi({ baseUrl }).opsRota('s1')).toEqual([]);
   });
 });
+
+describe('DwellmApi — taking things off the book (#356)', () => {
+  const baseUrl = 'https://api.example.test';
+
+  it('retiring a building, a home and a bed each DELETE their own record', async () => {
+    const fetchMock = mockFetch({}, 204);
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const api = new DwellmApi({ baseUrl });
+
+    await api.opsRetireProperty('p1', 'sold');
+    await api.opsRetireUnit('u1', '');
+    await api.opsRetireBed('b1', 'room knocked through');
+
+    expect(fetchMock.mock.calls.map((c) => [c[0], (c[1] as RequestInit).method])).toEqual([
+      [`${baseUrl}/v1/ops/properties/p1?reason=sold`, 'DELETE'],
+      [`${baseUrl}/v1/ops/units/u1`, 'DELETE'],
+      [`${baseUrl}/v1/ops/beds/b1?reason=room%20knocked%20through`, 'DELETE'],
+    ]);
+  });
+
+  it('resigning a mandate names the grant, and closing the firm is its own act', async () => {
+    const fetchMock = mockFetch({}, 204);
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const api = new DwellmApi({ baseUrl });
+
+    await api.opsResignMandate('g1');
+    await api.opsCloseFirm('stopped letting');
+
+    expect(fetchMock.mock.calls.map((c) => [c[0], (c[1] as RequestInit).method])).toEqual([
+      [`${baseUrl}/v1/ops/portfolios/g1`, 'DELETE'],
+      [`${baseUrl}/v1/ops/firm/closure?reason=stopped%20letting`, 'POST'],
+    ]);
+  });
+
+  it('gives back the guard’s own sentence when the tenant is still there', async () => {
+    global.fetch = mockFetch(
+      { error: 'a home somebody is living in cannot be retired' }, 422,
+    ) as unknown as typeof fetch;
+
+    await expect(new DwellmApi({ baseUrl }).opsRetireUnit('u1', ''))
+      .rejects.toThrow('a home somebody is living in cannot be retired');
+  });
+});

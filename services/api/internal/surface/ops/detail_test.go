@@ -79,7 +79,7 @@ func TestTheFirmDescribesAFlatAndReadsItBack(t *testing.T) {
 	w := callWith(t, mux, isolationtest.OrgOwner, http.MethodPut,
 		"/v1/ops/units/"+isolationtest.UnitGrantedA+"/detail",
 		`{"about":"Living room over the park.","features":["modular_kitchen"],
-		  "bathrooms":2,"balconies":1,"covered_parking":1,
+		  "floor":1,"bathrooms":2,"balconies":1,"covered_parking":1,
 		  "facing":"north","furnishing":"semi_furnished"}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("describing the flat: %d %s", w.Code, w.Body.String())
@@ -94,12 +94,16 @@ func TestTheFirmDescribesAFlatAndReadsItBack(t *testing.T) {
 		Unit struct {
 			About      string   `json:"about"`
 			Features   []string `json:"features"`
+			Floor      *int     `json:"floor"`
 			Bathrooms  *int     `json:"bathrooms"`
 			Facing     string   `json:"facing"`
 			Furnishing string   `json:"furnishing"`
 		} `json:"unit"`
 	}
 	decode(t, w, &out)
+	if out.Unit.Floor == nil || *out.Unit.Floor != 1 {
+		t.Errorf("floor = %v, want 1", out.Unit.Floor)
+	}
 	if out.Unit.Bathrooms == nil || *out.Unit.Bathrooms != 2 {
 		t.Errorf("bathrooms = %v, want 2", out.Unit.Bathrooms)
 	}

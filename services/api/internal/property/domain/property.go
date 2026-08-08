@@ -38,7 +38,6 @@ type Unit struct {
 	PropertyID string
 	Code       string
 	Kind       string
-	Floor      int
 	Occupancy  string
 	CarpetSqf  float64
 	// Set on a unit read one at a time; the list read leaves them empty.
@@ -51,10 +50,12 @@ type Unit struct {
 
 // UnitDetail is what the flat is like (#354). The counts are pointers because
 // "no bathroom recorded" and "no bathroom" are different answers, and only one
-// of them should be shown to a renter.
+// of them should be shown to a renter. Floor reads the same way: a flat nobody
+// has told us about is not on the ground floor (#358).
 type UnitDetail struct {
 	About          string
 	Features       []string
+	Floor          *int
 	Bathrooms      *int
 	Balconies      *int
 	CoveredParking *int

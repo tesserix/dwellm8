@@ -58,6 +58,26 @@ func (o *Owners) PreOnboard(ctx context.Context, req OwnerOnboarding) (OwnerOnbo
 	return out, nil
 }
 
+// Resign ends the firm's own mandate over an owner. store.ErrNoMandate when
+// the firm does not hold it, or has already put it down.
+func (o *Owners) Resign(ctx context.Context, firmOrgID, grantID string) error {
+	if err := o.principals.ResignMandate(ctx, firmOrgID, grantID); err != nil {
+		return err
+	}
+	o.log.Info("mandate resigned", "firm", firmOrgID, "grant", grantID)
+	return nil
+}
+
+// Close closes the firm itself. store.ErrNotAllowed while a tenancy is live or
+// a mandate still stands.
+func (o *Owners) Close(ctx context.Context, firmOrgID, reason string) error {
+	if err := o.principals.CloseFirm(ctx, firmOrgID, reason); err != nil {
+		return err
+	}
+	o.log.Info("firm closed", "firm", firmOrgID)
+	return nil
+}
+
 // ProfileByParty reads a party's self-presented profile.
 func (o *Owners) ProfileByParty(ctx context.Context, partyID string) (Profile, error) {
 	return o.principals.ProfileByParty(ctx, partyID)

@@ -125,6 +125,22 @@ func (p *Properties) RetirePlace(ctx context.Context, id string) error {
 	return p.store.RetirePlace(ctx, id)
 }
 
+// Retire takes a building off the book. ErrNotAllowed while somebody is
+// living in it.
+func (p *Properties) Retire(ctx context.Context, propertyID, reason string) error {
+	return p.store.RetireProperty(ctx, propertyID, reason)
+}
+
+// RetireUnit takes one home out of the list.
+func (p *Properties) RetireUnit(ctx context.Context, unitID, reason string) error {
+	return p.store.RetireUnit(ctx, unitID, reason)
+}
+
+// RetireBed takes a bed off the board.
+func (p *Properties) RetireBed(ctx context.Context, bedID, reason string) error {
+	return p.store.RetireBed(ctx, bedID, reason)
+}
+
 // Bed is what is let in a hostel or a PG.
 type Bed = domain.Bed
 
